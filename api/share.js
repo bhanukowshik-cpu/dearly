@@ -1,12 +1,15 @@
 export default function handler(req, res) {
-  const { r = 'Friend', s = 'Someone', share = '' } = req.query
+  const { r = 'Friend', s = 'Someone', id = '', share = '' } = req.query
 
   const recipientName = decodeURIComponent(r)
   const senderName    = decodeURIComponent(s)
 
   const baseUrl  = `https://${req.headers.host}`
   const ogImage  = `${baseUrl}/api/og?r=${encodeURIComponent(recipientName)}&s=${encodeURIComponent(senderName)}`
-  const noteUrl  = `${baseUrl}/?share=${encodeURIComponent(share)}`
+  // Support both new short ?id= links and legacy ?share= links
+  const noteUrl  = id
+    ? `${baseUrl}/?id=${encodeURIComponent(id)}`
+    : `${baseUrl}/?share=${encodeURIComponent(share)}`
   const title    = `${senderName} wrote you a note`
   const description = `Hi ${recipientName}, open this to read the note ${senderName} wrote just for you — on Dearly.`
 

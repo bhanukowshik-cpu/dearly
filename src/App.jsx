@@ -4,6 +4,7 @@ import LoadingScreen    from './components/LoadingScreen/LoadingScreen'
 import WritingScreen    from './components/WritingScreen/WritingScreen'
 import RecipientScreen  from './components/RecipientScreen/RecipientScreen'
 import { decodeNote }   from './lib/shareUtils'
+import { getNoteById }  from './lib/supabase'
 import { STICKER_REGISTRY } from './components/WritingScreen/handDrawnStickers'
 import './App.css'
 
@@ -65,16 +66,27 @@ export default function App() {
   const [recipientData, setRecipientData] = useState(null)
   const [previewData,   setPreviewData]   = useState(null)
 
-  // Handle ?share=<encoded> links — open directly as recipient
+  // Handle shared links — ?id=<uuid> (new) or ?share=<base64> (legacy)
   useEffect(() => {
-    const param = new URLSearchParams(window.location.search).get('share')
-    if (!param) return
-    const noteData = rehydrateStickers(decodeNote(param))
-    if (noteData) {
-      setRecipientData(noteData)
-      setScreen('recipient')
-      // Clean URL without reloading
-      window.history.replaceState({}, '', window.location.pathname)
+    const params = new URLSearchParams(window.location.search)
+    const id     = params.get('id')
+    const share  = params.get('share')
+
+    if (id) {
+      getNoteById(id).then(noteData => {
+        if (noteData) {
+          setRecipientData(rehydrateStickers(noteData))
+          setScreen('recipient')
+          window.history.replaceState({}, '', window.location.pathname)
+        }
+      })
+    } else if (share) {
+      const noteData = rehydrateStickers(decodeNote(share))
+      if (noteData) {
+        setRecipientData(noteData)
+        setScreen('recipient')
+        window.history.replaceState({}, '', window.location.pathname)
+      }
     }
   }, [])
 

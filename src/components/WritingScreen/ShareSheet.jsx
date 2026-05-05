@@ -59,22 +59,35 @@ function IconClose() {
 
 // ── ShareSheet ──────────────────────────────────────────────────────────────
 export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet = false }) {
-  const [linkUrl,    setLinkUrl]    = useState('')
-  const [copied,     setCopied]     = useState(false)
-  const [loadingPng, setLoadingPng] = useState(false)
-  const [exportErr,  setExportErr]  = useState('')
+  const [linkUrl,      setLinkUrl]      = useState('')
+  const [copied,       setCopied]       = useState(false)
+  const [creatingLink, setCreatingLink] = useState(false)
+  const [linkErr,      setLinkErr]      = useState('')
+  const [loadingPng,   setLoadingPng]   = useState(false)
+  const [exportErr,    setExportErr]    = useState('')
   const copiedTimerRef = useRef(null)
 
   useEffect(() => () => {
     if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current)
   }, [])
 
-  const handleCreateLink = useCallback(() => {
-    const url = generateShareUrl(noteData)
-    setLinkUrl(url)
-    setCopied(false)
-    saveNote(noteData, url)
-  }, [noteData])
+  const handleCreateLink = useCallback(async () => {
+    if (creatingLink) return
+    setCreatingLink(true)
+    setLinkErr('')
+    try {
+      const id = await saveNote(noteData)
+      if (!id) {
+        setLinkErr('Could not save note — please try again.')
+        return
+      }
+      const url = generateShareUrl(id, noteData)
+      setLinkUrl(url)
+      setCopied(false)
+    } finally {
+      setCreatingLink(false)
+    }
+  }, [noteData, creatingLink])
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(linkUrl).then(() => {
@@ -115,7 +128,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet 
 
         {/* ── Create link ── */}
         <div className={styles.optionGroup}>
-          <button className={styles.option} onClick={handleCreateLink}>
+          <button className={styles.option} onClick={handleCreateLink} disabled={creatingLink}>
             <svg className={styles.optionBorder} viewBox="0 0 290 54" preserveAspectRatio="none" fill="none" aria-hidden>
               <path d="M 9,4  C 97,2  193,2  281,4"   stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
               <path d="M 281,4 C 284,20 284,34 281,50" stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
@@ -124,7 +137,9 @@ export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet 
             </svg>
             <span className={styles.optionIcon}><IconLink /></span>
             <span className={styles.optionText}>
-              <span className={styles.optionLabel}>Create a shareable link</span>
+              <span className={styles.optionLabel}>
+                {creatingLink ? 'Creating link…' : 'Create a shareable link'}
+              </span>
             </span>
           </button>
 
@@ -152,6 +167,25 @@ export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet 
                   <span>{copied ? 'Copied!' : 'Copy'}</span>
                 </button>
               </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {linkErr && (
+              <motion.p
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{
+                  margin: '4px 16px 0',
+                  fontSize: 12,
+                  color: 'rgba(255, 120, 100, 0.90)',
+                  fontFamily: 'Inter, sans-serif',
+                }}
+              >
+                {linkErr}
+              </motion.p>
             )}
           </AnimatePresence>
         </div>

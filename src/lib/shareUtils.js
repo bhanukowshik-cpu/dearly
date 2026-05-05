@@ -15,13 +15,11 @@ export function decodeNote(encoded) {
   }
 }
 
-export function generateShareUrl(noteData) {
-  const base = new URL(window.location.href)
+export function generateShareUrl(id, noteData) {
+  const base = new URL(window.location.origin)
   base.pathname = '/api/share'
-  base.search   = ''
-  base.hash     = ''
+  base.searchParams.set('id', id)
   base.searchParams.set('r', noteData.recipientName || '')
   base.searchParams.set('s', noteData.senderName    || '')
-  base.searchParams.set('share', encodeNote(noteData))
   return base.toString()
 }
