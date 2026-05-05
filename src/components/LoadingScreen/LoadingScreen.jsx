@@ -43,14 +43,18 @@ const caveatStyle = (size, color, weight = 700) => ({
 
 export default function LoadingScreen({ onCta = () => {} }) {
   // When reduced motion is on, start in the "done" state so content appears instantly
-  const [writeStarted,      setWriteStarted]      = useState(reducedMotion)
-  const [writeDone,         setWriteDone]         = useState(reducedMotion)
-  const [cardVisible,       setCardVisible]       = useState(false)
-  const [greetingDone,      setGreetingDone]      = useState(reducedMotion)
+  const [writeStarted,       setWriteStarted]       = useState(reducedMotion)
+  const [writeDone,          setWriteDone]          = useState(reducedMotion)
+  const [cardVisible,        setCardVisible]        = useState(false)
+  const [greetingDone,       setGreetingDone]       = useState(reducedMotion)
+  // Safari: canvas gets cleared when the layout animation fires — fall back to
+  // plain Caveat text for "Dearly," if the animation hasn't finished by then
+  const [heroFallback,       setHeroFallback]       = useState(reducedMotion)
+  // Safari: "Hi there," TegakiRenderer silently fails — fall back to Caveat text
   const [greetingAnimFailed, setGreetingAnimFailed] = useState(reducedMotion)
 
-  // Track whether the animation completed naturally (vs timeout)
-  const animFinished    = useRef(reducedMotion)
+  // Track whether each animation completed naturally (vs timeout)
+  const animFinished     = useRef(reducedMotion)
   const greetingFinished = useRef(reducedMotion)
 
   // Kick off the Dearly, handwriting after a beat (skip if reduced motion)
@@ -87,6 +91,13 @@ export default function LoadingScreen({ onCta = () => {} }) {
     return () => clearTimeout(id)
   }, [writeDone])
 
+  // When the hero layout-shift fires, Safari's compositing clears the canvas.
+  // Switch "Dearly," to plain text at that moment if TegakiRenderer didn't finish.
+  useEffect(() => {
+    if (!cardVisible || animFinished.current) return
+    setHeroFallback(true)
+  }, [cardVisible])
+
   // When card appears in reduced-motion mode, immediately mark greeting done
   useEffect(() => {
     if (!reducedMotion || !cardVisible) return
@@ -110,7 +121,7 @@ export default function LoadingScreen({ onCta = () => {} }) {
       >
         <div className={styles.heroTitle}>
           {writeStarted && (
-            reducedMotion ? (
+            heroFallback ? (
               <span style={caveatStyle('clamp(52px, 7vw, 82px)', '#ffffff')}>
                 Dearly,
               </span>
