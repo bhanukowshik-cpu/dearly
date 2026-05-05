@@ -25,6 +25,10 @@ function CardSticker({ children, style }) {
   )
 }
 
+const prefersReducedMotion =
+  typeof window !== 'undefined' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
 export default function LoadingScreen({ onCta = () => {} }) {
   const [writeStarted, setWriteStarted] = useState(false)
   const [writeDone,    setWriteDone]    = useState(false)
@@ -36,6 +40,22 @@ export default function LoadingScreen({ onCta = () => {} }) {
     const id = setTimeout(() => setWriteStarted(true), 350)
     return () => clearTimeout(id)
   }, [])
+
+  // Safety timeout: if TegakiRenderer never calls onComplete (reduced-motion,
+  // font-load failure, Safari quirk), force writeDone after 2.5 s so the card
+  // and CTA still appear.
+  useEffect(() => {
+    if (writeDone) return
+    const id = setTimeout(() => setWriteDone(true), 2500)
+    return () => clearTimeout(id)
+  }, [writeDone])
+
+  // Safety timeout for the card greeting (same rationale as writeDone above)
+  useEffect(() => {
+    if (!cardVisible || greetingDone) return
+    const id = setTimeout(() => setGreetingDone(true), 1500)
+    return () => clearTimeout(id)
+  }, [cardVisible, greetingDone])
 
   // After Dearly, is done → reveal the card at full height
   useEffect(() => {

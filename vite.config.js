@@ -59,6 +59,9 @@ export default defineConfig(({ mode }) => {
         'react-dom': resolve('./node_modules/react-dom'),
       },
     },
+    build: {
+      target: ['es2020', 'safari14'],
+    },
     // Transpile for Safari 14+ compatibility in dev mode
     esbuild: {
       target: ['es2020', 'safari14'],
