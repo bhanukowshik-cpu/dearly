@@ -43,13 +43,15 @@ const caveatStyle = (size, color, weight = 700) => ({
 
 export default function LoadingScreen({ onCta = () => {} }) {
   // When reduced motion is on, start in the "done" state so content appears instantly
-  const [writeStarted, setWriteStarted] = useState(reducedMotion)
-  const [writeDone,    setWriteDone]    = useState(reducedMotion)
-  const [cardVisible,  setCardVisible]  = useState(false)
-  const [greetingDone, setGreetingDone] = useState(reducedMotion)
+  const [writeStarted,      setWriteStarted]      = useState(reducedMotion)
+  const [writeDone,         setWriteDone]         = useState(reducedMotion)
+  const [cardVisible,       setCardVisible]       = useState(false)
+  const [greetingDone,      setGreetingDone]      = useState(reducedMotion)
+  const [greetingAnimFailed, setGreetingAnimFailed] = useState(reducedMotion)
 
   // Track whether the animation completed naturally (vs timeout)
-  const animFinished = useRef(reducedMotion)
+  const animFinished    = useRef(reducedMotion)
+  const greetingFinished = useRef(reducedMotion)
 
   // Kick off the Dearly, handwriting after a beat (skip if reduced motion)
   useEffect(() => {
@@ -66,10 +68,14 @@ export default function LoadingScreen({ onCta = () => {} }) {
     return () => clearTimeout(id)
   }, [writeDone])
 
-  // Safety timeout for the card greeting
+  // Safety timeout for the card greeting — if TegakiRenderer never calls
+  // onComplete (silent Safari failure), mark it failed so we show the Caveat fallback.
   useEffect(() => {
     if (reducedMotion || !cardVisible || greetingDone) return
-    const id = setTimeout(() => setGreetingDone(true), 1500)
+    const id = setTimeout(() => {
+      if (!greetingFinished.current) setGreetingAnimFailed(true)
+      setGreetingDone(true)
+    }, 1500)
     return () => clearTimeout(id)
   }, [cardVisible, greetingDone])
 
@@ -158,14 +164,14 @@ export default function LoadingScreen({ onCta = () => {} }) {
 
                 {/* Greeting */}
                 <div className={styles.greeting}>
-                  {reducedMotion ? (
+                  {reducedMotion || greetingAnimFailed ? (
                     <span style={caveatStyle('clamp(24px, 3.2vw, 34px)', '#1A2A3A')}>
                       Hi there,
                     </span>
                   ) : (
                     <TegakiRenderer
                       font={font}
-                      onComplete={() => setGreetingDone(true)}
+                      onComplete={() => { greetingFinished.current = true; setGreetingDone(true) }}
                       time={{ mode: 'uncontrolled', duration: 0.8 }}
                       style={{
                         fontSize:   'clamp(24px, 3.2vw, 34px)',
