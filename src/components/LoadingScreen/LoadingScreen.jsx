@@ -47,6 +47,9 @@ export default function LoadingScreen({ onCta = () => {} }) {
   const [writeDone,    setWriteDone]    = useState(reducedMotion)
   const [cardVisible,  setCardVisible]  = useState(false)
   const [greetingDone, setGreetingDone] = useState(reducedMotion)
+  // Safari: canvas gets cleared when the layout animation fires — fall back to
+  // plain Caveat text for "Dearly," if the animation hasn't finished by then
+  const [heroFallback, setHeroFallback] = useState(reducedMotion)
 
   // Track whether the animation completed naturally (vs timeout)
   const animFinished = useRef(reducedMotion)
@@ -81,6 +84,13 @@ export default function LoadingScreen({ onCta = () => {} }) {
     return () => clearTimeout(id)
   }, [writeDone])
 
+  // When the hero layout-shift fires, Safari's compositing clears the canvas.
+  // Switch "Dearly," to plain text at that moment if TegakiRenderer didn't finish.
+  useEffect(() => {
+    if (!cardVisible || animFinished.current) return
+    setHeroFallback(true)
+  }, [cardVisible])
+
   // When card appears in reduced-motion mode, immediately mark greeting done
   useEffect(() => {
     if (!reducedMotion || !cardVisible) return
@@ -104,7 +114,7 @@ export default function LoadingScreen({ onCta = () => {} }) {
       >
         <div className={styles.heroTitle}>
           {writeStarted && (
-            reducedMotion ? (
+            heroFallback ? (
               <span style={caveatStyle('clamp(52px, 7vw, 82px)', '#ffffff')}>
                 Dearly,
               </span>
@@ -119,7 +129,6 @@ export default function LoadingScreen({ onCta = () => {} }) {
                   fontWeight: 700,
                   whiteSpace: 'nowrap',
                   lineHeight: 1,
-                  willChange: 'transform',
                 }}
               >
                 Dearly,
