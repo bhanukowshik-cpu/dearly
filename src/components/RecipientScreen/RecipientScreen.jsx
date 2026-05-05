@@ -14,8 +14,6 @@ const MUSIC_TRACKS = [
   'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/music/Soft%20Music%201.mp3',
   'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/music/the-paths-we-walk-aylex-main-version-29711-02-43.mp3',
   'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/music/earth-in-bloom-richard-bodgers-main-version-00-59-7489.mp3',
-  'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/music/Alon%20Peretz%20-%20Keep%20the%20Sun%20Down.mp3',
-  'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/music/Itay%20Kashti%20-%20A%20Postcard%20from%20Home.mp3',
 ]
 
 function makeAmbient() {
