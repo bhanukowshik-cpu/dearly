@@ -314,6 +314,7 @@
   top: 0;
   max-height: calc(100vh - 52px - 80px);
   overflow-y: auto;
+  overflow-x: hidden; /* Safari: clip grid overflow so all 4 sticker columns fit */
   scrollbar-width: none;
 }
 .rightSidebar::-webkit-scrollbar { display: none; }

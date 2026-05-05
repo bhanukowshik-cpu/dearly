@@ -10,6 +10,8 @@
   padding-left: 6px;
   padding-right: 6px;
   box-sizing: border-box;
+  /* Safari: clip any grid overflow so the 4th column is never cut off */
+  overflow: hidden;
 }
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
@@ -61,6 +63,7 @@
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 10px;
   width: 100%;
+  min-width: 0; /* Safari: prevent grid item from exceeding its 1fr column */
   aspect-ratio: 1;
   padding: 7px;
   display: flex;
