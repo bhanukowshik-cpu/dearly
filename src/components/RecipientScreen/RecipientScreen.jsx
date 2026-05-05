@@ -497,7 +497,12 @@ export default function RecipientScreen({
     if (elevenAudio.current) { elevenAudio.current.pause(); elevenAudio.current = null }
   }, [])
 
-  const openNote         = useCallback(() => setPhase('opening'), [])
+  const openNote         = useCallback(() => {
+    setPhase('opening')
+    if (!musicOn) {
+      ambientRef.current?.play(0.08).then(() => setMusicOn(true)).catch(() => {})
+    }
+  }, [musicOn])
   const handleUnfoldDone = useCallback(() => setPhase('letter'),  [])
 
   const toggleMusic = useCallback(() => {

@@ -321,7 +321,9 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               <span>{recipientName ? `${recipientName.length > 14 ? recipientName.slice(0, 14) + '…' : recipientName}'s view` : "Preview"}</span>
             </motion.button>
           ) : (
-            <span className={styles.topBarLogo}>Dearly</span>
+            <span className={styles.topBarBrand}>dearly</span>
+            <span className={styles.topBarSep}>|</span>
+            <span className={styles.topBarTagline}>Letters people actually keep.</span>
           )}
         </div>
         <div className={styles.topBarRight}>
