@@ -4,7 +4,19 @@ import LoadingScreen    from './components/LoadingScreen/LoadingScreen'
 import WritingScreen    from './components/WritingScreen/WritingScreen'
 import RecipientScreen  from './components/RecipientScreen/RecipientScreen'
 import { decodeNote }   from './lib/shareUtils'
+import { STICKER_REGISTRY } from './components/WritingScreen/handDrawnStickers'
 import './App.css'
+
+function rehydrateStickers(noteData) {
+  if (!noteData?.stickers?.length) return noteData
+  return {
+    ...noteData,
+    stickers: noteData.stickers.map(s => ({
+      ...s,
+      Component: s.Component ?? STICKER_REGISTRY[s.id],
+    })),
+  }
+}
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -57,7 +69,7 @@ export default function App() {
   useEffect(() => {
     const param = new URLSearchParams(window.location.search).get('share')
     if (!param) return
-    const noteData = decodeNote(param)
+    const noteData = rehydrateStickers(decodeNote(param))
     if (noteData) {
       setRecipientData(noteData)
       setScreen('recipient')
