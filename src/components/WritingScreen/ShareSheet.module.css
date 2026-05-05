@@ -1,0 +1,214 @@
+/* ── Dropdown panel ──────────────────────────────────────────────────────── */
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 300;
+  width: 320px;
+  background: rgba(10, 16, 30, 0.97);
+  border-radius: 16px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.55), 0 6px 18px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* SVG hand-drawn border overlay */
+.border {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* ── Options ─────────────────────────────────────────────────────────────── */
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.optionGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.14s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.option:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.optionBorder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.option:disabled {
+  opacity: 0.50;
+  cursor: default;
+}
+
+.optionIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.60);
+  flex-shrink: 0;
+}
+
+.optionText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.optionLabel {
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.88);
+  letter-spacing: 0.02em;
+}
+
+.optionSub {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.32);
+  letter-spacing: 0.01em;
+}
+
+/* ── Link row ────────────────────────────────────────────────────────────── */
+
+.linkRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  margin-top: 4px;
+  padding: 0 2px;
+}
+
+.linkInput {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.50);
+  font-family: 'Inter', sans-serif;
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  padding: 7px 9px;
+  outline: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.65);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.copyBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.20);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.copyBtnDone {
+  background: rgba(100, 210, 140, 0.13);
+  border-color: rgba(100, 210, 140, 0.26);
+  color: rgba(140, 230, 170, 0.88);
+}
+
+.copyBtnDone:hover {
+  background: rgba(100, 210, 140, 0.19);
+  border-color: rgba(100, 210, 140, 0.36);
+}
+
+/* ── Mobile — dropdown becomes a bottom sheet ─────────────────────────────── */
+
+@media (max-width: 860px) {
+  /* Rendered at root level (outside topBar) so position:fixed works vs viewport */
+  .dropdown {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    /* Reset the desktop absolute positioning */
+    top: unset;
+    width: 100%;
+    border-radius: 24px 24px 0 0;
+    z-index: 300;
+    padding-top: 20px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  }
+
+  /* Drag-handle indicator at top of bottom sheet */
+  .dropdown::before {
+    content: '';
+    display: block;
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  .border {
+    border-radius: 24px 24px 0 0;
+  }
+}

@@ -1,0 +1,163 @@
+/* ── Wrap ─────────────────────────────────────────────────────────────────── */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding-top: 4px;
+  /* left padding so scaled buttons don't clip against the scroll container */
+  padding-left: 6px;
+  padding-right: 6px;
+  box-sizing: border-box;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.title {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.limitNote {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  color: rgba(255, 200, 120, 0.65);
+}
+
+/* ── Featured row ────────────────────────────────────────────────────────── */
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 4px 0 6px;
+}
+
+/* ── Expanded grid ───────────────────────────────────────────────────────── */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  overflow: hidden;
+  padding: 0 0 8px;
+}
+
+/* ── Sticker button ──────────────────────────────────────────────────────── */
+
+.stickerBtn {
+  background: rgba(252, 246, 235, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18), 0 3px 8px rgba(0,0,0,0.10);
+}
+
+.stickerBtn svg {
+  width: 100%;
+  height: 100%;
+}
+
+.stickerBtn:hover {
+  background: #FDF8EF;
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.22), 0 4px 14px rgba(0,0,0,0.14);
+}
+
+.stickerBtnDisabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+/* ── More button ─────────────────────────────────────────────────────────── */
+
+.moreBtn {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.moreBtn:hover {
+  background: rgba(255, 255, 255, 0.11);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: none;
+}
+
+.moreBtnActive {
+  background: rgba(120, 160, 255, 0.14);
+  border-color: rgba(120, 160, 255, 0.32);
+}
+
+.showFew {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(120, 160, 255, 0.75);
+  letter-spacing: 0.03em;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.showFew:hover {
+  color: rgba(120, 160, 255, 1);
+}
+
+.moreDots {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1;
+  padding-bottom: 4px;
+}
+
+.showLess {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(120, 160, 255, 0.75);
+  letter-spacing: 0.03em;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.showLess:hover {
+  color: rgba(120, 160, 255, 1);
+}
+
+/* ── Hint ────────────────────────────────────────────────────────────────── */
+
+.hint {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.22);
+  margin: 0;
+  letter-spacing: 0.02em;
+}

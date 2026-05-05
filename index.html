@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dearly — Turn what you write into something worth sending.</title>
+    <meta name="description" content="Turn what you write into something worth sending." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+    <!--
+      Safari fix: Tegaki calls new FontFace(family, url, { featureSettings: "'calt' 0, 'liga' 0" })
+      Safari rejects that featureSettings with SyntaxError. Use a Proxy construct-trap
+      to strip featureSettings before Safari's FontFace engine sees it.
+    -->
+    <script>
+      (function () {
+        if (typeof FontFace === 'undefined' || typeof Proxy === 'undefined') return;
+        window.FontFace = new Proxy(FontFace, {
+          construct: function (Target, args) {
+            if (args[2] && args[2].featureSettings !== undefined) {
+              var cleaned = Object.assign({}, args[2]);
+              delete cleaned.featureSettings;
+              args = [args[0], args[1], cleaned];
+            }
+            return Reflect.construct(Target, args);
+          }
+        });
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

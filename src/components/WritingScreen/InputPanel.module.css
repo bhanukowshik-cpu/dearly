@@ -1,0 +1,749 @@
+/* ── Panel container ─────────────────────────────────────────────────────── */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Input box — the "hand-drawn" card container
+   ───────────────────────────────────────────────────────────────────────── */
+
+.msgWrapper {
+  position: relative;
+}
+
+.box {
+  position: relative;
+  background: rgba(255, 255, 255, 0.055);
+  border-radius: 18px 20px 17px 19px / 19px 17px 20px 18px;
+  border: 1.5px solid rgba(255, 255, 255, 0.11);
+  padding: 18px 18px 14px;
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow:
+    0 2px 8px  rgba(0, 0, 0, 0.14),
+    0 12px 32px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.box:focus-within {
+  border-color: rgba(255, 255, 255, 0.20);
+  box-shadow:
+    0 2px 8px  rgba(0, 0, 0, 0.18),
+    0 16px 40px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+/* ── Box header ──────────────────────────────────────────────────────────── */
+
+.boxHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.boxLabel {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.36);
+  line-height: 1.4;
+  flex: 1;
+}
+
+.hideBtn {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.22);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.hideBtn:hover {
+  color: rgba(255, 255, 255, 0.50);
+}
+
+/* ── Recipient contenteditable editor ────────────────────────────────────── */
+
+.recipientEditor {
+  background: none;
+  border: none;
+  outline: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92);
+  caret-color: rgba(255, 255, 255, 0.55);
+  width: 100%;
+  padding: 0;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  word-break: keep-all;
+}
+
+/* Formatting inside recipient */
+.recipientEditor mark[data-hl="yellow"] { background: rgba(255, 208, 40,  0.32); border-radius: 3px; padding: 0 2px; }
+.recipientEditor mark[data-hl="pink"]   { background: rgba(255, 130, 160, 0.30); border-radius: 3px; padding: 0 2px; }
+.recipientEditor mark[data-hl="sage"]   { background: rgba(75,  185, 140, 0.28); border-radius: 3px; padding: 0 2px; }
+.recipientEditor strong               { font-weight: 900; }
+.recipientEditor del                  { text-decoration: line-through; opacity: 0.65; }
+.recipientEditor span[data-size="sm"] { font-size: 13px; opacity: 0.82; }
+.recipientEditor span[data-size="lg"] { font-size: 24px; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Contenteditable message editor
+   ───────────────────────────────────────────────────────────────────────── */
+
+.editorWrap {
+  position: relative;
+}
+
+/* Single-line variant — used for the recipient editor */
+.editorWrapSingle {
+  position: relative;
+}
+
+.messageEditor {
+  width: 100%;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.82);
+  caret-color: rgba(255, 255, 255, 0.55);
+  line-height: 1.65;
+  min-height: 96px;
+  max-height: 220px;
+  overflow-y: auto;
+  word-break: break-word;
+  white-space: pre-wrap;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+.messageEditor::-webkit-scrollbar       { width: 3px; }
+.messageEditor::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 2px; }
+
+.messageEditor.atLimit {
+  color: rgba(255, 255, 255, 0.70);
+}
+
+/* Inline formatting styles inside the editor */
+.messageEditor mark {
+  background: none;
+  border-radius: 3px;
+  padding: 0 2px;
+  color: inherit;
+}
+.messageEditor mark[data-hl="yellow"] { background: rgba(255, 208, 40,  0.32); }
+.messageEditor mark[data-hl="pink"]   { background: rgba(255, 130, 160, 0.30); }
+.messageEditor mark[data-hl="sage"]   { background: rgba(75,  185, 140, 0.28); }
+.messageEditor strong               { font-weight: 800; color: rgba(255,255,255,0.94); }
+.messageEditor del                  { text-decoration: line-through; opacity: 0.65; }
+.messageEditor span[data-size="sm"] { font-size: 11px; opacity: 0.82; }
+.messageEditor span[data-size="lg"] { font-size: 18px; }
+
+/* Placeholder — absolute overlay, visible only when empty */
+.editorPlaceholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  user-select: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.30);
+  line-height: 1.65;
+}
+
+/* ── Footer right cluster ────────────────────────────────────────────────── */
+
+.footerRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Selection hint — format affordance icons ────────────────────────────── */
+
+.selHint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.55;
+}
+
+.selHintB {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1;
+}
+
+.selHintS {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  line-height: 1;
+}
+
+.selHintDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Floating selection toolbar (portal-rendered, position: fixed)
+   ───────────────────────────────────────────────────────────────────────── */
+
+.selToolbar {
+  position: fixed;
+  /* x: -50% handled by Framer Motion so it composes with y/scale */
+  z-index: 350;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  background: rgba(14, 18, 28, 0.92);
+  border-radius: 10px;
+  padding: 6px 10px;
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  box-shadow:
+    0 6px 20px rgba(0,0,0,0.38),
+    0 2px 6px  rgba(0,0,0,0.28),
+    inset 0 1px 0 rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+/* ── Highlight section ───────────────────────────────────────────────────── */
+
+.hlSection {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hlColors {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 2px;
+  overflow: visible;
+}
+
+.hlBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 5px;
+  color: rgba(255,255,255,0.55);
+  transition: color 0.12s ease, background 0.12s ease;
+  line-height: 1;
+}
+
+.hlBtn:hover,
+.hlBtnActive {
+  color: rgba(255,255,255,0.92);
+  background: rgba(255,255,255,0.08);
+}
+
+/* Coloured highlight dot */
+.selColorBtn {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.20);
+  background: var(--dot);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.22);
+  padding: 0;
+}
+.selColorBtn:hover {
+  transform: scale(1.25);
+  border-color: rgba(255,255,255,0.55);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.30);
+}
+.selRemoveHlBtn {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.50);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+.selRemoveHlBtn:hover {
+  color: rgba(255,255,255,0.90);
+  transform: scale(1.2);
+}
+
+/* Vertical separator */
+.selSep {
+  width: 1px;
+  height: 18px;
+  background: rgba(255,255,255,0.12);
+  margin: 0 6px;
+  flex-shrink: 0;
+}
+
+/* Bold button */
+.selBoldBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  color: rgba(255,255,255,0.55);
+  padding: 2px 6px;
+  border-radius: 5px;
+  transition: color 0.12s ease, background 0.12s ease;
+  line-height: 1;
+  margin: 0 1px;
+}
+.selBoldBtn:hover {
+  color: rgba(255,255,255,0.92);
+  background: rgba(255,255,255,0.08);
+}
+
+/* Strikethrough button */
+.selStrikeBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.55);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: rgba(255,255,255,0.55);
+  padding: 2px 6px;
+  border-radius: 5px;
+  transition: color 0.12s ease, background 0.12s ease;
+  line-height: 1;
+  margin: 0 1px;
+}
+.selStrikeBtn:hover {
+  color: rgba(255,255,255,0.92);
+  text-decoration-color: rgba(255,255,255,0.92);
+  background: rgba(255,255,255,0.08);
+}
+
+/* ── S / M / L global size selector — in the message box header ─────────── */
+
+.sizeSelector {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.sizePick {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.26);
+  background: none;
+  border: none;
+  border-radius: 5px;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+  line-height: 1.5;
+}
+
+.sizePick:hover {
+  color: rgba(255, 255, 255, 0.60);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.sizePickActive {
+  color: rgba(160, 200, 255, 0.92);
+  background: rgba(100, 150, 255, 0.14);
+}
+
+/* ── Formatting tooltip — compact card floating below the message box ───────── */
+
+.fmtTooltip {
+  position: fixed;
+  z-index: 200;
+  background: rgba(10, 16, 30, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  padding: 11px 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.50);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fmtTooltipLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.fmtTooltipEyebrow {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.26);
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.fmtTooltipBody {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.80);
+  line-height: 1.3;
+}
+
+.fmtDemoRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.fmtDemoText {
+  font-family: 'Caveat', cursive;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1;
+}
+
+.fmtMiniHL {
+  background: rgba(255, 208, 40, 0.30);
+  border-radius: 3px;
+  padding: 0 3px;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.fmtMiniBar {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(20, 26, 40, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 6px;
+  padding: 3px 7px;
+}
+
+.fmtMiniBarBtn {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.58);
+  line-height: 1;
+}
+
+.fmtMiniBarBtnS {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.58);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.2px;
+  line-height: 1;
+}
+
+.fmtMiniBarHL {
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.48);
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+}
+
+.fmtMiniBarHL svg {
+  width: 10px;
+  height: 10px;
+}
+
+.fmtMiniBarSep {
+  width: 1px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.fmtMiniSz {
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.38);
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.fmtTooltipDismiss {
+  flex-shrink: 0;
+  align-self: flex-end;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(120, 160, 255, 0.72);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  letter-spacing: 0.02em;
+  transition: color 0.15s ease;
+  white-space: nowrap;
+}
+
+.fmtTooltipDismiss:hover {
+  color: rgba(120, 160, 255, 1);
+}
+
+/* ── Font size controls (S / M / L) — live in the toolbar ───────────────── */
+
+.sizeRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sizeBtn {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(255,255,255,0.45);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  line-height: 1.4;
+}
+
+.sizeBtn:hover {
+  color: rgba(255,255,255,0.80);
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.15);
+}
+
+.sizeBtnActive {
+  color: rgba(160, 200, 255, 0.92);
+  background: rgba(100, 150, 255, 0.14);
+  border-color: rgba(100, 150, 255, 0.35);
+}
+
+/* ── Box footer ──────────────────────────────────────────────────────────── */
+
+.boxFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+/* ── Emoji trigger ───────────────────────────────────────────────────────── */
+
+.emojiWrap {
+  position: relative;
+}
+
+.emojiTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 20px;
+  cursor: pointer;
+  padding: 5px 11px 5px 8px;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.emojiTrigger:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.22);
+}
+
+.emojiTriggerActive {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.26);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.22);
+}
+
+.emojiTriggerFace {
+  font-size: 14px;
+  line-height: 1;
+  display: block;
+}
+
+.emojiTriggerLabel {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.42);
+  transition: color 0.15s ease;
+  user-select: none;
+}
+
+.emojiTrigger:hover .emojiTriggerLabel,
+.emojiTriggerActive .emojiTriggerLabel {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+/* ── Word count ──────────────────────────────────────────────────────────── */
+
+.wordCount {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.22);
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.2s ease;
+}
+
+.wordCountLimit {
+  color: rgba(255, 160, 100, 0.65);
+}
+
+/* ── Restore button ──────────────────────────────────────────────────────── */
+
+/* ── Preview button ──────────────────────────────────────────────────────── */
+
+.previewBtn {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(120, 160, 255, 0.65);
+  letter-spacing: 0.03em;
+  text-align: right;
+  padding: 6px 0 0;
+  transition: color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.previewBtn:hover {
+  color: rgba(120, 160, 255, 1);
+}
+
+/* ── Restore button ──────────────────────────────────────────────────────── */
+
+.restoreBtn {
+  font-family: 'Caveat', cursive;
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.28);
+  background: none;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  letter-spacing: 0.02em;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.restoreBtn:hover {
+  color: rgba(255, 255, 255, 0.52);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* ── Sender name field ────────────────────────────────────────────────────── */
+
+.senderBox {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.senderLabel {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.26);
+  padding-left: 2px;
+}
+
+.senderInput {
+  background: rgba(255, 255, 255, 0.055);
+  border: 1.5px solid rgba(255, 255, 255, 0.10);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  padding: 9px 13px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.senderInput::placeholder {
+  color: rgba(255, 255, 255, 0.20);
+}
+
+.senderInput:focus {
+  border-color: rgba(255, 255, 255, 0.20);
+  background: rgba(255, 255, 255, 0.085);
+}

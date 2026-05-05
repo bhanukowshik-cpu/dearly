@@ -1,0 +1,376 @@
+/* ── Root ────────────────────────────────────────────────────────────────── */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+/* ── Paper wrapper — carries drop-shadow so it works with clip-path ───────── */
+
+.paperWrap {
+  width: 100%;
+  filter:
+    drop-shadow(0 2px 8px   rgba(0, 0, 0, 0.12))
+    drop-shadow(0 14px 44px rgba(0, 0, 0, 0.20))
+    drop-shadow(0 36px 88px rgba(0, 0, 0, 0.14));
+}
+
+/* ── Paper ───────────────────────────────────────────────────────────────── */
+
+.paper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* ── ZigZag / deckle ─────────────────────────────────────────────────────── */
+
+.paperWrapZigzag {
+  /* drop-shadow still applies; clip-path is on the inner .paper element */
+}
+
+.paperZigzag {
+  border-radius: 0;
+  overflow: visible;
+  clip-path: polygon(
+    /* ── Top edge — subtle deckle (+10% amplitude) ────────────────────── */
+    0% 0.28%,    3.5% 0%,    6% 0.39%,   9.5% 0.06%, 13% 0.44%,
+    16% 0.11%,   19.5% 0.33%,23% 0%,     26.5% 0.39%,30% 0.11%,
+    33% 0.28%,   37% 0%,     40.5% 0.33%,44% 0.06%,  47.5% 0.39%,
+    51% 0.11%,   54.5% 0.28%,58% 0%,     61.5% 0.33%,65% 0.06%,
+    68% 0.28%,   72% 0%,     75.5% 0.33%,79% 0.11%,  82.5% 0.28%,
+    86% 0%,      89.5% 0.33%,93% 0.06%,  96.5% 0.28%,100% 0.11%,
+    /* ── Right edge ───────────────────────────────────────────────────── */
+    99.84% 5%,   100% 10%,   99.73% 15%,  100% 20%,
+    99.84% 25%,  100% 30%,   99.67% 35%,  100% 40%,
+    99.84% 45%,  100% 50%,   99.73% 55%,  100% 60%,
+    99.78% 65%,  100% 70%,   99.67% 75%,  100% 80%,
+    99.84% 85%,  100% 90%,   99.73% 95%,  100% 98%,
+    /* ── Bottom edge (right → left) ──────────────────────────────────── */
+    96.5% 99.89%,93% 100%,   89.5% 99.72%,86% 100%,
+    82.5% 99.83%,79% 100%,   75.5% 99.67%,72% 100%,
+    68%   99.83%,65% 100%,   61.5% 99.72%,58% 100%,
+    54.5% 99.83%,51% 100%,   47.5% 99.67%,44% 100%,
+    40.5% 99.83%,37% 100%,   33%   99.72%,30% 100%,
+    26.5% 99.83%,23% 100%,   19.5% 99.67%,16% 100%,
+    13%   99.83%,9.5% 100%,  6%    99.72%,3.5% 100%, 0% 99.83%,
+    /* ── Left edge (bottom → top) ─────────────────────────────────────── */
+    0.22% 95%,   0% 90%,     0.28% 85%,   0% 80%,
+    0.22% 75%,   0% 70%,     0.28% 65%,   0% 60%,
+    0.22% 55%,   0% 50%,     0.28% 45%,   0% 40%,
+    0.22% 35%,   0% 30%,     0.28% 25%,   0% 20%,
+    0.22% 15%,   0% 10%,     0.28% 5%
+  );
+}
+
+/* ── Aged paper stains ───────────────────────────────────────────────────── */
+
+.stains {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1; /* below text but above letterContent's solid bg */
+  background:
+    /* Warm amber wash drifting down from top — overall paper age tone */
+    radial-gradient(ellipse 140% 70% at 50% -8%, rgba(195,155,75,0.13) 0%, transparent 65%),
+    /* Corner darkening — bottom-right heaviest, as with real aged paper */
+    radial-gradient(ellipse 110px  95px at   0%   0%, rgba(108,72,28,0.17) 0%, transparent 100%),
+    radial-gradient(ellipse  85px  75px at 100%   0%, rgba(108,72,28,0.12) 0%, transparent 100%),
+    radial-gradient(ellipse  95px  90px at   0% 100%, rgba(108,72,28,0.15) 0%, transparent 100%),
+    radial-gradient(ellipse 120px 105px at 100% 100%, rgba(108,72,28,0.20) 0%, transparent 100%),
+    /* Coffee ring 1 — annular shape: transparent centre, dark band, fade out */
+    radial-gradient(circle at 77% 16%, transparent 52%, rgba(132,92,38,0.26) 63%, rgba(132,92,38,0.07) 77%, transparent 90%),
+    /* Coffee ring 2 — smaller, fainter */
+    radial-gradient(circle at 18% 66%, transparent 48%, rgba(128,88,36,0.16) 60%, rgba(128,88,36,0.05) 74%, transparent 88%),
+    /* Water-damage patch — irregular soft blob */
+    radial-gradient(ellipse 120px 75px at 13% 80%, rgba(130,95,45,0.14) 0%, transparent 100%),
+    radial-gradient(ellipse  70px 50px at 82% 62%, rgba(135,98,44,0.11) 0%, transparent 100%),
+    /* Foxing spots — small age marks scattered across the page */
+    radial-gradient(circle 16px at 63% 86%, rgba(142,102,48,0.22) 0%, transparent 100%),
+    radial-gradient(circle 11px at 89% 51%, rgba(138, 98,44,0.18) 0%, transparent 100%),
+    radial-gradient(circle  8px at 34% 34%, rgba(135, 95,42,0.16) 0%, transparent 100%),
+    radial-gradient(circle  6px at 54% 21%, rgba(140,100,46,0.14) 0%, transparent 100%),
+    radial-gradient(circle  9px at 45% 74%, rgba(138, 98,44,0.13) 0%, transparent 100%),
+    /* Subtle edge vignette — very slight darkening at all borders */
+    radial-gradient(ellipse 160% 160% at 50% 50%, transparent 58%, rgba(95,65,25,0.07) 100%);
+}
+
+/* ── Flower watermark ────────────────────────────────────────────────────── */
+
+.flower {
+  position: absolute;
+  bottom: -10px;
+  right: 8px;
+  height: 55%;
+  width: auto;
+  opacity: 0.13;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+/* ── Letter content ──────────────────────────────────────────────────────── */
+
+.letterContent {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: clamp(16px, 5%, 32px) clamp(28px, 9%, 52px);
+  overflow: hidden;
+  gap: 12px;
+}
+
+/* ── Empty hint ──────────────────────────────────────────────────────────── */
+
+.emptyHint {
+  font-family: 'Caveat', cursive;
+  font-size: clamp(14px, 2vw, 19px);
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.5;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Greeting ────────────────────────────────────────────────────────────── */
+
+.greeting {
+  flex-shrink: 0;
+  line-height: 1.5;
+  display: block;
+}
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
+
+.body {
+  flex: 1;
+  overflow: hidden;
+  font-family: 'Caveat', cursive;
+  font-size: clamp(15px, 2.0vw, 20px);
+  font-weight: 400;
+  line-height: 26px;
+  word-spacing: 0.18em;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.wordReveal {
+  display: block;
+}
+
+/* ── Ruler overlay — above text (z-index 2) so lines are invisible on white text ── */
+
+.rulerOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Sticker icon — scaled motion.div, drag anywhere to move
+   ───────────────────────────────────────────────────────────────────────── */
+
+.stickerRoot {
+  position: absolute;
+  translate: -50% -50%;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.20));
+}
+.stickerRoot:active { cursor: grabbing; }
+
+.stickerInner {
+  position: relative;
+  width: 52px;
+  height: 52px;
+}
+
+.stickerContent {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.stickerContent svg { width: 100%; height: 100%; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Selection controls overlay — outside the scale context so all chrome
+   stays fixed pixel size regardless of sticker zoom level
+   ───────────────────────────────────────────────────────────────────────── */
+
+.stickerControls {
+  position: absolute;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* Dashed selection frame */
+.stickerFrame {
+  position: absolute;
+  inset: -5px;
+  border: 1.5px dashed rgba(100, 150, 255, 0.70);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* × Remove — top-left corner of the controls box */
+.stickerRemoveBtn {
+  position: absolute;
+  top: -12px;
+  left: -12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.40);
+  background: rgba(18, 12, 6, 0.88);
+  color: rgba(255, 255, 255, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  z-index: 35;
+  pointer-events: auto;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: background 0.12s ease;
+}
+.stickerRemoveBtn:hover { background: rgba(210, 45, 30, 0.92); }
+
+/* Corner resize handles — always 8 × 8 px on screen */
+.handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #ffffff;
+  border: 1.5px solid rgba(80, 130, 255, 0.90);
+  border-radius: 2px;
+  z-index: 30;
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+  transition: background 0.10s ease, border-color 0.10s ease;
+}
+/* Expand touch target to 44×44 px without changing visual size */
+.handle::after {
+  content: '';
+  position: absolute;
+  inset: -18px;
+}
+.handle:hover {
+  background: rgba(220, 230, 255, 1);
+  border-color: rgba(60, 110, 255, 1);
+}
+
+/* offset = -(handle-size / 2) = -4px → center of handle sits exactly on corner */
+.handleTL { top: -4px; left:  -4px; cursor: nwse-resize; }
+.handleTR { top: -4px; right: -4px; cursor: nesw-resize; }
+.handleBL { bottom: -4px; left:  -4px; cursor: nesw-resize; }
+.handleBR { bottom: -4px; right: -4px; cursor: nwse-resize; }
+
+/* Rotate + Move action bar — centred below the controls box */
+.stickerActionsBar {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 35;
+  pointer-events: auto;
+}
+
+.stickerActionBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(14, 10, 6, 0.86);
+  border: 1.5px solid rgba(255, 255, 255, 0.24);
+  color: rgba(255, 255, 255, 0.80);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 0.13s ease, border-color 0.13s ease, color 0.13s ease;
+}
+.stickerActionBtn:hover {
+  background: rgba(80, 130, 255, 0.24);
+  border-color: rgba(80, 130, 255, 0.60);
+  color: #ffffff;
+}
+
+/* ── Highlight & strikethrough markup — hand-drawn SVG blob style ────────── */
+
+.highlight {
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 26' preserveAspectRatio='none'%3E%3Cpath d='M3,5 C40,3 90,4 140,3 C165,2 188,4 197,5 L198,18 C178,20 148,19 110,19 C72,19 38,19 3,18 Z' fill='rgba(255,208,40,0.60)'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 1px 5px;
+  margin: 0 -3px;
+  color: inherit;
+}
+
+.highlightPink {
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 26' preserveAspectRatio='none'%3E%3Cpath d='M4,5 C45,3 95,4 148,3 C168,2 190,4 196,5 L197,18 C172,20 142,19 100,19 C62,19 32,19 4,18 Z' fill='rgba(255,130,160,0.55)'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 1px 5px;
+  margin: 0 -3px;
+  color: inherit;
+}
+
+.highlightSage {
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 26' preserveAspectRatio='none'%3E%3Cpath d='M3,5 C38,3 88,4 145,3 C170,2 192,4 197,5 L196,18 C180,20 145,19 105,19 C65,19 35,19 3,18 Z' fill='rgba(75,185,140,0.50)'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 1px 5px;
+  margin: 0 -3px;
+  color: inherit;
+}
+
+/* Hand-drawn single wavy strikethrough */
+.strike {
+  position: relative;
+  color: inherit;
+}
+.strike::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  top: 44%;
+  height: 6px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 6' preserveAspectRatio='none'%3E%3Cpath d='M0,3 C18,2 36,4 54,3 C72,2 90,4 108,3 C126,2 144,4 162,3 C180,2 196,3.8 200,3' stroke='rgba(58,36,16,0.72)' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 100% 6px;
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .paper {
+    aspect-ratio: 4 / 3;
+  }
+}

@@ -1,0 +1,777 @@
+/* ── Root ────────────────────────────────────────────────────────────────── */
+
+.root {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px 130px;
+  overflow: hidden;
+}
+
+/* ── Background ──────────────────────────────────────────────────────────── */
+
+.bgBlur {
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  backdrop-filter: blur(18px) saturate(115%);
+  -webkit-backdrop-filter: blur(18px) saturate(115%);
+}
+
+.bgTint {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 238, 200, 0.14), transparent 40%),
+    radial-gradient(circle at 70% 80%, rgba(190, 220, 180, 0.10), transparent 45%),
+    radial-gradient(ellipse at 50% 50%, transparent 25%, rgba(4, 9, 20, 0.52) 100%),
+    linear-gradient(rgba(5, 12, 24, 0.18), rgba(5, 12, 24, 0.18));
+}
+
+@keyframes grainFloat {
+  0%   { background-position:   0px   0px; opacity: 0.09; }
+  20%  { background-position:  22px -14px; opacity: 0.11; }
+  45%  { background-position: -16px  10px; opacity: 0.08; }
+  70%  { background-position:   8px  22px; opacity: 0.10; }
+  100% { background-position:   0px   0px; opacity: 0.09; }
+}
+
+.bgNoise {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='2.8' intercept='-0.9'/%3E%3CfeFuncG type='linear' slope='2.8' intercept='-0.9'/%3E%3CfeFuncB type='linear' slope='2.8' intercept='-0.9'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+  animation: grainFloat 4.5s ease-in-out infinite;
+}
+
+/* ── Greeting ─────────────────────────────────────────────────────────────── */
+
+.greetingWrap {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 13px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.greetingTitle {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: 80px;
+  isolation: isolate;
+  transform: translateZ(0);
+}
+
+.greetingSub {
+  font-family: 'Caveat', cursive;
+  font-weight: 500;
+  font-size: clamp(18px, 2.6vw, 26px);
+  color: rgba(255, 255, 255, 0.62);
+  margin: 0;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+
+/* ── Folded letter reveal ─────────────────────────────────────────────────── */
+
+.foldScene {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.foldBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 10, 20, 0.42);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.foldOuter {
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  z-index: 1;
+}
+
+.foldCard {
+  width: min(700px, 92vw);
+  position: relative;
+  border-radius: 12px;
+  perspective: 900px;
+  perspective-origin: center 50%;
+  overflow: hidden;
+  box-shadow:
+    0 2px 8px rgba(30, 18, 4, 0.14),
+    0 12px 40px rgba(20, 10, 2, 0.24),
+    0 36px 80px rgba(10, 5, 0, 0.16);
+}
+
+.foldPaper {
+  width: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+/* Kill the drop-shadow PaperCanvas adds — foldCard box-shadow handles it */
+.foldPaper > :global(*) {
+  filter: none !important;
+}
+
+/* ── 4-panel quarter-fold covers ─────────────────────────────────────────── */
+
+.foldPanel {
+  position: absolute;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* background set via inline style from paperConfig */
+}
+
+/* Right half — pivot at paper center (left edge of this panel) */
+.foldPanelRight {
+  top: 0;
+  left: 50%;
+  width: 50%;
+  height: 100%;
+  transform-origin: left center;
+  border-radius: 0 12px 12px 0;
+  box-shadow: inset -1px 0 0 rgba(140, 110, 55, 0.12);
+}
+
+/* Left half — pivot at paper center (right edge of this panel) */
+.foldPanelLeft {
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  transform-origin: right center;
+  border-radius: 12px 0 0 12px;
+  box-shadow: inset 1px 0 0 rgba(140, 110, 55, 0.12);
+}
+
+/* Top half — pivot at paper center (bottom edge of this panel) */
+.foldPanelTop {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  transform-origin: center bottom;
+  border-radius: 12px 12px 0 0;
+  box-shadow: inset 0 -1px 0 rgba(140, 110, 55, 0.14);
+}
+
+/* Bottom half — pivot at paper center (top edge of this panel) */
+.foldPanelBottom {
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  transform-origin: center top;
+  border-radius: 0 0 12px 12px;
+  box-shadow: inset 0 1px 0 rgba(140, 110, 55, 0.14);
+}
+
+/* Vertical crease — fades when right/left panels open */
+.foldCreaseV {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 0.5px);
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    rgba(140, 110, 55, 0)    0%,
+    rgba(140, 110, 55, 0.24) 14%,
+    rgba(140, 110, 55, 0.24) 86%,
+    rgba(140, 110, 55, 0)    100%
+  );
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* Horizontal crease — fades when top/bottom panels open */
+.foldCreaseH {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - 0.5px);
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(140, 110, 55, 0)    0%,
+    rgba(140, 110, 55, 0.24) 14%,
+    rgba(140, 110, 55, 0.24) 86%,
+    rgba(140, 110, 55, 0)    100%
+  );
+  pointer-events: none;
+  z-index: 6;
+}
+
+.foldLabel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding-bottom: 10%;
+  padding-right: 9%;
+  gap: 2px;
+  z-index: 8;
+  pointer-events: none;
+}
+
+/* Vertical thread — full card height, centered, fades at top & bottom */
+.threadV {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 0.85px);
+  width: 1.7px;
+  background: linear-gradient(
+    180deg,
+    rgba(140, 110, 60, 0)    0%,
+    rgba(140, 110, 60, 0.50) 14%,
+    rgba(140, 110, 60, 0.50) 86%,
+    rgba(140, 110, 60, 0)    100%
+  );
+  z-index: 7;
+  pointer-events: none;
+}
+
+/* Knot — absolutely centered at the crease intersection */
+.knotContainer {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 9;
+  pointer-events: none;
+}
+
+.knotSvg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.foldFor {
+  font-family: 'Caveat', cursive;
+  font-size: 16px;
+  font-weight: 400;
+  color: rgba(100, 72, 32, 0.42);
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+
+.foldName {
+  font-family: 'Caveat', cursive;
+  font-size: 38px;
+  font-weight: 600;
+  color: rgba(65, 44, 18, 0.58);
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+}
+
+.foldShadow {
+  position: absolute;
+  inset: 0 14px;
+  top: auto;
+  bottom: -18px;
+  height: 28px;
+  background: rgba(22, 14, 5, 0.30);
+  filter: blur(22px);
+  border-radius: 50%;
+  z-index: -1;
+}
+
+/* ── Paper experience (envelope → opening → letter) ─────────────────────── */
+
+.experience {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* ── Read CTA ────────────────────────────────────────────────────────────── */
+
+.readCta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 320px;
+  height: 58px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+  margin-top: 20px;
+}
+
+.readCtaBorder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.readCtaBorder path {
+  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+}
+
+.readCta:hover .readCtaBorder path         { stroke: rgba(255,255,255,1.0); stroke-width: 2.3; }
+.readCta:focus-visible .readCtaBorder path  { stroke: rgba(255,255,255,1.0); stroke-width: 2.3; }
+
+.readCtaLabel {
+  font-family: 'Caveat', cursive;
+  font-size: 22px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: 0.03em;
+  position: relative;
+  z-index: 1;
+  user-select: none;
+  transition: color 0.2s ease;
+}
+
+.readCta:hover .readCtaLabel { color: #ffffff; }
+
+/* ── Letter card warm glow on reveal ─────────────────────────────────────── */
+
+@keyframes letterGlow {
+  0%   { box-shadow: 0 2px 8px rgba(30,18,4,0.14), 0 12px 40px rgba(20,10,2,0.24), 0 36px 80px rgba(10,5,0,0.16); }
+  35%  { box-shadow: 0 2px 20px rgba(255,200,100,0.22), 0 12px 60px rgba(220,160,60,0.28), 0 36px 90px rgba(10,5,0,0.20); }
+  100% { box-shadow: 0 2px 8px rgba(30,18,4,0.14), 0 12px 40px rgba(20,10,2,0.24), 0 36px 80px rgba(10,5,0,0.16); }
+}
+
+.foldCardGlow {
+  animation: letterGlow 2.2s ease-out forwards;
+}
+
+/* ── Controls bar ────────────────────────────────────────────────────────── */
+
+.controls {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 700px;
+  padding: 0 4px;
+}
+
+/* Left — golden pill "listen to your note" (de-emphasised size, full premium colour) */
+.listenHint {
+  background: linear-gradient(135deg, rgba(255,210,120,0.10) 0%, rgba(255,155,70,0.08) 100%);
+  border: 1px solid rgba(255, 200, 100, 0.36);
+  border-radius: 50px;
+  color: rgba(255, 228, 172, 0.88);
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 10px 24px;
+  cursor: pointer;
+  transition: background 0.20s ease, border-color 0.20s ease, color 0.20s ease, box-shadow 0.20s ease;
+  box-shadow: 0 0 14px rgba(255, 180, 80, 0.08);
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  white-space: nowrap;
+}
+.listenHint:hover {
+  background: linear-gradient(135deg, rgba(255,210,120,0.18) 0%, rgba(255,155,70,0.14) 100%);
+  border-color: rgba(255, 200, 100, 0.58);
+  color: rgba(255, 242, 205, 1);
+  box-shadow: 0 0 28px rgba(255, 180, 80, 0.18);
+}
+.listenHintActive {
+  background: linear-gradient(135deg, rgba(140,200,255,0.10) 0%, rgba(90,155,255,0.08) 100%);
+  border-color: rgba(120, 180, 255, 0.38);
+  color: rgba(170, 215, 255, 0.88);
+  box-shadow: 0 0 14px rgba(100, 160, 255, 0.10);
+}
+.listenHintActive:hover {
+  background: linear-gradient(135deg, rgba(140,200,255,0.18) 0%, rgba(90,155,255,0.14) 100%);
+  border-color: rgba(120, 180, 255, 0.58);
+  color: rgba(200, 230, 255, 1);
+}
+
+@keyframes listenPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+.listenHintLoading {
+  animation: listenPulse 1.2s ease-in-out infinite;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Right group */
+.controlsRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Music CTA — hand-drawn outline, mirrors "Open your note" */
+.musicCta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 192px;
+  height: 46px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.62);
+  transition: color 0.20s ease;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  flex-shrink: 0;
+}
+.musicCta:hover  { color: rgba(255, 255, 255, 0.92); }
+.musicCtaOn      { color: rgba(255, 255, 255, 0.70); }
+.musicCtaOn:hover{ color: rgba(255, 255, 255, 0.95); }
+
+.musicCtaBorder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.musicCtaBorder path {
+  transition: stroke-width 0.20s ease;
+}
+.musicCta:hover .musicCtaBorder path { stroke-width: 2.1; }
+
+.musicCtaLabel {
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  position: relative;
+  z-index: 1;
+  user-select: none;
+}
+
+/* Download — plain icon button, height matches music CTA */
+.downloadBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  padding: 0 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.45);
+  transition: color 0.20s ease;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  flex-shrink: 0;
+}
+.downloadBtn:hover    { color: rgba(255, 255, 255, 0.85); }
+.downloadBtn:disabled { opacity: 0.35; cursor: default; }
+
+/* ── Letter canvas ───────────────────────────────────────────────────────── */
+
+.letterCanvas {
+  width: 100%;
+}
+
+/* ── Toast stack (positions both toasts as a column) ─────────────────────── */
+
+.toastStack {
+  position: fixed;
+  bottom: 28px;
+  right: 20px;
+  z-index: 1002;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+/* ── Individual toast card ───────────────────────────────────────────────── */
+
+.toast {
+  background: rgba(255, 255, 255, 0.055);
+  border: 1.5px solid rgba(255, 255, 255, 0.11);
+  border-radius: 18px 20px 17px 19px / 19px 17px 20px 18px;
+  box-shadow:
+    0 2px 8px  rgba(0, 0, 0, 0.14),
+    0 12px 32px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  padding: 16px 22px 16px 20px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  width: min(300px, calc(100vw - 40px));
+  text-align: left;
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.toastLeft {
+  flex: 1;
+  min-width: 0;
+}
+
+.toastRight {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.toastText {
+  font-family: 'Caveat', cursive;
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.72);
+  margin: 0;
+}
+
+.toastText strong {
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 700;
+}
+
+.toastCta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 240px;
+  height: 44px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+.toastCtaBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.toastCtaLabel {
+  font-family: 'Caveat', cursive;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: 0.02em;
+  position: relative;
+  z-index: 1;
+  user-select: none;
+}
+
+.toastClose {
+  position: absolute;
+  top: 9px;
+  right: 11px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.22);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: color 0.14s ease;
+}
+.toastClose:hover { color: rgba(255, 255, 255, 0.50); }
+
+.stars {
+  display: flex;
+  gap: 4px;
+}
+
+.star {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px 2px;
+  line-height: 0;
+  color: rgba(255, 255, 255, 0.28);
+  transition: color 0.12s ease, transform 0.14s ease;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+}
+
+.star:hover,
+.starFilled {
+  color: rgba(255, 210, 80, 0.92);
+  transform: scale(1.20);
+}
+
+.toastThanks {
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.70);
+  margin: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.feedbackInput {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: 'Caveat', cursive;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.5;
+  padding: 2px 0 6px;
+  outline: none;
+  resize: none;
+  box-sizing: border-box;
+  display: block;
+  height: 52px;
+}
+
+.feedbackInput::placeholder {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.toastCtaCompact {
+  background: rgba(255, 255, 255, 0.92);
+  border: none;
+  border-radius: 50px;
+  padding: 9px 15px;
+  font-family: 'Caveat', cursive;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+
+/* ── Tablet ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  /* Toast stack: centered, full-width on mobile */
+  .toastStack {
+    right: auto;
+    left: 12px;
+    right: 12px;
+    transform: none;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+    align-items: stretch;
+  }
+
+  .toast {
+    width: auto;
+  }
+
+  .musicCta {
+    width: 162px;
+    height: 40px;
+  }
+  .musicCtaLabel {
+    font-size: 16px;
+  }
+  .downloadBtn {
+    height: 40px;
+    padding: 0 8px;
+  }
+  .listenHint {
+    font-size: 15px;
+    padding: 9px 18px;
+  }
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .foldName { font-size: 32px; }
+
+  .root {
+    padding: 24px 16px 100px;
+  }
+
+  /* Letter card fills the screen width */
+  .foldCard {
+    width: 96vw;
+  }
+
+  /* Controls: tighter on mobile */
+  .controls {
+    padding: 0 2px;
+  }
+
+  .listenHint {
+    font-size: 13px;
+    padding: 7px 16px;
+  }
+
+  /* Music button: narrower + shorter on mobile */
+  .musicCta {
+    width: 148px;
+    height: 38px;
+  }
+  .musicCtaLabel {
+    font-size: 15px;
+  }
+
+  /* Download button: match music button height */
+  .downloadBtn {
+    height: 38px;
+    padding: 0 7px;
+  }
+
+
+  /* Greeting sub — more readable on small screens */
+  .greetingSub {
+    font-size: 19px;
+    padding: 0 8px;
+  }
+}

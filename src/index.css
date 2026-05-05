@@ -1,0 +1,24 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Mistral SingleLine — used by MistralReveal handwriting animation */
+@font-face {
+  font-family: 'MistralSL';
+  src: url('/fonts/MistralSingleLine.woff2') format('woff2'),
+       url('/fonts/MistralSingleLine.woff')  format('woff');
+  font-weight: normal;
+  font-style:  normal;
+  font-display: block; /* block prevents FOUT jank during the animation delay */
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #100e0b;
+  color: #1c1008;
+  -webkit-font-smoothing: antialiased;
+}

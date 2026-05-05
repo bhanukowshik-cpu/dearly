@@ -1,0 +1,80 @@
+/* ── Floating selection toolbar ──────────────────────────────────────────── */
+
+.toolbar {
+  position: fixed;
+  transform: translate(-50%, -100%);
+  z-index: 100;
+
+  display: flex;
+  align-items: center;
+  gap: 2px;
+
+  background: rgba(20, 20, 28, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 10px;
+  padding: 5px 6px;
+  box-shadow:
+    0 4px 16px rgba(0,0,0,0.28),
+    0 1px 3px rgba(0,0,0,0.20);
+
+  /* Prevent selection collapse */
+  user-select: none;
+  pointer-events: all;
+}
+
+/* Arrow caret below toolbar */
+.toolbar::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid rgba(20, 20, 28, 0.92);
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.btn:active {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* Separator before highlight button */
+.sep {
+  margin-left: 4px;
+  position: relative;
+}
+
+.sep::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.15);
+}

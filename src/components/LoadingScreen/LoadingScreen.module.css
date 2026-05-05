@@ -1,0 +1,370 @@
+/* ── root — justify-content: center so hero alone sits in the middle ─────── */
+
+.root {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 0 80px;
+  gap: 10px;
+}
+
+/* ── background ──────────────────────────────────────────────────────────── */
+
+/* Layer 2 — frosted glass: backdrop-filter sits above the video */
+.bgBlur {
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  backdrop-filter: blur(18px) saturate(115%);
+  -webkit-backdrop-filter: blur(18px) saturate(115%);
+}
+
+/* Layer 3 — warm nature color wash + cinematic vignette */
+.bgTint {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 238, 200, 0.14), transparent 40%),
+    radial-gradient(circle at 70% 80%, rgba(190, 220, 180, 0.10), transparent 45%),
+    radial-gradient(ellipse at 50% 50%, transparent 25%, rgba(4, 9, 20, 0.58) 100%),
+    linear-gradient(rgba(5, 12, 24, 0.22), rgba(5, 12, 24, 0.22));
+}
+
+/* Layer 4 — film grain: topmost layer, above all UI content */
+@keyframes grainFloat {
+  0%   { background-position:   0px   0px; opacity: 0.09; }
+  20%  { background-position:  22px -14px; opacity: 0.11; }
+  45%  { background-position: -16px  10px; opacity: 0.08; }
+  70%  { background-position:   8px  22px; opacity: 0.10; }
+  100% { background-position:   0px   0px; opacity: 0.09; }
+}
+
+.bgNoise {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+  /* High-contrast noise: slope 2.8 stretches mid-gray toward black/white */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='2.8' intercept='-0.9'/%3E%3CfeFuncG type='linear' slope='2.8' intercept='-0.9'/%3E%3CfeFuncB type='linear' slope='2.8' intercept='-0.9'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+  animation: grainFloat 4.5s ease-in-out infinite;
+}
+
+/* ── hero ─────────────────────────────────────────────────────────────────── */
+
+.hero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.heroTitle {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: 80px;
+  /* Isolate compositing layer — prevents Tegaki end-of-stroke jitter */
+  isolation: isolate;
+  transform: translateZ(0);
+}
+
+.heroSub {
+  font-family: 'Caveat', cursive;
+  font-weight: 400;
+  font-size: clamp(15px, 2vw, 20px);
+  color: rgba(255, 255, 255, 0.50);
+  margin: 6px 0 0;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+
+/* ── postcard — 3:2 ratio on tablet+, content-height on mobile ───────────── */
+
+.card {
+  position: relative; /* explicit containing block so stickers position against the card, not an ancestor */
+  z-index: 1;
+  /* Premium size: feels like a real postcard, not a banner */
+  width: min(660px, 92vw);
+  display: flex;
+  flex-direction: column;
+
+  /* Warm cream paper with ruled lines every 20px (matches text line-height) */
+  background-color: #F2E8CC;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 19px,
+    rgba(155, 125, 70, 0.20) 19px,
+    rgba(155, 125, 70, 0.20) 20px
+  );
+  /* offset aligns rulers with text baselines across greeting + body */
+  background-position: 0 9px;
+  border: none;
+  border-radius: 0;
+
+  /* Subtle natural deckled edges */
+  clip-path: polygon(
+    0% 0.5%,  3.5% 0%,    6% 0.7%,   9.5% 0.1%,  13% 0.8%,
+    16% 0.2%, 19.5% 0.6%, 23% 0%,    26.5% 0.7%, 30% 0.2%,
+    33% 0.5%, 37% 0%,     40.5% 0.6%, 44% 0.1%,  47.5% 0.7%,
+    51% 0.2%, 54.5% 0.5%, 58% 0%,    61.5% 0.6%, 65% 0.1%,
+    68% 0.5%, 72% 0%,     75.5% 0.6%, 79% 0.2%,  82.5% 0.5%,
+    86% 0%,   89.5% 0.6%, 93% 0.1%,  96.5% 0.5%, 100% 0.2%,
+    99.7% 5%,  100% 10%,  99.5% 15%, 100% 20%,
+    99.7% 25%, 100% 30%,  99.4% 35%, 100% 40%,
+    99.7% 45%, 100% 50%,  99.5% 55%, 100% 60%,
+    99.6% 65%, 100% 70%,  99.4% 75%, 100% 80%,
+    99.7% 85%, 100% 90%,  99.5% 95%, 100% 98%,
+    96.5% 99.8%, 93% 100%,   89.5% 99.5%, 86% 100%,
+    82.5% 99.7%, 79% 100%,   75.5% 99.4%, 72% 100%,
+    68% 99.7%,   65% 100%,   61.5% 99.5%, 58% 100%,
+    54.5% 99.7%, 51% 100%,   47.5% 99.4%, 44% 100%,
+    40.5% 99.7%, 37% 100%,   33% 99.5%,   30% 100%,
+    26.5% 99.7%, 23% 100%,   19.5% 99.4%, 16% 100%,
+    13% 99.7%,   9.5% 100%,  6% 99.5%,    3.5% 100%, 0% 99.7%,
+    0.4% 95%,  0% 90%,   0.5% 85%, 0% 80%,
+    0.4% 75%,  0% 70%,   0.5% 65%, 0% 60%,
+    0.4% 55%,  0% 50%,   0.5% 45%, 0% 40%,
+    0.4% 35%,  0% 30%,   0.5% 25%, 0% 20%,
+    0.4% 15%,  0% 10%,   0.5% 5%
+  );
+
+  filter:
+    drop-shadow(0 2px 6px rgba(0,0,0,0.10))
+    drop-shadow(0 10px 30px rgba(0,0,0,0.20))
+    drop-shadow(0 28px 60px rgba(0,0,0,0.16));
+
+  overflow: hidden;
+}
+
+
+/* ── aged paper stains ───────────────────────────────────────────────────── */
+
+.stains {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 100px 60px at 70% 16%, rgba(140, 100, 45, 0.06) 0%, transparent 100%),
+    radial-gradient(ellipse 130px 80px at 12% 75%, rgba(130, 90, 40, 0.05) 0%, transparent 100%),
+    radial-gradient(ellipse 80px 100px at 88% 70%, rgba(145, 105, 48, 0.05) 0%, transparent 100%),
+    radial-gradient(ellipse 55px 45px at 38% 20%, rgba(150, 110, 50, 0.04) 0%, transparent 100%);
+}
+
+/* ── letter wrap — fills card on desktop, auto-height on mobile ──────────── */
+
+.letterWrap {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+  padding: clamp(14px, 3.2%, 22px) clamp(18px, 4%, 30px);
+}
+
+.letter {
+  display: flex;
+  flex-direction: column;
+  /* 20px gap = one ruler interval, keeps paragraph starts on the grid */
+  gap: 20px;
+}
+
+.greeting {
+  font-family: 'Caveat', cursive;
+  font-weight: 700;
+  font-size: clamp(24px, 3.2vw, 34px);
+  color: #1A2A3A;
+  /* flex-end pins Tegaki canvas bottom to the ruler line at 40px */
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  min-height: 40px;    /* 2× ruler interval */
+  line-height: 1;
+  margin: 0;
+}
+
+.para {
+  font-family: 'Caveat', cursive;
+  font-weight: 500;
+  font-size: clamp(15px, 1.95vw, 20px);
+  color: #2E3D4E;
+  line-height: 20px;
+  margin: 0;
+}
+
+.closing {
+  font-family: 'Caveat', cursive;
+  font-weight: 400;
+  font-size: clamp(15px, 1.95vw, 19px);
+  color: #1A2A3A;
+  line-height: 20px;
+  margin: 0;
+}
+
+/* ── letter annotations ─────────────────────────────────────────────────── */
+
+/*
+  Hand-drawn double strikethrough — two slightly-wavy SVG lines as a
+  background-image. No text-decoration so the font weight stays identical.
+*/
+.strikethrough {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 6' preserveAspectRatio='none'%3E%3Cpath d='M0,3 C18,2 36,4 54,3 C72,2 90,4 108,3 C126,2 144,4 162,3 C180,2 196,3.8 200,3' stroke='rgba(58,44,28,0.78)' stroke-width='1.3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 100% 6px;
+  background-position: 0 50%;
+}
+
+/* Highlighter mark — bold yellow, like a real highlighter pass */
+.highlight {
+  background: rgba(255, 198, 0, 0.62);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin: 0 -1px;
+  color: inherit;
+  font-weight: 600;
+}
+
+/* Soft blue/sage highlight for variety */
+.highlightBlue {
+  background: rgba(100, 190, 255, 0.35);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin: 0 -1px;
+  color: inherit;
+  font-weight: 600;
+}
+
+
+/* ── CTA — outside card, centered ───────────────────────────────────────── */
+
+.cta {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 340px;
+  height: 62px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ctaBorder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.ctaBorder path {
+  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+}
+
+.cta:hover .ctaBorder path        { stroke: rgba(255,255,255,1.0); stroke-width: 2.5; }
+.cta:focus-visible .ctaBorder path { stroke: rgba(255,255,255,1.0); stroke-width: 2.5; }
+
+.ctaLabel {
+  font-family: 'Caveat', cursive;
+  font-size: 21px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: 0.04em;
+  position: relative;
+  z-index: 1;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: color 0.2s ease;
+}
+
+.ctaLabel svg {
+  color: rgba(255, 255, 255, 0.95);
+  transition: transform 0.2s ease;
+}
+
+.cta:hover .ctaLabel     { color: #ffffff; }
+.cta:hover .ctaLabel svg { transform: translateX(5px); }
+
+/* ── meta text ───────────────────────────────────────────────────────────── */
+
+.meta {
+  position: relative;
+  z-index: 1;
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.42);
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   RESPONSIVE OVERRIDES — must live after all base rules so same-specificity
+   media-query selectors actually win the cascade.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+@media (max-width: 539px) {
+  .root {
+    padding: 32px 0 60px;
+    gap: 14px;
+  }
+
+  .card { width: 94vw; }
+
+  /* CTA button — full width on very small screens for easy tap */
+  .cta {
+    width: min(94vw, 340px);
+  }
+
+  .ctaLabel {
+    font-size: 18px;
+  }
+
+  /* Ensure hero title doesn't clip on narrow screens */
+  .heroTitle {
+    min-height: 64px;
+  }
+}
+
+/* ── Tablet+ : content-height card, 24px ruler grid ─────────────────────── */
+@media (min-width: 540px) {
+  .card {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent,
+      transparent 23px,
+      rgba(155, 125, 70, 0.18) 23px,
+      rgba(155, 125, 70, 0.18) 24px
+    );
+    background-position: 0 0;
+  }
+
+  /* Scale text line-height to match the 24px ruler interval */
+  .para, .closing { line-height: 24px; }
+
+  /* letter gap = 1 ruler interval; greeting = 2 ruler intervals */
+  .letter   { gap: 24px; }
+  .greeting { min-height: 48px; }
+
+  /* Align first text baseline to ruler grid (24px × 4 = 96px = greeting PT+height+gap) */
+  .letterWrap { padding-top: 24px; }
+}

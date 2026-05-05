@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Environment variables — never commit these
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+
+# Large media files — served from Supabase Storage CDN
+public/music/
+public/videos/
+public/*.mp4
+
+# Legacy media directories
+Images/
+Music/
+
+# Claude Code
+.claude/
+
+# Logs
+npm-debug.log*
+
+# Editor
+.DS_Store
+.vscode/
