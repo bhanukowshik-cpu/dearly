@@ -9,11 +9,13 @@ import styles from './PaperCanvas.module.css'
 
 const BASE_SIZE = 52
 
-// Safari's compositing model clears TegakiRenderer canvases when many
-// instances are present — skip the animated renderer and use plain text.
+// Mac Safari clears TegakiRenderer canvases when many instances are present
+// — skip the animated renderer and use plain text on Mac Safari only.
+// iOS Safari works fine, so we exclude it explicitly.
 const isSafari =
   typeof navigator !== 'undefined' &&
-  /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+  /^((?!chrome|android).)*safari/i.test(navigator.userAgent) &&
+  !/iP(hone|od|ad)/.test(navigator.userAgent)
 
 /* ─────────────────────────────────────────────────────────────────────────
    Control icons
