@@ -65,6 +65,15 @@
   min-width: 0;
 }
 
+.topBarLogo {
+  font-family: 'Caveat', cursive;
+  font-size: 26px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.90);
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
 .topBarCenter {
   display: flex;
   flex-direction: row;

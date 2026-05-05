@@ -309,7 +309,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
       <header className={styles.topBar}>
         <div className={styles.topBarLeft}>
-          {isMobile && (
+          {isMobile ? (
             <motion.button
               className={styles.previewNavBtn}
               onClick={handlePreview}
@@ -320,6 +320,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               <IconEye />
               <span>{recipientName ? `${recipientName.length > 14 ? recipientName.slice(0, 14) + '…' : recipientName}'s view` : "Preview"}</span>
             </motion.button>
+          ) : (
+            <span className={styles.topBarLogo}>Dearly</span>
           )}
         </div>
         <div className={styles.topBarRight}>
