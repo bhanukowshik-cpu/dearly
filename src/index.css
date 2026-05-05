@@ -1,5 +1,8 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Reset browser default <mark> yellow background — custom classes apply their own styling */
+mark { background-color: transparent; color: inherit; }
+
 /* Mistral SingleLine — used by MistralReveal handwriting animation */
 @font-face {
   font-family: 'MistralSL';

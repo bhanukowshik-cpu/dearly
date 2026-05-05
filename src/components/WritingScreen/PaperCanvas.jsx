@@ -290,7 +290,7 @@ function GreetingText({ text, inkColor, readingConfig, wordIndexStart = 0 }) {
         const allRevealed = !readingConfig || readingConfig.revealedWordIdx >= nextIdx
         segWordIdx = nextIdx
         if (seg.type.startsWith('highlight')) {
-          return <mark key={seg.firstId} className={HL_CLASS[seg.type] || styles.highlight}>{els}</mark>
+          return <mark key={seg.firstId} className={allRevealed ? (HL_CLASS[seg.type] || styles.highlight) : undefined}>{els}</mark>
         }
         if (seg.type === 'strike') {
           return <span key={seg.firstId} className={styles.strike}>{els}</span>
@@ -354,7 +354,7 @@ function BodyText({ text, inkColor, textSize = 'lg', readingConfig, lineSpacing 
         const allRevealed = !readingConfig || readingConfig.revealedWordIdx >= nextIdx
         segWordIdx = nextIdx
         if (seg.type.startsWith('highlight')) {
-          return <mark key={seg.firstId} className={HL_CLASS[seg.type] || styles.highlight}>{els}</mark>
+          return <mark key={seg.firstId} className={allRevealed ? (HL_CLASS[seg.type] || styles.highlight) : undefined}>{els}</mark>
         }
         if (seg.type === 'strike') {
           return <span key={seg.firstId} className={styles.strike}>{els}</span>
