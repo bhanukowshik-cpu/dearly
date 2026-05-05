@@ -411,6 +411,7 @@ export default function RecipientScreen({
   const elevenRaf    = useRef(null)
   const elevenTimer  = useRef(null)
   const paperRef     = useRef(null)
+  const prefetchRef  = useRef(null)
 
   useEffect(() => {
     if (!writeDone) return
@@ -474,6 +475,21 @@ export default function RecipientScreen({
     // < 4: stay open and show the feedback textarea
   }
 
+  // Pre-fetch TTS on mount so audio is ready when user clicks "listen"
+  useEffect(() => {
+    const ttsText = [recipient || '', stripMarkup(message)]
+      .filter(Boolean).join(' ').trim()
+    if (!ttsText) return
+    prefetchRef.current = fetch('/api/tts', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ text: ttsText }),
+    }).then(res => {
+      if (!res.ok) throw new Error(`TTS ${res.status}`)
+      return res.json()
+    }).catch(() => null)
+  }, []) // mount only — recipient/message are stable from URL params
+
   // Cleanup ElevenLabs audio on unmount
   useEffect(() => () => {
     cancelAnimationFrame(elevenRaf.current)
@@ -533,13 +549,18 @@ export default function RecipientScreen({
     setReadingMode(true)
 
     try {
-      const res = await fetch('/api/tts', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ text: ttsText }),
-      })
-      if (!res.ok) throw new Error(`TTS ${res.status}`)
-      const { audio_base64, alignment } = await res.json()
+      let data = null
+      try { if (prefetchRef.current) data = await prefetchRef.current } catch {}
+      if (!data) {
+        const res = await fetch('/api/tts', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ text: ttsText }),
+        })
+        if (!res.ok) throw new Error(`TTS ${res.status}`)
+        data = await res.json()
+      }
+      const { audio_base64, alignment } = data
 
       // Build per-word start times from ElevenLabs character alignment.
       const wordTimes     = buildWordTimes(ttsText, alignment)
