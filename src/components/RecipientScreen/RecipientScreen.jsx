@@ -856,8 +856,8 @@ export default function RecipientScreen({
               <div className={styles.toastLeft}>
                 <p className={styles.toastText}>
                   {senderName
-                    ? <>Write a note to <strong>{senderName}</strong> — or anyone whose words you want to stand out.</>
-                    : <>Write a note to someone whose words deserve to be felt, not just read.</>
+                    ? <>Write your own note and make <strong>{senderName}</strong>'s words shine.</>
+                    : <>Write a note and make someone's words truly shine.</>
                   }
                 </p>
               </div>
