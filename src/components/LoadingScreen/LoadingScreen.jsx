@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { TegakiRenderer } from 'tegaki/react'
 import { font } from '../../lib/tegakiFont'
@@ -25,44 +25,67 @@ function CardSticker({ children, style }) {
   )
 }
 
-const prefersReducedMotion =
+// Static check — stable across renders, also safe for SSR
+const reducedMotion =
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-export default function LoadingScreen({ onCta = () => {} }) {
-  const [writeStarted, setWriteStarted] = useState(false)
-  const [writeDone,    setWriteDone]    = useState(false)
-  const [cardVisible,  setCardVisible]  = useState(false)
-  const [greetingDone, setGreetingDone] = useState(false)
+// Caveat plain-text style used as animated fallback
+const caveatStyle = (size, color, weight = 700) => ({
+  fontFamily: "'Caveat', cursive",
+  fontSize:   size,
+  color,
+  fontWeight: weight,
+  whiteSpace: 'nowrap',
+  lineHeight: 1,
+  display:    'inline-block',
+})
 
-  // Kick off the Dearly, handwriting after a beat
+export default function LoadingScreen({ onCta = () => {} }) {
+  // When reduced motion is on, start in the "done" state so content appears instantly
+  const [writeStarted, setWriteStarted] = useState(reducedMotion)
+  const [writeDone,    setWriteDone]    = useState(reducedMotion)
+  const [cardVisible,  setCardVisible]  = useState(false)
+  const [greetingDone, setGreetingDone] = useState(reducedMotion)
+
+  // Track whether the animation completed naturally (vs timeout)
+  const animFinished = useRef(reducedMotion)
+
+  // Kick off the Dearly, handwriting after a beat (skip if reduced motion)
   useEffect(() => {
+    if (reducedMotion) return
     const id = setTimeout(() => setWriteStarted(true), 350)
     return () => clearTimeout(id)
   }, [])
 
-  // Safety timeout: if TegakiRenderer never calls onComplete (reduced-motion,
-  // font-load failure, Safari quirk), force writeDone after 2.5 s so the card
-  // and CTA still appear.
+  // Safety timeout: if TegakiRenderer's onComplete never fires (font failure,
+  // Safari quirk), force writeDone so the card and CTA still appear.
   useEffect(() => {
-    if (writeDone) return
+    if (reducedMotion || writeDone) return
     const id = setTimeout(() => setWriteDone(true), 2500)
     return () => clearTimeout(id)
   }, [writeDone])
 
-  // Safety timeout for the card greeting (same rationale as writeDone above)
+  // Safety timeout for the card greeting
   useEffect(() => {
-    if (!cardVisible || greetingDone) return
+    if (reducedMotion || !cardVisible || greetingDone) return
     const id = setTimeout(() => setGreetingDone(true), 1500)
     return () => clearTimeout(id)
   }, [cardVisible, greetingDone])
 
-  // After Dearly, is done → reveal the card at full height
+  // After writeDone → reveal the card
   useEffect(() => {
     if (!writeDone) return
-    const id = setTimeout(() => setCardVisible(true), 480)
+    const delay = reducedMotion ? 80 : 480
+    const id = setTimeout(() => setCardVisible(true), delay)
     return () => clearTimeout(id)
   }, [writeDone])
+
+  // When card appears in reduced-motion mode, immediately mark greeting done
+  useEffect(() => {
+    if (!reducedMotion || !cardVisible) return
+    setGreetingDone(true)
+  }, [cardVisible])
 
   return (
     <div className={styles.root}>
@@ -77,31 +100,37 @@ export default function LoadingScreen({ onCta = () => {} }) {
       <motion.div
         layout="position"
         className={styles.hero}
-        transition={{ layout: { duration: 0.72, ease: [0.22, 1, 0.36, 1] } }}
+        transition={{ layout: { duration: reducedMotion ? 0 : 0.72, ease: [0.22, 1, 0.36, 1] } }}
       >
         <div className={styles.heroTitle}>
           {writeStarted && (
-            <TegakiRenderer
-              font={font}
-              onComplete={() => setWriteDone(true)}
-              time={{ mode: 'uncontrolled', duration: 1.5 }}
-              style={{
-                fontSize:   'clamp(52px, 7vw, 82px)',
-                color:      '#ffffff',
-                fontWeight: 700,
-                whiteSpace: 'nowrap',
-                lineHeight: 1,
-                willChange: 'transform',
-              }}
-            >
-              Dearly,
-            </TegakiRenderer>
+            reducedMotion ? (
+              <span style={caveatStyle('clamp(52px, 7vw, 82px)', '#ffffff')}>
+                Dearly,
+              </span>
+            ) : (
+              <TegakiRenderer
+                font={font}
+                onComplete={() => { animFinished.current = true; setWriteDone(true) }}
+                time={{ mode: 'uncontrolled', duration: 1.5 }}
+                style={{
+                  fontSize:   'clamp(52px, 7vw, 82px)',
+                  color:      '#ffffff',
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                  lineHeight: 1,
+                  willChange: 'transform',
+                }}
+              >
+                Dearly,
+              </TegakiRenderer>
+            )
           )}
         </div>
 
         <motion.p
           className={styles.heroSub}
-          initial={{ opacity: 0, y: 14 }}
+          initial={{ opacity: 0, y: reducedMotion ? 0 : 14 }}
           animate={{ opacity: writeDone ? 1 : 0, y: writeDone ? 0 : 14 }}
           transition={{ duration: 0.6, ease: 'easeOut', delay: writeDone ? 0.1 : 0 }}
         >
@@ -114,7 +143,7 @@ export default function LoadingScreen({ onCta = () => {} }) {
         <>
           <motion.article
             className={styles.card}
-            initial={{ opacity: 0, y: 22 }}
+            initial={{ opacity: 0, y: reducedMotion ? 0 : 22 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
           >
@@ -127,28 +156,34 @@ export default function LoadingScreen({ onCta = () => {} }) {
             <div className={styles.letterWrap}>
               <div className={styles.letter}>
 
-                {/* Greeting — starts drawing immediately on mount */}
+                {/* Greeting */}
                 <div className={styles.greeting}>
-                  <TegakiRenderer
-                    font={font}
-                    onComplete={() => setGreetingDone(true)}
-                    time={{ mode: 'uncontrolled', duration: 0.8 }}
-                    style={{
-                      fontSize:   'clamp(24px, 3.2vw, 34px)',
-                      color:      '#1A2A3A',
-                      fontWeight: 700,
-                      whiteSpace: 'nowrap',
-                      lineHeight: 1,
-                    }}
-                  >
-                    Hi there,
-                  </TegakiRenderer>
+                  {reducedMotion ? (
+                    <span style={caveatStyle('clamp(24px, 3.2vw, 34px)', '#1A2A3A')}>
+                      Hi there,
+                    </span>
+                  ) : (
+                    <TegakiRenderer
+                      font={font}
+                      onComplete={() => setGreetingDone(true)}
+                      time={{ mode: 'uncontrolled', duration: 0.8 }}
+                      style={{
+                        fontSize:   'clamp(24px, 3.2vw, 34px)',
+                        color:      '#1A2A3A',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        lineHeight: 1,
+                      }}
+                    >
+                      Hi there,
+                    </TegakiRenderer>
+                  )}
                 </div>
 
-                {/* Body text — always in DOM for full height, fades in after greeting */}
+                {/* Body text */}
                 <motion.p
                   className={styles.para}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: reducedMotion ? 0 : 10 }}
                   animate={{ opacity: greetingDone ? 1 : 0, y: greetingDone ? 0 : 10 }}
                   transition={{ duration: 0.45, ease: 'easeOut', delay: greetingDone ? 0 : 0 }}
                 >
@@ -158,7 +193,7 @@ export default function LoadingScreen({ onCta = () => {} }) {
 
                 <motion.p
                   className={styles.para}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: reducedMotion ? 0 : 10 }}
                   animate={{ opacity: greetingDone ? 1 : 0, y: greetingDone ? 0 : 10 }}
                   transition={{ duration: 0.45, ease: 'easeOut', delay: greetingDone ? 0.11 : 0 }}
                 >
@@ -168,7 +203,7 @@ export default function LoadingScreen({ onCta = () => {} }) {
 
                 <motion.p
                   className={styles.closing}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: reducedMotion ? 0 : 10 }}
                   animate={{ opacity: greetingDone ? 1 : 0, y: greetingDone ? 0 : 10 }}
                   transition={{ duration: 0.45, ease: 'easeOut', delay: greetingDone ? 0.22 : 0 }}
                 >
