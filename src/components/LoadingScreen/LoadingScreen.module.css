@@ -72,9 +72,7 @@
   align-items: flex-end;
   justify-content: center;
   min-height: 80px;
-  /* Isolate compositing layer — prevents Tegaki end-of-stroke jitter */
   isolation: isolate;
-  transform: translateZ(0);
 }
 
 .heroSub {
