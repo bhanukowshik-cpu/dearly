@@ -9,6 +9,12 @@ import styles from './PaperCanvas.module.css'
 
 const BASE_SIZE = 52
 
+// Safari's compositing model clears TegakiRenderer canvases when many
+// instances are present — skip the animated renderer and use plain text.
+const isSafari =
+  typeof navigator !== 'undefined' &&
+  /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+
 /* ─────────────────────────────────────────────────────────────────────────
    Control icons
    ───────────────────────────────────────────────────────────────────────── */
@@ -128,6 +134,19 @@ function buildSegments(text, types, chars) {
 function CharPath({ ch, inkColor, fontWeight, fontSize }) {
   if (ch === ' ') {
     return <span>{' '}</span>
+  }
+  if (isSafari) {
+    return (
+      <span style={{
+        display:     'inline-block',
+        verticalAlign: 'text-bottom',
+        lineHeight:  1,
+        fontFamily:  "'Caveat', cursive",
+        fontSize:    fontSize ?? 'inherit',
+        color:       inkColor,
+        fontWeight:  fontWeight ?? 400,
+      }}>{ch}</span>
+    )
   }
   return (
     <span style={{ display: 'inline-block', verticalAlign: 'text-bottom', lineHeight: 1 }}>
