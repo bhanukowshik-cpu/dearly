@@ -462,3 +462,9 @@ export const STICKER_GROUPS = [
     ],
   },
 ]
+
+// id → Component lookup used when sticker data is decoded from a share URL
+// (JSON serialization drops function properties, so Component must be re-resolved by id)
+export const STICKER_REGISTRY = Object.fromEntries(
+  STICKER_GROUPS.flatMap(g => g.stickers).map(s => [s.id, s.Component])
+)

@@ -4,6 +4,7 @@ import { TegakiRenderer } from 'tegaki/react'
 import { font } from '../../lib/tegakiFont'
 import { useCharList } from '../../lib/useCharList'
 import { PAPER_TYPES } from './stylePresets'
+import { STICKER_REGISTRY } from './handDrawnStickers'
 import styles from './PaperCanvas.module.css'
 
 const BASE_SIZE = 52
@@ -352,6 +353,7 @@ function BodyText({ text, inkColor, textSize = 'lg', readingConfig, lineSpacing 
    Drag anywhere on the icon to move it immediately (no move button needed).
    ───────────────────────────────────────────────────────────────────────── */
 function StickerIcon({ sticker, isSelected, onSelect, paperRef, onMove }) {
+  const StickerComp = sticker.Component ?? STICKER_REGISTRY[sticker.id]
   const cleanupRef = useRef(null)
   useEffect(() => () => { cleanupRef.current?.() }, [])
 
@@ -408,7 +410,7 @@ function StickerIcon({ sticker, isSelected, onSelect, paperRef, onMove }) {
     >
       <div className={styles.stickerInner}>
         <div className={styles.stickerContent}>
-          <sticker.Component />
+          {StickerComp && <StickerComp />}
         </div>
       </div>
     </motion.div>
