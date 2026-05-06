@@ -18,6 +18,21 @@ async function buildFontEmbedCSS() {
   }
 }
 
+// Gradients-only version of the vintage stains background.
+// The SVG feTurbulence grain renders solid black in html-to-image canvas captures,
+// so we swap it out before capture and restore afterwards.
+const STAINS_CAPTURE_BG = [
+  'radial-gradient(ellipse 92% 88% at 50% 50%, transparent 60%, rgba(88,50,14,0.16) 100%)',
+  'linear-gradient(to bottom, rgba(80,45,12,0.09) 0%, transparent 18%)',
+  'linear-gradient(to top,    rgba(80,45,12,0.11) 0%, transparent 18%)',
+  'linear-gradient(to right,  rgba(80,45,12,0.07) 0%, transparent 14%)',
+  'linear-gradient(to left,   rgba(80,45,12,0.07) 0%, transparent 14%)',
+  'radial-gradient(ellipse 34% 30% at   0%   0%, rgba(68,38,8,0.09) 0%, transparent 100%)',
+  'radial-gradient(ellipse 30% 26% at 100%   0%, rgba(68,38,8,0.07) 0%, transparent 100%)',
+  'radial-gradient(ellipse 34% 30% at   0% 100%, rgba(68,38,8,0.09) 0%, transparent 100%)',
+  'radial-gradient(ellipse 38% 33% at 100% 100%, rgba(68,38,8,0.11) 0%, transparent 100%)',
+].join(', ')
+
 export async function captureCanvas(paperRef) {
   const containerEl = paperRef.current
   if (!containerEl) throw new Error('No element')
@@ -28,6 +43,11 @@ export async function captureCanvas(paperRef) {
   const savedFilter = wrapEl?.style.filter ?? ''
   if (wrapEl) wrapEl.style.filter = 'none'
 
+  // Swap out SVG grain on the stains element before toPng clones the DOM.
+  // Direct inline style override is more reliable than injecting CSS into the clone.
+  const stainEl = paperEl.querySelector('[data-stains]')
+  if (stainEl) stainEl.style.setProperty('background', STAINS_CAPTURE_BG, 'important')
+
   const fontEmbedCSS = await buildFontEmbedCSS()
   const bgColor = window.getComputedStyle(paperEl).backgroundColor || '#ffffff'
 
@@ -35,14 +55,13 @@ export async function captureCanvas(paperRef) {
     pixelRatio: 3,
     backgroundColor: bgColor,
     onclone: (_doc) => {
-      // Inject font directly into cloned document — Safari ignores fontEmbedCSS
-      // option alone and needs the @font-face in a real <style> tag to render text.
+      // Inject font directly — Safari needs @font-face in a real <style> tag to render text.
       if (fontEmbedCSS) {
         const fontStyle = _doc.createElement('style')
         fontStyle.textContent = fontEmbedCSS
         _doc.head.appendChild(fontStyle)
       }
-      // Freeze all SVG stroke animations so TegakiRenderer chars are fully drawn.
+      // Freeze SVG stroke animations so TegakiRenderer chars are fully drawn.
       const animStyle = _doc.createElement('style')
       animStyle.textContent = [
         '*, *::before, *::after {',
@@ -54,32 +73,18 @@ export async function captureCanvas(paperRef) {
         '  stroke-dashoffset: 0 !important;',
         '  stroke-dasharray: none !important;',
         '}',
-        // The SVG feTurbulence grain in [data-stains] renders as solid black
-        // in html-to-image canvas captures. Override to gradients-only so the
-        // vignette and edge aging still show without the black fill.
-        '[data-stains] {',
-        '  background:',
-        '    radial-gradient(ellipse 92% 88% at 50% 50%, transparent 60%, rgba(88,50,14,0.16) 100%),',
-        '    linear-gradient(to bottom, rgba(80,45,12,0.09) 0%, transparent 18%),',
-        '    linear-gradient(to top,    rgba(80,45,12,0.11) 0%, transparent 18%),',
-        '    linear-gradient(to right,  rgba(80,45,12,0.07) 0%, transparent 14%),',
-        '    linear-gradient(to left,   rgba(80,45,12,0.07) 0%, transparent 14%),',
-        '    radial-gradient(ellipse 34% 30% at   0%   0%, rgba(68,38,8,0.09) 0%, transparent 100%),',
-        '    radial-gradient(ellipse 30% 26% at 100%   0%, rgba(68,38,8,0.07) 0%, transparent 100%),',
-        '    radial-gradient(ellipse 34% 30% at   0% 100%, rgba(68,38,8,0.09) 0%, transparent 100%),',
-        '    radial-gradient(ellipse 38% 33% at 100% 100%, rgba(68,38,8,0.11) 0%, transparent 100%) !important;',
-        '}',
       ].join('\n')
       _doc.head.appendChild(animStyle)
     },
     ...(fontEmbedCSS ? { fontEmbedCSS } : {}),
   }
 
-  // Safari requires two toPng calls: first warms up resource loading (fonts,
-  // images), second captures with everything available.
+  // Safari needs two toPng calls: first warms up resource loading, second captures.
   await toPng(paperEl, opts).catch(() => {})
   const dataUrl = await toPng(paperEl, opts)
 
+  // Restore stains and drop-shadow.
+  if (stainEl) stainEl.style.removeProperty('background')
   if (wrapEl) wrapEl.style.filter = savedFilter
 
   return new Promise((resolve, reject) => {
