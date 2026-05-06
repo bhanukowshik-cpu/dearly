@@ -662,6 +662,7 @@ export default function PaperCanvas({
   const letterRef     = useRef(null)
   const [rulerOffset,    setRulerOffset]    = useState(21)
   const [contentScale,   setContentScale]   = useState(1)
+  const [bodyFitStyle,   setBodyFitStyle]   = useState(null)
 
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 860px)').matches : false
@@ -710,6 +711,7 @@ export default function PaperCanvas({
     if (!fitContent) {
       letter.style.overflow        = ''
       letter.style.width           = ''
+      letter.style.height          = ''
       letter.style.transform       = ''
       letter.style.transformOrigin = ''
       return
@@ -757,22 +759,31 @@ export default function PaperCanvas({
       }
       measuring = false
 
-      const scale = contentH > paperH ? paperH / contentH : 1
+      if (contentH > paperH) {
+        // Scale content to fit with equal visual padding on all sides (16px).
+        // Widen the element so visual width = paperW - 2*PAD after scaling.
+        // Translate to center the scaled content within the paper.
+        const PAD     = 10
+        const scale   = (paperH - 2 * PAD) / contentH
+        const letterW = Math.round((paperW - 2 * PAD) / scale)
+        const tx      = PAD
+        const ty      = Math.round((paperH - contentH * scale) / 2)
 
-      if (scale < 1) {
-        // Widen the element to (paperW / scale) so that after scale() is applied
-        // the visual width equals paperW — keeps ruler lines spanning the full paper.
-        // overflow:visible lets the paper's own overflow:hidden do the final clip.
         letter.style.overflow        = 'visible'
-        letter.style.width           = `${Math.round(paperW / scale)}px`
-        letter.style.transform       = `scale(${scale})`
-        letter.style.transformOrigin = 'top left'
+        letter.style.width           = `${letterW}px`
+        letter.style.height          = `${contentH}px`
+        letter.style.transform       = `translate(${tx}px, ${ty}px) scale(${scale})`
+        letter.style.transformOrigin = '0 0'
+        letter.setAttribute('data-body-free', '1')
+        setContentScale(scale)
       } else {
         letter.style.overflow  = ''
         letter.style.width     = ''
+        letter.style.height    = ''
         letter.style.transform = ''
+        letter.removeAttribute('data-body-free')
+        setContentScale(1)
       }
-      setContentScale(scale)
     }
 
     applyScale()
@@ -790,7 +801,7 @@ export default function PaperCanvas({
   const paperStyle = { backgroundColor: bg }
   const letterContentStyle = rulerLines
     ? { backgroundColor: bg, backgroundImage: rulerLines, backgroundSize: `100% ${lineSpacing}px`, backgroundPositionY: `${rulerOffset}px` }
-    : { backgroundColor: bg }
+    : typeData.hasStains ? {} : { backgroundColor: bg }
 
   return (
     <div className={styles.root}>
@@ -811,13 +822,13 @@ export default function PaperCanvas({
             onPointerDown={() => onSelectSticker?.(null)}
             onDoubleClick={() => onBgClick?.()}
           >
+            {/* Stains at paper level so they cover the full paper even when letterContent is scaled */}
+            {typeData.hasStains && <div className={styles.stains} aria-hidden />}
             <div
               ref={letterRef}
               className={styles.letterContent}
               style={letterContentStyle}
             >
-              {/* Stains at z-index:-1 paint above letterContent's solid bg but below text */}
-              {typeData.hasStains && <div className={styles.stains} aria-hidden />}
               {isEmpty && (
                 <motion.div
                   className={styles.emptyHint}
@@ -838,7 +849,7 @@ export default function PaperCanvas({
                 </div>
               )}
               {message && (
-                <div ref={bodyRef} className={styles.body}>
+                <div ref={bodyRef} className={styles.body} style={bodyFitStyle || undefined}>
                   <BodyText
                     text={message} inkColor={inkColor}
                     textSize={textSize} readingConfig={readingConfig}
