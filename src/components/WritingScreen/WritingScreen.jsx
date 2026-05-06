@@ -521,6 +521,24 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
         )}
       </AnimatePresence>
 
+      {/* Product Hunt badge — bottom-left, unobtrusive */}
+      <a
+        href="https://www.producthunt.com/products/dearly-notes-that-feel-personal?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-dearly-notes-that-feel-personal"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ position: 'fixed', bottom: 16, left: 16, zIndex: 10, opacity: 0.85, transition: 'opacity 0.2s' }}
+        onMouseEnter={e => e.currentTarget.style.opacity = 1}
+        onMouseLeave={e => e.currentTarget.style.opacity = 0.85}
+      >
+        <img
+          alt="Dearly — Notes that feel personal | Product Hunt"
+          src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1140179&theme=light"
+          width="200"
+          height="43"
+          style={{ display: 'block' }}
+        />
+      </a>
+
     </div>
   )
 }
