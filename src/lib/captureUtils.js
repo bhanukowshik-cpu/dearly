@@ -31,8 +31,25 @@ export async function captureCanvas(paperRef) {
   const fontEmbedCSS = await buildFontEmbedCSS()
 
   const dataUrl = await toPng(paperEl, {
-    pixelRatio: 4,
-    backgroundColor: null,
+    pixelRatio: 3,
+    backgroundColor: '#ffffff',
+    onclone: (_doc, el) => {
+      // Force all SVG stroke animations to their completed state so
+      // TegakiRenderer characters are fully drawn (not mid-animation invisible).
+      const style = _doc.createElement('style')
+      style.textContent = [
+        '*, *::before, *::after {',
+        '  animation-duration: 0.001ms !important;',
+        '  animation-delay: 0ms !important;',
+        '  transition-duration: 0ms !important;',
+        '}',
+        'svg path, svg polyline, svg line {',
+        '  stroke-dashoffset: 0 !important;',
+        '  stroke-dasharray: none !important;',
+        '}',
+      ].join('\n')
+      _doc.head.appendChild(style)
+    },
     ...(fontEmbedCSS ? { fontEmbedCSS } : {}),
   })
 

@@ -580,7 +580,7 @@ function RecipientBox({ value, onChange, onHide, shakeKey }) {
 /* ─────────────────────────────────────────────────────────────────────────
    MessageBox — contenteditable message editor
    ───────────────────────────────────────────────────────────────────────── */
-function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onSizeChange }) {
+function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onSizeChange, onLimitToast }) {
   const editorRef           = useRef(null)
   const triggerRef          = useRef(null)
   const isEditingRef        = useRef(false)
@@ -646,6 +646,27 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
     }
   }, [value])
 
+  function sizeName() {
+    return textSize === 'lg' ? 'Large' : textSize === 'md' ? 'Medium' : 'Small'
+  }
+
+  function handlePaste(e) {
+    e.preventDefault()
+    const pasted = e.clipboardData?.getData('text/plain') ?? ''
+    const el = editorRef.current
+    if (!el) return
+    const currentPlain = el.textContent || ''
+    const sel = window.getSelection()
+    const selectedText = sel && !sel.isCollapsed ? sel.toString() : ''
+    const afterReplace = currentPlain.replace(selectedText, '') + pasted
+    if (countWords(afterReplace) > maxWords) {
+      onLimitToast?.(`You've reached the ${maxWords}-word limit for ${sizeName()} text — switch to a smaller size to write more.`)
+      return
+    }
+    document.execCommand('insertText', false, pasted)
+    handleInput()
+  }
+
   function handleInput() {
     const el = editorRef.current
     if (!el) return
@@ -654,6 +675,7 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
     if (words > maxWords) {
       el.innerHTML = markupToHtml(lastValidRef.current)
       placeCursorAtEnd(el)
+      onLimitToast?.(`You've reached the ${maxWords}-word limit for ${sizeName()} text — switch to a smaller size to write more.`)
       return
     }
     undoStackRef.current.push(lastValidRef.current)
@@ -806,6 +828,7 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
           contentEditable
           suppressContentEditableWarning
           onInput={handleInput}
+          onPaste={handlePaste}
           onFocus={handleFocus}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
@@ -909,6 +932,7 @@ export default function InputPanel({
   onTextSizeChange,
   senderName,
   onSenderNameChange,
+  onLimitToast,
 }) {
   return (
     <div className={styles.panel}>
@@ -946,6 +970,7 @@ export default function InputPanel({
         shakeKey={shakeKey}
         textSize={textSize}
         onSizeChange={onTextSizeChange}
+        onLimitToast={onLimitToast}
       />
 
       <motion.div

@@ -58,17 +58,22 @@ function IconClose() {
 }
 
 // ── ShareSheet ──────────────────────────────────────────────────────────────
+const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
+
 export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet = false }) {
   const [linkUrl,      setLinkUrl]      = useState('')
   const [copied,       setCopied]       = useState(false)
   const [creatingLink, setCreatingLink] = useState(false)
   const [linkErr,      setLinkErr]      = useState('')
   const [loadingPng,   setLoadingPng]   = useState(false)
+  const [downloadDone, setDownloadDone] = useState(false) // 'done' | 'ios' | false
   const [exportErr,    setExportErr]    = useState('')
-  const copiedTimerRef = useRef(null)
+  const copiedTimerRef   = useRef(null)
+  const downloadTimerRef = useRef(null)
 
   useEffect(() => () => {
-    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current)
+    if (copiedTimerRef.current)   clearTimeout(copiedTimerRef.current)
+    if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current)
   }, [])
 
   const handleCreateLink = useCallback(async () => {
@@ -98,21 +103,41 @@ export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet 
   }, [linkUrl])
 
   const handlePng = useCallback(async () => {
+    if (loadingPng) return
     setLoadingPng(true)
+    setDownloadDone(false)
     setExportErr('')
     try {
       const canvas = await captureCanvas(paperRef)
-      const link   = document.createElement('a')
-      link.href     = canvas.toDataURL('image/png')
-      link.download = `dearly-note.png`
-      link.click()
+      await new Promise((resolve, reject) => {
+        canvas.toBlob(blob => {
+          if (!blob) { reject(new Error('toBlob failed')); return }
+          const url = URL.createObjectURL(blob)
+          if (isIOS) {
+            window.open(url, '_blank')
+            setTimeout(() => URL.revokeObjectURL(url), 8000)
+            setDownloadDone('ios')
+          } else {
+            const a = document.createElement('a')
+            a.href     = url
+            a.download = 'dearly-note.png'
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            setTimeout(() => URL.revokeObjectURL(url), 1000)
+            setDownloadDone('done')
+          }
+          downloadTimerRef.current = setTimeout(() => setDownloadDone(false), 4000)
+          resolve()
+        }, 'image/png')
+      })
     } catch (e) {
       console.error('PNG export failed', e)
-      setExportErr('PNG export failed — please try again.')
+      setExportErr('Export failed — please try again.')
     } finally {
       setLoadingPng(false)
     }
-  }, [paperRef])
+  }, [paperRef, loadingPng])
 
   const motionProps = isMobileSheet
     ? { initial: { opacity: 0, y: 40 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: 40 }, transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } }
@@ -156,7 +181,8 @@ export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet 
                   className={styles.linkInput}
                   value={linkUrl}
                   readOnly
-                  onClick={e => e.target.select()}
+                  inputMode="none"
+                  onFocus={e => e.target.blur()}
                 />
                 <button
                   className={`${styles.copyBtn} ${copied ? styles.copyBtnDone : ''}`}
@@ -200,7 +226,18 @@ export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet 
           </svg>
           <span className={styles.optionIcon}><IconPNG /></span>
           <span className={styles.optionText}>
-            <span className={styles.optionLabel}>{loadingPng ? 'Generating…' : 'Download as PNG'}</span>
+            <span className={styles.optionLabel}>
+              {loadingPng
+                ? 'Generating…'
+                : downloadDone === 'ios'
+                  ? 'Long press the image to save 📸'
+                  : downloadDone === 'done'
+                    ? 'Check your downloads ✓'
+                    : 'Download as PNG'}
+            </span>
+            {downloadDone === 'ios' && (
+              <span className={styles.optionSub}>Image opened in a new tab</span>
+            )}
           </span>
         </button>
 
