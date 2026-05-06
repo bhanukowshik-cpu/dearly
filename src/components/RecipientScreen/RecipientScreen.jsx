@@ -117,7 +117,7 @@ function buildWordItems(recipient, message) {
   // Parse message markup
   let rem = (message || '')
   while (rem.length > 0) {
-    const hm = rem.match(/^==((?:pink::|sage::)?)([^=\n]+)==/)
+    const hm = rem.match(/^==((?:pink::|sage::)?)([^=]+)==/)
     const bm = rem.match(/^\*\*([^*\n]+)\*\*/)
     const sm = rem.match(/^~~([^~\n]+)~~/)
     const zm = rem.match(/^@@(sm|lg)::([^@\n]+)@@/)
@@ -153,7 +153,7 @@ function buildWordItems(recipient, message) {
 // ── Strip markup tags → plain text for ElevenLabs ────────────────────────────
 function stripMarkup(text) {
   return (text || '')
-    .replace(/==(?:pink::|sage::)?([^=\n]+)==/g, '$1')
+    .replace(/==(?:pink::|sage::)?([^=]+)==/g, '$1')
     .replace(/\*\*([^*\n]+)\*\*/g, '$1')
     .replace(/~~([^~\n]+)~~/g, '$1')
     .replace(/@@(?:sm|lg)::([^@\n]+)@@/g, '$1')
@@ -986,10 +986,7 @@ export default function RecipientScreen({
             >
               <div className={styles.toastLeft}>
                 <p className={styles.toastText}>
-                  {senderName
-                    ? <>Write your own note and make <strong>{senderName}</strong>'s words shine.</>
-                    : <>Write a note and make someone's words truly shine.</>
-                  }
+                  That feeling you just had? Someone in your life deserves it too.
                 </p>
               </div>
               <div className={styles.toastRight}>
