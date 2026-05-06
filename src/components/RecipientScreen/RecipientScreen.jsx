@@ -399,6 +399,7 @@ export default function RecipientScreen({
   const [musicOn,          setMusicOn]          = useState(false)
   const [isSpeaking,       setIsSpeaking]       = useState(false)
   const [isLoadingAudio,   setIsLoadingAudio]   = useState(false)
+  const [ttsError,         setTtsError]         = useState(null)
   const [showToast,        setShowToast]        = useState(false)
   const [showRatingToast,  setShowRatingToast]  = useState(false)
   const [rating,           setRating]           = useState(0)
@@ -592,7 +593,11 @@ export default function RecipientScreen({
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify({ text: ttsText }),
         })
-        if (!res.ok) throw new Error(`TTS ${res.status}`)
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}))
+          const msg  = body?.error ?? `TTS ${res.status}`
+          throw new Error(msg)
+        }
         data = await res.json()
       }
       const { audio_base64, alignment } = data
@@ -656,8 +661,15 @@ export default function RecipientScreen({
         stopReading()
       })
       await audio.play()
-    } catch {
+    } catch (err) {
       stopReading()
+      const msg = err?.message ?? ''
+      if (msg.toLowerCase().includes('quota')) {
+        setTtsError('Voice credits ran out — try again later.')
+      } else {
+        setTtsError('Audio unavailable right now.')
+      }
+      setTimeout(() => setTtsError(null), 5000)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSpeaking, isLoadingAudio, message, recipient])
@@ -779,13 +791,20 @@ export default function RecipientScreen({
                 transition={{ duration: 0.7, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
               >
                 {/* Left — de-emphasised listen hint */}
-                <button
-                  className={`${styles.listenHint} ${isLoadingAudio ? styles.listenHintLoading : ''} ${isSpeaking ? styles.listenHintActive : ''}`}
-                  onClick={handleReadAloud}
-                  disabled={isLoadingAudio}
-                >
-                  {isLoadingAudio ? '✦ a moment…' : isSpeaking ? '■ stop' : '✦ listen to your note'}
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                  <button
+                    className={`${styles.listenHint} ${isLoadingAudio ? styles.listenHintLoading : ''} ${isSpeaking ? styles.listenHintActive : ''}`}
+                    onClick={handleReadAloud}
+                    disabled={isLoadingAudio}
+                  >
+                    {isLoadingAudio ? '✦ a moment…' : isSpeaking ? '■ stop' : '✦ listen to your note'}
+                  </button>
+                  {ttsError && (
+                    <span style={{ fontSize: 11, color: 'rgba(255,180,100,0.85)', fontFamily: "'Caveat', cursive", paddingLeft: 4 }}>
+                      {ttsError}
+                    </span>
+                  )}
+                </div>
 
                 {/* Right — music toggle + download */}
                 <div className={styles.controlsRight}>
