@@ -309,30 +309,30 @@
 
 .highlight {
   background-color: rgba(255, 208, 40, 0.52);
-  border-radius: 3px;
+  border-radius: 2px 4px 5px 3px / 5px 3px 2px 4px;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
-  padding: 1px 4px;
+  padding: 1px 5px 2px 4px;
   margin: 0 -2px;
   color: inherit;
 }
 
 .highlightPink {
   background-color: rgba(255, 130, 160, 0.50);
-  border-radius: 3px;
+  border-radius: 4px 2px 3px 5px / 3px 5px 4px 2px;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
-  padding: 1px 4px;
+  padding: 2px 4px 1px 5px;
   margin: 0 -2px;
   color: inherit;
 }
 
 .highlightSage {
   background-color: rgba(75, 185, 140, 0.45);
-  border-radius: 3px;
+  border-radius: 3px 5px 2px 4px / 4px 2px 5px 3px;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
-  padding: 1px 4px;
+  padding: 1px 4px 2px 5px;
   margin: 0 -2px;
   color: inherit;
 }

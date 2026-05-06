@@ -375,7 +375,7 @@ function BodyText({ text, inkColor, textSize = 'lg', readingConfig, lineSpacing 
    StickerIcon — the scaled, animated sticker graphic.
    Drag anywhere on the icon to move it immediately (no move button needed).
    ───────────────────────────────────────────────────────────────────────── */
-function StickerIcon({ sticker, isSelected, onSelect, paperRef, onMove }) {
+function StickerIcon({ sticker, isSelected, onSelect, paperRef, onMove, paperScale = 1 }) {
   const StickerComp = sticker.Component ?? STICKER_REGISTRY[sticker.id]
   const cleanupRef = useRef(null)
   useEffect(() => () => { cleanupRef.current?.() }, [])
@@ -422,7 +422,7 @@ function StickerIcon({ sticker, isSelected, onSelect, paperRef, onMove }) {
         zIndex: isSelected ? 15 : 5,
       }}
       initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: sticker.scale, rotate: sticker.rotation, opacity: 1 }}
+      animate={{ scale: sticker.scale * paperScale, rotate: sticker.rotation, opacity: 1 }}
       exit={{ scale: 0, opacity: 0 }}
       transition={{
         scale:   { type: 'spring', stiffness: 600, damping: 42 },
@@ -733,12 +733,14 @@ export default function PaperCanvas({
       letter.style.width     = `${paperW}px`
       letter.style.transform = ''
 
-      // Also let the body child expand freely so its content height is included
+      // Also let the body child expand freely so its content height is included.
+      // Must reset `flex` entirely (not just flexShrink) because flex-basis:0
+      // causes the body to measure at 0px in an auto-height flex container.
       const body = bodyRef.current
       if (body) {
-        body.style.overflow   = 'visible'
-        body.style.flexShrink = '0'
-        body.style.height     = 'auto'
+        body.style.overflow = 'visible'
+        body.style.flex     = 'none'
+        body.style.height   = 'auto'
       }
 
       const contentH = letter.scrollHeight
@@ -749,9 +751,9 @@ export default function PaperCanvas({
       letter.style.height   = ''
       letter.style.width    = ''
       if (body) {
-        body.style.overflow   = ''
-        body.style.flexShrink = ''
-        body.style.height     = ''
+        body.style.overflow = ''
+        body.style.flex     = ''
+        body.style.height   = ''
       }
       measuring = false
 
@@ -856,6 +858,7 @@ export default function PaperCanvas({
                   onSelect={onSelectSticker}
                   paperRef={paperRef}
                   onMove={onMoveSticker}
+                  paperScale={fitContent ? contentScale : 1}
                 />
               ))}
             </AnimatePresence>

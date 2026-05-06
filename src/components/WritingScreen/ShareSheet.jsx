@@ -60,6 +60,7 @@ function IconClose() {
 
 // ── ShareSheet ──────────────────────────────────────────────────────────────
 const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
+const isMobileDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod|Android/i.test(navigator.userAgent)
 
 function legacyCopy(text) {
   const el = document.createElement('textarea')
@@ -137,21 +138,35 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
     setDownloadDone(false)
     setExportErr('')
     onToast?.('Preparing your image…')
-    // Pre-open a window synchronously while the user gesture is still active —
-    // iOS Safari blocks window.open() called inside async callbacks.
-    const iosWin = isIOS ? window.open('about:blank', '_blank') : null
+
+    // Pre-open window synchronously while user gesture is active (iOS/Android WebView requirement).
+    const mobileWin = isMobileDevice ? window.open('', '_blank') : null
+
     try {
       const canvas = await captureCanvas(paperRef)
-      await new Promise((resolve, reject) => {
-        canvas.toBlob(blob => {
-          if (!blob) { reject(new Error('toBlob failed')); return }
-          const url = URL.createObjectURL(blob)
-          if (isIOS) {
-            if (iosWin) iosWin.location.href = url
-            else window.open(url, '_blank')
-            setTimeout(() => URL.revokeObjectURL(url), 8000)
-            setDownloadDone('ios')
-          } else {
+
+      if (isMobileDevice) {
+        const dataUrl = canvas.toDataURL('image/png')
+        if (mobileWin) {
+          mobileWin.document.write(
+            `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width">` +
+            `<title>Dearly Note</title></head>` +
+            `<body style="margin:0;background:#111;display:flex;flex-direction:column;` +
+            `align-items:center;justify-content:center;min-height:100vh;gap:16px;padding:16px;box-sizing:border-box">` +
+            `<img src="${dataUrl}" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px">` +
+            `<p style="color:rgba(255,255,255,0.7);font-family:sans-serif;font-size:13px;margin:0;text-align:center">` +
+            `Long press the image to save it</p></body></html>`
+          )
+          mobileWin.document.close()
+        }
+        setDownloadDone('ios')
+        trackEvent('png_downloaded', { source: 'share_sheet', platform: 'mobile' })
+        onToast?.('Image opened — long press it to save.')
+      } else {
+        await new Promise((resolve, reject) => {
+          canvas.toBlob(blob => {
+            if (!blob) { reject(new Error('toBlob failed')); return }
+            const url = URL.createObjectURL(blob)
             const a = document.createElement('a')
             a.href     = url
             a.download = 'dearly-note.png'
@@ -160,18 +175,17 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
             document.body.removeChild(a)
             setTimeout(() => URL.revokeObjectURL(url), 1000)
             setDownloadDone('done')
-          }
-          trackEvent('png_downloaded', { source: 'share_sheet' })
-          onToast?.(isIOS
-            ? 'Image saved — check your Files or Photos app.'
-            : 'Image downloaded — check your Downloads folder.')
-          downloadTimerRef.current = setTimeout(() => setDownloadDone(false), 4000)
-          resolve()
-        }, 'image/png')
-      })
+            trackEvent('png_downloaded', { source: 'share_sheet', platform: 'desktop' })
+            onToast?.('Image downloaded — check your Downloads folder.')
+            resolve()
+          }, 'image/png')
+        })
+      }
+
+      downloadTimerRef.current = setTimeout(() => setDownloadDone(false), 4000)
     } catch (e) {
       console.error('PNG export failed', e)
-      if (iosWin) iosWin.close()
+      if (mobileWin) mobileWin.close()
       setExportErr('Export failed — please try again.')
       onToast?.('Could not export image, please try again.')
     } finally {
