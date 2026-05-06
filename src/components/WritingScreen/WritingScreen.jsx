@@ -350,6 +350,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
                     noteData={getNoteData()}
                     paperRef={paperRef}
                     onClose={() => setShowShare(false)}
+                    onToast={showToast}
                   />
                 )}
               </AnimatePresence>
@@ -370,6 +371,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
             noteData={getNoteData()}
             paperRef={paperRef}
             onClose={() => setShowShare(false)}
+            onToast={showToast}
             isMobileSheet
           />
         </>

@@ -73,30 +73,22 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: -1; /* below text but above letterContent's solid bg */
+  z-index: -1;
   background:
-    /* Warm amber wash drifting down from top — overall paper age tone */
-    radial-gradient(ellipse 140% 70% at 50% -8%, rgba(195,155,75,0.13) 0%, transparent 65%),
-    /* Corner darkening — bottom-right heaviest, as with real aged paper */
-    radial-gradient(ellipse 110px  95px at   0%   0%, rgba(108,72,28,0.17) 0%, transparent 100%),
-    radial-gradient(ellipse  85px  75px at 100%   0%, rgba(108,72,28,0.12) 0%, transparent 100%),
-    radial-gradient(ellipse  95px  90px at   0% 100%, rgba(108,72,28,0.15) 0%, transparent 100%),
-    radial-gradient(ellipse 120px 105px at 100% 100%, rgba(108,72,28,0.20) 0%, transparent 100%),
-    /* Coffee ring 1 — annular shape: transparent centre, dark band, fade out */
-    radial-gradient(circle at 77% 16%, transparent 52%, rgba(132,92,38,0.26) 63%, rgba(132,92,38,0.07) 77%, transparent 90%),
-    /* Coffee ring 2 — smaller, fainter */
-    radial-gradient(circle at 18% 66%, transparent 48%, rgba(128,88,36,0.16) 60%, rgba(128,88,36,0.05) 74%, transparent 88%),
-    /* Water-damage patch — irregular soft blob */
-    radial-gradient(ellipse 120px 75px at 13% 80%, rgba(130,95,45,0.14) 0%, transparent 100%),
-    radial-gradient(ellipse  70px 50px at 82% 62%, rgba(135,98,44,0.11) 0%, transparent 100%),
-    /* Foxing spots — small age marks scattered across the page */
-    radial-gradient(circle 16px at 63% 86%, rgba(142,102,48,0.22) 0%, transparent 100%),
-    radial-gradient(circle 11px at 89% 51%, rgba(138, 98,44,0.18) 0%, transparent 100%),
-    radial-gradient(circle  8px at 34% 34%, rgba(135, 95,42,0.16) 0%, transparent 100%),
-    radial-gradient(circle  6px at 54% 21%, rgba(140,100,46,0.14) 0%, transparent 100%),
-    radial-gradient(circle  9px at 45% 74%, rgba(138, 98,44,0.13) 0%, transparent 100%),
-    /* Subtle edge vignette — very slight darkening at all borders */
-    radial-gradient(ellipse 160% 160% at 50% 50%, transparent 58%, rgba(95,65,25,0.07) 100%);
+    /* Subtle fibrous grain — very light alpha so the cream base stays bright */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='500'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.68 0.48' numOctaves='4' seed='12' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='1.1 0 0 0 0.05 0 0.75 0 0 0.02 0 0 0.5 0 0.01 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"),
+    /* Gentle outer vignette — barely-there edge aging */
+    radial-gradient(ellipse 92% 88% at 50% 50%, transparent 60%, rgba(88,50,14,0.16) 100%),
+    /* Feather-soft per-edge darkening */
+    linear-gradient(to bottom, rgba(80,45,12,0.09) 0%, transparent 18%),
+    linear-gradient(to top,    rgba(80,45,12,0.11) 0%, transparent 18%),
+    linear-gradient(to right,  rgba(80,45,12,0.07) 0%, transparent 14%),
+    linear-gradient(to left,   rgba(80,45,12,0.07) 0%, transparent 14%),
+    /* Subtle corner warmth */
+    radial-gradient(ellipse 34% 30% at   0%   0%, rgba(68,38,8,0.09) 0%, transparent 100%),
+    radial-gradient(ellipse 30% 26% at 100%   0%, rgba(68,38,8,0.07) 0%, transparent 100%),
+    radial-gradient(ellipse 34% 30% at   0% 100%, rgba(68,38,8,0.09) 0%, transparent 100%),
+    radial-gradient(ellipse 38% 33% at 100% 100%, rgba(68,38,8,0.11) 0%, transparent 100%);
 }
 
 /* ── Flower watermark ────────────────────────────────────────────────────── */

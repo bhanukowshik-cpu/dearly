@@ -4,6 +4,7 @@ import styles from './ShareSheet.module.css'
 import { generateShareUrl } from '../../lib/shareUtils'
 import { saveNote } from '../../lib/supabase'
 import { captureCanvas } from '../../lib/captureUtils'
+import { trackEvent } from '../../lib/analytics'
 
 // ── Hand-drawn icons ────────────────────────────────────────────────────────
 function IconLink() {
@@ -57,8 +58,19 @@ function IconClose() {
   )
 }
 
+function legacyCopy(text) {
+  const el = document.createElement('textarea')
+  el.value = text
+  el.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0'
+  document.body.appendChild(el)
+  el.focus()
+  el.select()
+  try { document.execCommand('copy') } catch {}
+  document.body.removeChild(el)
+}
+
 // ── ShareSheet ──────────────────────────────────────────────────────────────
-export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet = false }) {
+export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMobileSheet = false }) {
   const [linkUrl,      setLinkUrl]      = useState('')
   const [copied,       setCopied]       = useState(false)
   const [creatingLink, setCreatingLink] = useState(false)
@@ -82,37 +94,64 @@ export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet 
         return
       }
       const url = generateShareUrl(id, noteData)
+      trackEvent('note_link_created', { method: isMobileSheet ? 'mobile' : 'desktop' })
+
+      // On mobile: use native share sheet (iOS/Android) — no keyboard, no clipboard issues
+      if (isMobileSheet && typeof navigator.share === 'function') {
+        try {
+          await navigator.share({ url, title: `A note for ${noteData.recipient || 'you'}` })
+          return
+        } catch {
+          // user cancelled or share failed — fall through to copy
+        }
+      }
+
+      // Desktop or share fallback: show the link + copy button
       setLinkUrl(url)
       setCopied(false)
     } finally {
       setCreatingLink(false)
     }
-  }, [noteData, creatingLink])
+  }, [noteData, creatingLink, isMobileSheet])
 
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(linkUrl).then(() => {
-      setCopied(true)
-      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current)
-      copiedTimerRef.current = setTimeout(() => setCopied(false), 2200)
-    })
+    if (!linkUrl) return
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(linkUrl).then(() => {
+        setCopied(true)
+        if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current)
+        copiedTimerRef.current = setTimeout(() => setCopied(false), 2200)
+      }).catch(() => {
+        // Clipboard API blocked — try legacy execCommand
+        legacyCopy(linkUrl)
+      })
+    } else {
+      legacyCopy(linkUrl)
+    }
   }, [linkUrl])
 
   const handlePng = useCallback(async () => {
     setLoadingPng(true)
     setExportErr('')
+    onToast?.('Preparing your image…')
     try {
       const canvas = await captureCanvas(paperRef)
       const link   = document.createElement('a')
       link.href     = canvas.toDataURL('image/png')
       link.download = `dearly-note.png`
       link.click()
+      trackEvent('png_downloaded', { source: 'share_sheet' })
+      onToast?.(isMobileSheet
+        ? 'Image saved — check your Files or Photos app.'
+        : 'Image downloaded — check your Downloads folder.')
     } catch (e) {
       console.error('PNG export failed', e)
-      setExportErr('PNG export failed — please try again.')
+      setExportErr('Export failed — please try again.')
+      onToast?.('Could not export image, please try again.')
     } finally {
       setLoadingPng(false)
     }
-  }, [paperRef])
+  }, [paperRef, onToast, isMobileSheet])
 
   const motionProps = isMobileSheet
     ? { initial: { opacity: 0, y: 40 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: 40 }, transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } }
@@ -156,6 +195,8 @@ export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet 
                   className={styles.linkInput}
                   value={linkUrl}
                   readOnly
+                  inputMode="none"
+                  onFocus={e => e.target.select()}
                   onClick={e => e.target.select()}
                 />
                 <button

@@ -6,6 +6,7 @@ import RecipientScreen  from './components/RecipientScreen/RecipientScreen'
 import { decodeNote }   from './lib/shareUtils'
 import { getNoteById }  from './lib/supabase'
 import { STICKER_REGISTRY } from './components/WritingScreen/handDrawnStickers'
+import { trackScreen }  from './lib/analytics'
 import './App.css'
 
 function rehydrateStickers(noteData) {
@@ -65,6 +66,8 @@ export default function App() {
   const [screen,        setScreen]        = useState('landing')
   const [recipientData, setRecipientData] = useState(null)
   const [previewData,   setPreviewData]   = useState(null)
+
+  useEffect(() => { trackScreen(screen) }, [screen])
 
   // Handle shared links — ?id=<uuid> (new) or ?share=<base64> (legacy)
   useEffect(() => {

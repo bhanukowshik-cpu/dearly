@@ -7,6 +7,7 @@ import { PAPER_TYPES } from '../WritingScreen/stylePresets'
 import VideoBackground from '../VideoBackground/VideoBackground'
 import { captureCanvas } from '../../lib/captureUtils'
 import { submitFeedback } from '../../lib/supabase'
+import { trackEvent } from '../../lib/analytics'
 import styles from './RecipientScreen.module.css'
 
 // ── Ambient audio ──────────────────────────────────────────────────────────────
@@ -470,8 +471,7 @@ export default function RecipientScreen({
   const handleRate = (star) => {
     setRating(star)
     submitFeedback(star)
-    if (star >= 4) setTimeout(() => setRatingDone(true), 1200)
-    // < 4: stay open and show the feedback textarea
+    trackEvent('feedback_submitted', { stars: star })
   }
 
   // Cleanup ElevenLabs audio on unmount
@@ -481,7 +481,7 @@ export default function RecipientScreen({
     if (elevenAudio.current) { elevenAudio.current.pause(); elevenAudio.current = null }
   }, [])
 
-  const openNote         = useCallback(() => setPhase('opening'), [])
+  const openNote         = useCallback(() => { setPhase('opening'); trackEvent('note_opened') }, [])
   const handleUnfoldDone = useCallback(() => setPhase('letter'),  [])
 
   const toggleMusic = useCallback(() => {
@@ -786,37 +786,26 @@ export default function RecipientScreen({
               <button className={styles.toastClose} onClick={() => setRatingDone(true)} aria-label="Dismiss">✕</button>
               <AnimatePresence mode="wait" initial={false}>
                 {rating === 0 ? (
-                  <motion.div key="q" style={{ display: 'contents' }}
+                  <motion.div key="q" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     transition={{ duration: 0.18 }}
                   >
-                    <div className={styles.toastLeft}>
-                      <p className={styles.toastText}>How well do you like this experience?</p>
-                    </div>
-                    <div className={styles.toastRight}>
-                      <div className={styles.stars}>
-                        {[1, 2, 3, 4, 5].map(star => (
-                          <button
-                            key={star}
-                            className={`${styles.star} ${(hoveredStar || rating) >= star ? styles.starFilled : ''}`}
-                            onMouseEnter={() => setHoveredStar(star)}
-                            onMouseLeave={() => setHoveredStar(0)}
-                            onClick={() => handleRate(star)}
-                            aria-label={`${star} star${star > 1 ? 's' : ''}`}
-                          >
-                            <HandStar size={24} filled={(hoveredStar || rating) >= star} />
-                          </button>
-                        ))}
-                      </div>
+                    <p className={styles.toastText}>How well do you like this experience?</p>
+                    <div className={styles.stars}>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button
+                          key={star}
+                          className={`${styles.star} ${(hoveredStar || rating) >= star ? styles.starFilled : ''}`}
+                          onMouseEnter={() => setHoveredStar(star)}
+                          onMouseLeave={() => setHoveredStar(0)}
+                          onClick={() => handleRate(star)}
+                          aria-label={`${star} star${star > 1 ? 's' : ''}`}
+                        >
+                          <HandStar size={24} filled={(hoveredStar || rating) >= star} />
+                        </button>
+                      ))}
                     </div>
                   </motion.div>
-                ) : rating >= 4 ? (
-                  <motion.p key="thanks" className={styles.toastThanks}
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    transition={{ duration: 0.22 }}
-                  >
-                    Thanks for the feedback! ✦
-                  </motion.p>
                 ) : (
                   <motion.div key="feedback" style={{ flex: 1, minWidth: 0 }}
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -824,12 +813,20 @@ export default function RecipientScreen({
                   >
                     <textarea
                       className={styles.feedbackInput}
-                      placeholder="What was missing? What could we improve?"
+                      placeholder={rating >= 4 ? 'What part did you like?' : 'What was missing? What could we improve?'}
                       autoFocus
                       value={feedbackText}
                       onChange={e => setFeedbackText(e.target.value)}
+                      onBlur={() => {
+                        if (feedbackText.trim()) submitFeedback(rating, feedbackText.trim())
+                        setRatingDone(true)
+                      }}
                       onKeyDown={e => {
-                        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); setRatingDone(true) }
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          if (feedbackText.trim()) submitFeedback(rating, feedbackText.trim())
+                          setRatingDone(true)
+                        }
                       }}
                     />
                   </motion.div>
@@ -856,8 +853,8 @@ export default function RecipientScreen({
               <div className={styles.toastLeft}>
                 <p className={styles.toastText}>
                   {senderName
-                    ? <>Write your own note and make <strong>{senderName}</strong>'s words shine.</>
-                    : <>Write a note and make someone's words truly shine.</>
+                    ? <>That smile? Pass it on — write a note to <strong>{senderName}</strong>.</>
+                    : <>That smile? Pass it on — write a note for someone you love.</>
                   }
                 </p>
               </div>
@@ -869,7 +866,7 @@ export default function RecipientScreen({
                   whileTap={{ scale: 0.96 }}
                   transition={{ duration: 0.1 }}
                 >
-                  Write a Note
+                  Write a note
                 </motion.button>
               </div>
             </motion.div>
