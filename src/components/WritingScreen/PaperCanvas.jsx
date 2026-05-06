@@ -662,6 +662,7 @@ export default function PaperCanvas({
   const letterRef     = useRef(null)
   const [rulerOffset,    setRulerOffset]    = useState(21)
   const [contentScale,   setContentScale]   = useState(1)
+  const [bodyFitStyle,   setBodyFitStyle]   = useState(null)
 
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 860px)').matches : false
@@ -710,6 +711,7 @@ export default function PaperCanvas({
     if (!fitContent) {
       letter.style.overflow        = ''
       letter.style.width           = ''
+      letter.style.height          = ''
       letter.style.transform       = ''
       letter.style.transformOrigin = ''
       return
@@ -757,22 +759,28 @@ export default function PaperCanvas({
       }
       measuring = false
 
-      const scale = contentH > paperH ? paperH / contentH : 1
+      if (contentH > paperH) {
+        // Scale content to fit with equal visual padding on all sides (16px).
+        // Content stays at paperW width — no widening — so text wraps naturally.
+        // Translate to center the scaled content within the paper.
+        const PAD   = 16
+        const scale = (paperH - 2 * PAD) / contentH
+        const tx    = Math.round(paperW * (1 - scale) / 2)
+        const ty    = Math.round((paperH - contentH * scale) / 2)
 
-      if (scale < 1) {
-        // Widen the element to (paperW / scale) so that after scale() is applied
-        // the visual width equals paperW — keeps ruler lines spanning the full paper.
-        // overflow:visible lets the paper's own overflow:hidden do the final clip.
         letter.style.overflow        = 'visible'
-        letter.style.width           = `${Math.round(paperW / scale)}px`
-        letter.style.transform       = `scale(${scale})`
-        letter.style.transformOrigin = 'top left'
+        letter.style.height          = `${contentH}px`
+        letter.style.transform       = `translate(${tx}px, ${ty}px) scale(${scale})`
+        letter.style.transformOrigin = '0 0'
+        letter.setAttribute('data-body-free', '1')
+        setContentScale(scale)
       } else {
         letter.style.overflow  = ''
-        letter.style.width     = ''
+        letter.style.height    = ''
         letter.style.transform = ''
+        letter.removeAttribute('data-body-free')
+        setContentScale(1)
       }
-      setContentScale(scale)
     }
 
     applyScale()
@@ -838,7 +846,7 @@ export default function PaperCanvas({
                 </div>
               )}
               {message && (
-                <div ref={bodyRef} className={styles.body}>
+                <div ref={bodyRef} className={styles.body} style={bodyFitStyle || undefined}>
                   <BodyText
                     text={message} inkColor={inkColor}
                     textSize={textSize} readingConfig={readingConfig}

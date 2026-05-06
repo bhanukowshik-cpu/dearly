@@ -135,6 +135,8 @@
 
 .greeting {
   flex-shrink: 0;
+  min-width: 0;
+  width: 100%;
   line-height: 1.5;
   display: block;
 }
@@ -143,6 +145,8 @@
 
 .body {
   flex: 1;
+  min-width: 0;
+  width: 100%;
   overflow: hidden;
   font-family: 'Caveat', cursive;
   font-size: clamp(15px, 2.0vw, 20px);
@@ -151,6 +155,14 @@
   word-spacing: 0.18em;
   overflow-wrap: break-word;
   white-space: pre-wrap;
+}
+
+/* When fitContent scales down, the body must size to natural height
+   so all text is visible within the scaled-down letter. */
+:global([data-body-free]) .body {
+  flex: none;
+  height: auto;
+  overflow: visible;
 }
 
 .wordReveal {
@@ -353,18 +365,6 @@
   background-size: 100% 6px;
 }
 
-/* ── Signature ───────────────────────────────────────────────────────────── */
-
-.signature {
-  flex-shrink: 0;
-  text-align: right;
-  font-family: 'Caveat', cursive;
-  font-size: clamp(13px, 1.7vw, 17px);
-  font-weight: 400;
-  font-style: italic;
-  line-height: 1.5;
-  opacity: 0.82;
-}
 
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 
