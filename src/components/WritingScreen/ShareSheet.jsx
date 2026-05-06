@@ -74,13 +74,14 @@ function legacyCopy(text) {
 }
 
 export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMobileSheet = false }) {
-  const [linkUrl,      setLinkUrl]      = useState('')
-  const [copied,       setCopied]       = useState(false)
-  const [creatingLink, setCreatingLink] = useState(false)
-  const [linkErr,      setLinkErr]      = useState('')
-  const [loadingPng,   setLoadingPng]   = useState(false)
-  const [downloadDone, setDownloadDone] = useState(false) // 'done' | 'ios' | false
-  const [exportErr,    setExportErr]    = useState('')
+  const [linkUrl,        setLinkUrl]        = useState('')
+  const [copied,         setCopied]         = useState(false)
+  const [creatingLink,   setCreatingLink]   = useState(false)
+  const [linkErr,        setLinkErr]        = useState('')
+  const [loadingPng,     setLoadingPng]     = useState(false)
+  const [downloadDone,   setDownloadDone]   = useState(false) // 'done' | 'ios' | false
+  const [exportErr,      setExportErr]      = useState('')
+  const [imageOverlayUrl, setImageOverlayUrl] = useState(null)
   const copiedTimerRef   = useRef(null)
   const downloadTimerRef = useRef(null)
 
@@ -139,45 +140,15 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
     setExportErr('')
     onToast?.('Preparing your image…')
 
-    // Open window + write loading page immediately (in gesture context).
-    // iOS Safari won't accept document.write() on a settled window — must
-    // write synchronously before any await, then update the DOM after.
-    let mobileWin = null
-    if (isMobileDevice) {
-      mobileWin = window.open('', '_blank')
-      if (mobileWin) {
-        mobileWin.document.write(
-          `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width">` +
-          `<title>Dearly</title></head>` +
-          `<body id="c" style="margin:0;background:#111;color:rgba(255,255,255,0.6);` +
-          `font-family:sans-serif;display:flex;align-items:center;justify-content:center;` +
-          `min-height:100vh;font-size:15px">Preparing your image…</body></html>`
-        )
-        mobileWin.document.close()
-      }
-    }
-
     try {
       const canvas = await captureCanvas(paperRef)
-
       if (isMobileDevice) {
-        const dataUrl = canvas.toDataURL('image/png')
-        if (mobileWin && !mobileWin.closed) {
-          const c = mobileWin.document.getElementById('c')
-          if (c) {
-            c.style.flexDirection = 'column'
-            c.style.gap = '16px'
-            c.style.padding = '16px'
-            c.style.boxSizing = 'border-box'
-            c.innerHTML =
-              `<img src="${dataUrl}" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px">` +
-              `<p style="color:rgba(255,255,255,0.7);font-family:sans-serif;font-size:13px;margin:0;text-align:center">` +
-              `Long press the image to save it to your photos</p>`
-          }
-        }
+        // Show in an overlay on the same page — no popup, works regardless
+        // of iOS "Block Pop-ups" setting.
+        setImageOverlayUrl(canvas.toDataURL('image/png'))
         setDownloadDone('ios')
         trackEvent('png_downloaded', { source: 'share_sheet', platform: 'mobile' })
-        onToast?.('Image opened — long press it to save.')
+        onToast?.('Long press the image to save it.')
       } else {
         await new Promise((resolve, reject) => {
           canvas.toBlob(blob => {
@@ -197,11 +168,9 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
           }, 'image/png')
         })
       }
-
       downloadTimerRef.current = setTimeout(() => setDownloadDone(false), 4000)
     } catch (e) {
       console.error('PNG export failed', e)
-      if (mobileWin) mobileWin.close()
       setExportErr('Export failed — please try again.')
       onToast?.('Could not export image, please try again.')
     } finally {
@@ -214,6 +183,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
     : { initial: { opacity: 0, y: -6, scale: 0.97 }, animate: { opacity: 1, y: 0, scale: 1 }, exit: { opacity: 0, y: -6, scale: 0.97 }, transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] } }
 
   return (
+    <>
     <motion.div
       className={styles.dropdown}
       {...motionProps}
@@ -306,7 +276,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
                     : 'Download as PNG'}
             </span>
             {downloadDone === 'ios' && (
-              <span className={styles.optionSub}>Image opened in a new tab</span>
+              <span className={styles.optionSub}>Long press the image to save</span>
             )}
           </span>
         </button>
@@ -333,5 +303,44 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
         )}
       </AnimatePresence>
     </motion.div>
+
+    {/* Image save overlay — shown on mobile instead of opening a new tab */}
+    {imageOverlayUrl && (
+      <div
+        style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.93)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          gap: 16, padding: 20, boxSizing: 'border-box',
+        }}
+        onClick={() => setImageOverlayUrl(null)}
+      >
+        <button
+          onClick={e => { e.stopPropagation(); setImageOverlayUrl(null) }}
+          style={{
+            position: 'absolute', top: 16, right: 16,
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.15)', border: 'none',
+            color: '#fff', fontSize: 18, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          aria-label="Close"
+        >✕</button>
+        <img
+          src={imageOverlayUrl}
+          onClick={e => e.stopPropagation()}
+          style={{ maxWidth: '100%', maxHeight: '78vh', objectFit: 'contain', borderRadius: 10 }}
+          alt="Your Dearly note"
+        />
+        <p style={{
+          color: 'rgba(255,255,255,0.72)', fontFamily: 'sans-serif',
+          fontSize: 14, margin: 0, textAlign: 'center', lineHeight: 1.5,
+        }}>
+          Long press the image to save it to your photos
+        </p>
+      </div>
+    )}
+    </>
   )
 }
