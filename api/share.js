@@ -53,7 +53,7 @@ export default function handler(req, res) {
   <meta property="og:image"        content="${eOgImage}" />
   <meta property="og:image:type"   content="image/png" />
   <meta property="og:image:width"  content="1200" />
-  <meta property="og:image:height" content="800" />
+  <meta property="og:image:height" content="630" />
   <meta property="og:site_name"    content="Dearly" />
 
   <!-- Twitter / X -->

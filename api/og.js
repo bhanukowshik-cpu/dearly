@@ -25,27 +25,29 @@ export default async function handler(req) {
   const sender    = name(url.searchParams.get('s'), 'Someone')
   const baseUrl   = `${url.protocol}//${url.host}`
 
-  // Fetch bg image and convert to base64 safely (loop avoids stack overflow
-  // from spreading large Uint8Arrays into String.fromCharCode)
+  // Fetch bg image and Caveat font in parallel
+  const [bgResult, fontResult] = await Promise.allSettled([
+    fetch(`${baseUrl}/og-bg.jpg`).then(r => r.ok ? r.arrayBuffer() : null),
+    fetch(`${baseUrl}/fonts/caveat-subset.ttf`).then(r => r.ok ? r.arrayBuffer() : null),
+  ])
+
+  // Convert bg to base64 data URI
   let bgSrc = null
-  try {
-    const res   = await fetch(`${baseUrl}/og-bg.jpg`, { cf: { cacheEverything: true } })
-    if (res.ok) {
-      const buf   = await res.arrayBuffer()
-      const bytes = new Uint8Array(buf)
-      let binary  = ''
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i])
-      }
-      bgSrc = `data:image/jpeg;base64,${btoa(binary)}`
-    }
-  } catch {
-    // bgSrc stays null — gradient fallback renders instead
+  if (bgResult.status === 'fulfilled' && bgResult.value) {
+    const bytes = new Uint8Array(bgResult.value)
+    let binary  = ''
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i])
+    bgSrc = `data:image/jpeg;base64,${btoa(binary)}`
   }
+
+  const fontData = fontResult.status === 'fulfilled' ? fontResult.value : null
+  const fonts    = fontData ? [{ name: 'Caveat', data: fontData, style: 'normal', weight: 400 }] : []
+  const headingFont  = fontData ? 'Caveat' : 'Georgia, "Times New Roman", serif'
+  const subtitleFont = 'Georgia, "Times New Roman", serif'
 
   const background = bgSrc ? undefined : 'linear-gradient(160deg, #0a1628 0%, #1a3050 50%, #0a1628 100%)'
 
-  // 3:2 = 1200 × 800
+  // 1200×630 — standard WhatsApp / Facebook / Twitter OG image ratio (1.91:1)
   return new ImageResponse(
     h('div', {
       style: {
@@ -73,7 +75,7 @@ export default async function handler(req) {
         }),
       ] : []),
 
-      // Dark overlay — simulates blur, ensures text contrast
+      // Dark overlay — ensures text contrast
       h('div', {
         style: {
           position:   'absolute',
@@ -109,13 +111,12 @@ export default async function handler(req) {
         // H1 — Hi [Recipient],
         h('div', {
           style: {
-            fontFamily:    'Georgia, "Times New Roman", serif',
-            fontSize:      recipient.length > 20 ? 80 : 108,
-            fontStyle:     'italic',
-            fontWeight:    700,
+            fontFamily:    headingFont,
+            fontSize:      recipient.length > 20 ? 88 : 116,
+            fontStyle:     'normal',
+            fontWeight:    400,
             color:         '#ffffff',
             lineHeight:    1.1,
-            letterSpacing: '-1px',
             textAlign:     'center',
             display:       'flex',
           },
@@ -124,11 +125,12 @@ export default async function handler(req) {
         // H2 — [Sender] wrote you a note
         h('div', {
           style: {
-            fontFamily:  'Georgia, "Times New Roman", serif',
-            fontSize:    sender.length > 20 ? 32 : 40,
+            fontFamily:  subtitleFont,
+            fontSize:    sender.length > 20 ? 30 : 36,
             fontStyle:   'italic',
+            fontWeight:  400,
             color:       'rgba(255, 238, 205, 0.90)',
-            marginTop:   28,
+            marginTop:   24,
             lineHeight:  1.35,
             textAlign:   'center',
             display:     'flex',
@@ -142,7 +144,7 @@ export default async function handler(req) {
             height:       2,
             background:   'rgba(255,255,255,0.28)',
             borderRadius: 1,
-            marginTop:    44,
+            marginTop:    36,
             display:      'flex',
           },
         }),
@@ -152,19 +154,20 @@ export default async function handler(req) {
       h('div', {
         style: {
           position:       'absolute',
-          bottom:         36,
+          bottom:         28,
           left:           0,
           right:          0,
           display:        'flex',
           justifyContent: 'center',
-          fontFamily:     'Georgia, "Times New Roman", serif',
-          fontSize:       26,
+          fontFamily:     subtitleFont,
+          fontSize:       24,
           fontStyle:      'italic',
+          fontWeight:     400,
           color:          'rgba(255,255,255,0.35)',
           letterSpacing:  '0.5px',
         },
       }, 'Dearly'),
     ),
-    { width: 1200, height: 800 },
+    { width: 1200, height: 630, fonts },
   )
 }
