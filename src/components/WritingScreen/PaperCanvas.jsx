@@ -763,7 +763,7 @@ export default function PaperCanvas({
         // Scale content to fit with equal visual padding on all sides (16px).
         // Widen the element so visual width = paperW - 2*PAD after scaling.
         // Translate to center the scaled content within the paper.
-        const PAD     = 16
+        const PAD     = 10
         const scale   = (paperH - 2 * PAD) / contentH
         const letterW = Math.round((paperW - 2 * PAD) / scale)
         const tx      = PAD
