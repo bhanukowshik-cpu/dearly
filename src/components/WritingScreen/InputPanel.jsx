@@ -652,7 +652,10 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
 
   function handlePaste(e) {
     e.preventDefault()
-    const pasted = e.clipboardData?.getData('text/plain') ?? ''
+    const raw = e.clipboardData?.getData('text/plain') ?? ''
+    // Normalise line endings and collapse runs of 3+ newlines to 2 so pasted
+    // paragraphs don't create double blank lines after serializeToMarkup runs.
+    const pasted = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n{3,}/g, '\n\n')
     const el = editorRef.current
     if (!el) return
     const currentPlain = el.textContent || ''
@@ -681,7 +684,9 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
     undoStackRef.current.push(lastValidRef.current)
     if (undoStackRef.current.length > 100) undoStackRef.current.shift()
     redoStackRef.current = []
-    const markup = serializeToMarkup(el)
+    // Clamp to max 2 consecutive newlines — browser DOM can produce extras
+    // when pasted content gets split into block-level <div> elements.
+    const markup = serializeToMarkup(el).replace(/\n{3,}/g, '\n\n')
     lastValidRef.current = markup
     setWordCount(words)
     onChange(markup)
