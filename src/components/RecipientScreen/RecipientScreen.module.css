@@ -523,12 +523,13 @@
   width: min(300px, calc(100vw - 40px));
 }
 
-/* ── Share banner — full width, sits above the controls bar ─────────────── */
+/* ── Share banner — full width, centered at bottom ──────────────────────── */
 .shareBanner {
   position: fixed;
   bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
   z-index: 1001;
   width: min(700px, 92vw);
   background: rgba(255, 255, 255, 0.055);
