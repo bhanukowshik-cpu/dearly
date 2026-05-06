@@ -30,9 +30,11 @@ export async function captureCanvas(paperRef) {
 
   const fontEmbedCSS = await buildFontEmbedCSS()
 
+  const bgColor = window.getComputedStyle(paperEl).backgroundColor || '#ffffff'
+
   const dataUrl = await toPng(paperEl, {
     pixelRatio: 3,
-    backgroundColor: '#ffffff',
+    backgroundColor: bgColor,
     onclone: (_doc, el) => {
       // Force all SVG stroke animations to their completed state so
       // TegakiRenderer characters are fully drawn (not mid-animation invisible).
@@ -62,6 +64,8 @@ export async function captureCanvas(paperRef) {
       out.width  = img.naturalWidth
       out.height = img.naturalHeight
       const ctx  = out.getContext('2d')
+      ctx.fillStyle = bgColor
+      ctx.fillRect(0, 0, out.width, out.height)
       ctx.drawImage(img, 0, 0)
       resolve(out)
     }
