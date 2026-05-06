@@ -801,7 +801,7 @@ export default function PaperCanvas({
   const paperStyle = { backgroundColor: bg }
   const letterContentStyle = rulerLines
     ? { backgroundColor: bg, backgroundImage: rulerLines, backgroundSize: `100% ${lineSpacing}px`, backgroundPositionY: `${rulerOffset}px` }
-    : { backgroundColor: bg }
+    : typeData.hasStains ? {} : { backgroundColor: bg }
 
   return (
     <div className={styles.root}>
@@ -822,13 +822,13 @@ export default function PaperCanvas({
             onPointerDown={() => onSelectSticker?.(null)}
             onDoubleClick={() => onBgClick?.()}
           >
+            {/* Stains at paper level so they cover the full paper even when letterContent is scaled */}
+            {typeData.hasStains && <div className={styles.stains} aria-hidden />}
             <div
               ref={letterRef}
               className={styles.letterContent}
               style={letterContentStyle}
             >
-              {/* Stains at z-index:-1 paint above letterContent's solid bg but below text */}
-              {typeData.hasStains && <div className={styles.stains} aria-hidden />}
               {isEmpty && (
                 <motion.div
                   className={styles.emptyHint}
