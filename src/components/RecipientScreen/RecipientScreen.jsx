@@ -968,7 +968,7 @@ export default function RecipientScreen({
       <AnimatePresence>
         {showToast && (
           <motion.div
-            className={styles.shareBanner}
+            className={`${styles.shareBanner} ${showRatingToast && !ratingDone ? styles.shareBannerLifted : ''}`}
             role="status"
             aria-live="polite"
             aria-atomic="true"
