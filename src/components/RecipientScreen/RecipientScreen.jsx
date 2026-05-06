@@ -525,27 +525,42 @@ export default function RecipientScreen({
     setLoadingPng(true)
     setDownloadDone(false)
 
-    // On mobile (iOS + Android WebView): pre-open a window synchronously
-    // while the user gesture is still active, then write the image into it.
-    // Blob URL navigation is blocked on iOS and broken in Android WebViews.
-    const mobileWin = isMobileDevice ? window.open('', '_blank') : null
+    // Open window + write loading page immediately (in gesture context).
+    // iOS Safari won't accept document.write() on a window that has
+    // already settled — we must write synchronously before any await.
+    let mobileWin = null
+    if (isMobileDevice) {
+      mobileWin = window.open('', '_blank')
+      if (mobileWin) {
+        mobileWin.document.write(
+          `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width">` +
+          `<title>Dearly</title></head>` +
+          `<body id="c" style="margin:0;background:#111;color:rgba(255,255,255,0.6);` +
+          `font-family:sans-serif;display:flex;align-items:center;justify-content:center;` +
+          `min-height:100vh;font-size:15px">Preparing your image…</body></html>`
+        )
+        mobileWin.document.close()
+      }
+    }
 
     try {
       const canvas = await captureCanvas(paperRef)
 
       if (isMobileDevice) {
         const dataUrl = canvas.toDataURL('image/png')
-        if (mobileWin) {
-          mobileWin.document.write(
-            `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width">` +
-            `<title>Dearly Note</title></head>` +
-            `<body style="margin:0;background:#111;display:flex;flex-direction:column;` +
-            `align-items:center;justify-content:center;min-height:100vh;gap:16px;padding:16px;box-sizing:border-box">` +
-            `<img src="${dataUrl}" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px">` +
-            `<p style="color:rgba(255,255,255,0.7);font-family:sans-serif;font-size:13px;margin:0;text-align:center">` +
-            `Long press the image to save it</p></body></html>`
-          )
-          mobileWin.document.close()
+        if (mobileWin && !mobileWin.closed) {
+          // Update the already-open window's DOM — no second document.write needed
+          const c = mobileWin.document.getElementById('c')
+          if (c) {
+            c.style.flexDirection = 'column'
+            c.style.gap = '16px'
+            c.style.padding = '16px'
+            c.style.boxSizing = 'border-box'
+            c.innerHTML =
+              `<img src="${dataUrl}" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px">` +
+              `<p style="color:rgba(255,255,255,0.7);font-family:sans-serif;font-size:13px;margin:0;text-align:center">` +
+              `Long press the image to save it to your photos</p>`
+          }
         }
         setDownloadDone('ios')
       } else {
