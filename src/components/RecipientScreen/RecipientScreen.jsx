@@ -477,8 +477,6 @@ export default function RecipientScreen({
     setRating(star)
     submitFeedback(star)
     trackEvent('feedback_submitted', { stars: star })
-    if (star >= 4) setTimeout(() => setRatingDone(true), 1200)
-    // < 4: stay open and show the feedback textarea
   }
 
   // Pre-fetch TTS on mount so audio is ready when user clicks "listen"
@@ -909,37 +907,26 @@ export default function RecipientScreen({
               <button className={styles.toastClose} onClick={() => setRatingDone(true)} aria-label="Dismiss">✕</button>
               <AnimatePresence mode="wait" initial={false}>
                 {rating === 0 ? (
-                  <motion.div key="q" style={{ display: 'contents' }}
+                  <motion.div key="q" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     transition={{ duration: 0.18 }}
                   >
-                    <div className={styles.toastLeft}>
-                      <p className={styles.toastText}>How well do you like this experience?</p>
-                    </div>
-                    <div className={styles.toastRight}>
-                      <div className={styles.stars}>
-                        {[1, 2, 3, 4, 5].map(star => (
-                          <button
-                            key={star}
-                            className={`${styles.star} ${(hoveredStar || rating) >= star ? styles.starFilled : ''}`}
-                            onMouseEnter={() => setHoveredStar(star)}
-                            onMouseLeave={() => setHoveredStar(0)}
-                            onClick={() => handleRate(star)}
-                            aria-label={`${star} star${star > 1 ? 's' : ''}`}
-                          >
-                            <HandStar size={24} filled={(hoveredStar || rating) >= star} />
-                          </button>
-                        ))}
-                      </div>
+                    <p className={styles.toastText}>How well do you like this experience?</p>
+                    <div className={styles.stars}>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button
+                          key={star}
+                          className={`${styles.star} ${(hoveredStar || rating) >= star ? styles.starFilled : ''}`}
+                          onMouseEnter={() => setHoveredStar(star)}
+                          onMouseLeave={() => setHoveredStar(0)}
+                          onClick={() => handleRate(star)}
+                          aria-label={`${star} star${star > 1 ? 's' : ''}`}
+                        >
+                          <HandStar size={24} filled={(hoveredStar || rating) >= star} />
+                        </button>
+                      ))}
                     </div>
                   </motion.div>
-                ) : rating >= 4 ? (
-                  <motion.p key="thanks" className={styles.toastThanks}
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    transition={{ duration: 0.22 }}
-                  >
-                    Thanks for the feedback! ✦
-                  </motion.p>
                 ) : (
                   <motion.div key="feedback" style={{ flex: 1, minWidth: 0 }}
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -947,7 +934,7 @@ export default function RecipientScreen({
                   >
                     <textarea
                       className={styles.feedbackInput}
-                      placeholder="What was missing? What could we improve?"
+                      placeholder={rating >= 4 ? 'What part did you like?' : 'What was missing? What could we improve?'}
                       autoFocus
                       value={feedbackText}
                       onChange={e => setFeedbackText(e.target.value)}
@@ -988,8 +975,8 @@ export default function RecipientScreen({
             <div className={styles.toastLeft}>
               <p className={styles.toastText}>
                 {senderName
-                  ? <>Just like the smile you just had reading this note, share one with <strong>{senderName}</strong>, a colleague, friend, family member, or anyone you love — and make their day with Dearly.</>
-                  : <>Just like the smile you just had reading this note, share one with a colleague, friend, family member, or anyone you love — and make their day with Dearly.</>
+                  ? <>That smile? Pass it on — write a note to <strong>{senderName}</strong>.</>
+                  : <>That smile? Pass it on — write a note for someone you love.</>
                 }
               </p>
             </div>
@@ -1004,7 +991,7 @@ export default function RecipientScreen({
                 <svg className={styles.toastCtaBg} viewBox="0 0 160 38" preserveAspectRatio="none" fill="none" aria-hidden>
                   <path d="M 10,5 C 48,2 112,3 150,5 C 152,14 153,24 150,33 C 112,36 48,35 10,33 C 7,24 7,14 10,5 Z" fill="white"/>
                 </svg>
-                <span>Write a Note</span>
+                <span>Write a note</span>
               </motion.button>
             </div>
           </motion.div>
