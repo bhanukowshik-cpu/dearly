@@ -761,14 +761,16 @@ export default function PaperCanvas({
 
       if (contentH > paperH) {
         // Scale content to fit with equal visual padding on all sides (16px).
-        // Content stays at paperW width — no widening — so text wraps naturally.
+        // Widen the element so visual width = paperW - 2*PAD after scaling.
         // Translate to center the scaled content within the paper.
-        const PAD   = 16
-        const scale = (paperH - 2 * PAD) / contentH
-        const tx    = Math.round(paperW * (1 - scale) / 2)
-        const ty    = Math.round((paperH - contentH * scale) / 2)
+        const PAD     = 16
+        const scale   = (paperH - 2 * PAD) / contentH
+        const letterW = Math.round((paperW - 2 * PAD) / scale)
+        const tx      = PAD
+        const ty      = Math.round((paperH - contentH * scale) / 2)
 
         letter.style.overflow        = 'visible'
+        letter.style.width           = `${letterW}px`
         letter.style.height          = `${contentH}px`
         letter.style.transform       = `translate(${tx}px, ${ty}px) scale(${scale})`
         letter.style.transformOrigin = '0 0'
@@ -776,6 +778,7 @@ export default function PaperCanvas({
         setContentScale(scale)
       } else {
         letter.style.overflow  = ''
+        letter.style.width     = ''
         letter.style.height    = ''
         letter.style.transform = ''
         letter.removeAttribute('data-body-free')
