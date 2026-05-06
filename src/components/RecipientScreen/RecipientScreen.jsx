@@ -988,8 +988,8 @@ export default function RecipientScreen({
             <div className={styles.toastLeft}>
               <p className={styles.toastText}>
                 {senderName
-                  ? <>{senderName} thought of you. Now think of a friend, sibling, parent, or anyone you want to share this magic with.</>
-                  : <>That feeling you just had? A friend, sibling, parent — someone you love deserves to feel it too.</>
+                  ? <>Just like the smile you just had reading this note, share one with <strong>{senderName}</strong>, a colleague, friend, family member, or anyone you love — and make their day with Dearly.</>
+                  : <>Just like the smile you just had reading this note, share one with a colleague, friend, family member, or anyone you love — and make their day with Dearly.</>
                 }
               </p>
             </div>
