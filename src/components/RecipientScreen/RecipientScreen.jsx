@@ -997,7 +997,10 @@ export default function RecipientScreen({
                   whileTap={{ scale: 0.96 }}
                   transition={{ duration: 0.1 }}
                 >
-                  Write a Note
+                  <svg className={styles.toastCtaBg} viewBox="0 0 160 38" preserveAspectRatio="none" fill="none" aria-hidden>
+                    <path d="M 10,5 C 48,2 112,3 150,5 C 152,14 153,24 150,33 C 112,36 48,35 10,33 C 7,24 7,14 10,5 Z" fill="white"/>
+                  </svg>
+                  <span>Write a Note</span>
                 </motion.button>
               </div>
             </motion.div>

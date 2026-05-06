@@ -514,12 +514,14 @@
 .toastStack {
   position: fixed;
   bottom: 28px;
-  right: 20px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 1002;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
   gap: 12px;
+  width: min(700px, 92vw);
 }
 
 /* ── Individual toast card ───────────────────────────────────────────────── */
@@ -537,7 +539,7 @@
   flex-direction: row;
   align-items: center;
   gap: 14px;
-  width: min(300px, calc(100vw - 40px));
+  width: 100%;
   text-align: left;
   backdrop-filter: blur(16px) saturate(1.2);
   -webkit-backdrop-filter: blur(16px) saturate(1.2);
@@ -678,20 +680,40 @@
 }
 
 .toastCtaCompact {
-  background: rgba(255, 255, 255, 0.92);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 160px;
+  height: 38px;
+  background: none;
   border: none;
-  border-radius: 50px;
-  padding: 9px 15px;
+  color: #252525;
   font-family: 'Caveat', cursive;
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 700;
-  color: #1a1a1a;
   letter-spacing: 0.02em;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+  transition: opacity 0.14s;
+  padding: 0;
+}
+.toastCtaCompact:hover { opacity: 0.88; }
+
+.toastCtaCompact span {
+  position: relative;
+  z-index: 1;
+}
+
+.toastCtaBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 
@@ -700,16 +722,12 @@
 @media (max-width: 768px) {
   /* Toast stack: centered, full-width on mobile */
   .toastStack {
-    right: auto;
-    left: 12px;
-    right: 12px;
-    transform: none;
+    width: calc(100vw - 24px);
     bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
-    align-items: stretch;
   }
 
   .toast {
-    width: auto;
+    width: 100%;
   }
 
   .musicCta {
