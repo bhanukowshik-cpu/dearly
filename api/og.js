@@ -112,7 +112,7 @@ export default async function handler(req) {
         h('div', {
           style: {
             fontFamily:    headingFont,
-            fontSize:      recipient.length > 20 ? 88 : 116,
+            fontSize:      recipient.length > 20 ? 114 : 150,
             fontStyle:     'normal',
             fontWeight:    400,
             color:         '#ffffff',
@@ -126,7 +126,7 @@ export default async function handler(req) {
         h('div', {
           style: {
             fontFamily:  subtitleFont,
-            fontSize:    sender.length > 20 ? 30 : 36,
+            fontSize:    sender.length > 20 ? 39 : 47,
             fontStyle:   'italic',
             fontWeight:  400,
             color:       'rgba(255, 238, 205, 0.90)',
