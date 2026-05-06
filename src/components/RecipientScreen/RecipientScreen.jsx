@@ -928,7 +928,7 @@ export default function RecipientScreen({
                     </div>
                   </motion.div>
                 ) : (
-                  <motion.div key="feedback" style={{ flex: 1, minWidth: 0 }}
+                  <motion.div key="feedback" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     transition={{ duration: 0.22 }}
                   >
@@ -938,10 +938,6 @@ export default function RecipientScreen({
                       autoFocus
                       value={feedbackText}
                       onChange={e => setFeedbackText(e.target.value)}
-                      onBlur={() => {
-                        if (feedbackText.trim()) submitFeedback(rating, feedbackText.trim())
-                        setRatingDone(true)
-                      }}
                       onKeyDown={e => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault()
@@ -950,6 +946,15 @@ export default function RecipientScreen({
                         }
                       }}
                     />
+                    <button
+                      className={styles.feedbackSubmit}
+                      onClick={() => {
+                        if (feedbackText.trim()) submitFeedback(rating, feedbackText.trim())
+                        setRatingDone(true)
+                      }}
+                    >
+                      Send ✦
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>
