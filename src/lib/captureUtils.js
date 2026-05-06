@@ -54,6 +54,21 @@ export async function captureCanvas(paperRef) {
         '  stroke-dashoffset: 0 !important;',
         '  stroke-dasharray: none !important;',
         '}',
+        // The SVG feTurbulence grain in [data-stains] renders as solid black
+        // in html-to-image canvas captures. Override to gradients-only so the
+        // vignette and edge aging still show without the black fill.
+        '[data-stains] {',
+        '  background:',
+        '    radial-gradient(ellipse 92% 88% at 50% 50%, transparent 60%, rgba(88,50,14,0.16) 100%),',
+        '    linear-gradient(to bottom, rgba(80,45,12,0.09) 0%, transparent 18%),',
+        '    linear-gradient(to top,    rgba(80,45,12,0.11) 0%, transparent 18%),',
+        '    linear-gradient(to right,  rgba(80,45,12,0.07) 0%, transparent 14%),',
+        '    linear-gradient(to left,   rgba(80,45,12,0.07) 0%, transparent 14%),',
+        '    radial-gradient(ellipse 34% 30% at   0%   0%, rgba(68,38,8,0.09) 0%, transparent 100%),',
+        '    radial-gradient(ellipse 30% 26% at 100%   0%, rgba(68,38,8,0.07) 0%, transparent 100%),',
+        '    radial-gradient(ellipse 34% 30% at   0% 100%, rgba(68,38,8,0.09) 0%, transparent 100%),',
+        '    radial-gradient(ellipse 38% 33% at 100% 100%, rgba(68,38,8,0.11) 0%, transparent 100%) !important;',
+        '}',
       ].join('\n')
       _doc.head.appendChild(animStyle)
     },

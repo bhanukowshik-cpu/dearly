@@ -823,7 +823,7 @@ export default function PaperCanvas({
             onDoubleClick={() => onBgClick?.()}
           >
             {/* Stains at paper level so they cover the full paper even when letterContent is scaled */}
-            {typeData.hasStains && <div className={styles.stains} aria-hidden />}
+            {typeData.hasStains && <div className={styles.stains} data-stains aria-hidden />}
             <div
               ref={letterRef}
               className={styles.letterContent}
