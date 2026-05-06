@@ -64,7 +64,7 @@ function normalizeMarkup(text) {
   return text
     .replace(/~{2,}([^~\n]+)~{2,}/g,   '~~$1~~')
     .replace(/\*{2,}([^*\n]+)\*{2,}/g, '**$1**')
-    .replace(/={4,}([^=\n]+)={4,}/g,   '==$1==')
+    .replace(/={4,}([^=]+)={4,}/g,   '==$1==')
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ function computeCharTypes(text) {
   const safeText   = codepoints.map(cp => cp.length > 1 ? '' : cp).join('')
   const types = new Array(codepoints.length).fill('text')
   /* ==text==  ==pink::text==  ==sage::text==  ~~text~~  **text**  @@sm::text@@  @@lg::text@@ */
-  const re = /==((?:pink|sage)::)?([^=\n]+)==|~~([^~\n]+)~~|\*\*([^*\n]+)\*\*|@@(sm|lg)::([^@\n]+)@@/g
+  const re = /==((?:pink|sage)::)?([^=]+)==|~~([^~\n]+)~~|\*\*([^*\n]+)\*\*|@@(sm|lg)::([^@\n]+)@@/g
   let m
   while ((m = re.exec(safeText)) !== null) {
     const s = m.index, e = s + m[0].length

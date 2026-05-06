@@ -16,7 +16,7 @@ function countWords(text) {
 function markupToPlainText(markup) {
   if (!markup) return ''
   return markup
-    .replace(/==(?:pink::|sage::)?([^=\n]+)==/g, '$1')
+    .replace(/==(?:pink::|sage::)?([^=]+)==/g, '$1')
     .replace(/\*\*([^*\n]+)\*\*/g, '$1')
     .replace(/~~([^~\n]+)~~/g, '$1')
     .replace(/@@(?:sm|lg)::([^@\n]+)@@/g, '$1')
@@ -34,7 +34,7 @@ function normalizeMarkup(markup) {
   return markup
     .replace(/~{2,}([^~\n]+)~{2,}/g,   '~~$1~~')   // ~~~~text~~~~ → ~~text~~
     .replace(/\*{2,}([^*\n]+)\*{2,}/g, '**$1**')   // ****text**** → **text**
-    .replace(/={4,}([^=\n]+)={4,}/g,   '==$1==')   // ====text==== → ==text==
+    .replace(/={4,}([^=]+)={4,}/g,   '==$1==')   // ====text==== → ==text==
 }
 
 function markupToHtml(markup) {
@@ -47,9 +47,9 @@ function markupToHtml(markup) {
   s = s.replace(/@@sm::([^@\n]+)@@/g, '<span data-size="sm">$1</span>')
   s = s.replace(/@@lg::([^@\n]+)@@/g, '<span data-size="lg">$1</span>')
   // Highlights
-  s = s.replace(/==pink::([^=\n]+)==/g, '<mark data-hl="pink">$1</mark>')
-  s = s.replace(/==sage::([^=\n]+)==/g, '<mark data-hl="sage">$1</mark>')
-  s = s.replace(/==([^=\n]+)==/g,       '<mark data-hl="yellow">$1</mark>')
+  s = s.replace(/==pink::([^=]+)==/g, '<mark data-hl="pink">$1</mark>')
+  s = s.replace(/==sage::([^=]+)==/g, '<mark data-hl="sage">$1</mark>')
+  s = s.replace(/==([^=]+)==/g,       '<mark data-hl="yellow">$1</mark>')
   // Bold / strike
   s = s.replace(/\*\*([^*\n]+)\*\*/g,   '<strong>$1</strong>')
   s = s.replace(/~~([^~\n]+)~~/g,       '<del>$1</del>')
