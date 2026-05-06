@@ -284,6 +284,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       onTextSizeChange={setTextSize}
       senderName={senderName}
       onSenderNameChange={setSenderName}
+      onLimitToast={showToast}
     />
   )
 

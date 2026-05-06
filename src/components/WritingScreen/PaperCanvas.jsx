@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect } from 'react'
+import { useMemo, useRef, useState, useEffect, useLayoutEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TegakiRenderer } from 'tegaki/react'
 import { font } from '../../lib/tegakiFont'
@@ -622,6 +622,7 @@ export default function PaperCanvas({
   textSize = 'lg',
   readingMode = false,
   revealedWordIdx = 0,
+  fitContent = false,
 }) {
   const { type = 'minimal', color = '#FAFAF8', showRuler = true, showZigzag = false } = paperConfig ?? {}
   const typeData = PAPER_TYPES[type] ?? PAPER_TYPES.minimal
@@ -656,9 +657,11 @@ export default function PaperCanvas({
     return count
   }, [readingMode, liveRecipient])
 
-  const paperRef = useRef(null)
-  const bodyRef  = useRef(null)
-  const [rulerOffset, setRulerOffset] = useState(21)
+  const paperRef      = useRef(null)
+  const bodyRef       = useRef(null)
+  const letterRef     = useRef(null)
+  const [rulerOffset,    setRulerOffset]    = useState(21)
+  const [contentScale,   setContentScale]   = useState(1)
 
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 860px)').matches : false
@@ -691,6 +694,80 @@ export default function PaperCanvas({
     return () => ro.disconnect()
   }, [showRuler, liveRecipient, hasMessage, lineSpacing])
 
+  // Scale letter content to fit within the fixed paper dimensions.
+  // Scale letter content to fit within the paper on the recipient screen.
+  // Two challenges:
+  // 1. position:absolute; inset:0 fixes the element height to paperH, so
+  //    scrollHeight always equals paperH — we must break the constraint to
+  //    measure true content height.
+  // 2. The paper unfolds via a framer-motion animation that doesn't trigger
+  //    React re-renders, so we use a ResizeObserver to re-apply the scale
+  //    as the paper grows to its final size.
+  useLayoutEffect(() => {
+    const letter = letterRef.current
+    const paper  = paperRef.current
+    if (!letter) return
+    if (!fitContent) {
+      letter.style.overflow        = ''
+      letter.style.width           = ''
+      letter.style.transform       = ''
+      letter.style.transformOrigin = ''
+      return
+    }
+    if (!paper) return
+
+    let measuring = false
+
+    function applyScale() {
+      if (measuring) return
+      const paperH = paper.clientHeight
+      const paperW = paper.clientWidth
+      if (paperH < 10 || paperW < 10) return  // paper not yet at final size
+
+      // Temporarily break inset constraint so scrollHeight reflects real content height
+      measuring = true
+      letter.style.position  = 'relative'
+      letter.style.bottom    = 'auto'
+      letter.style.height    = 'auto'
+      letter.style.overflow  = 'visible'
+      letter.style.width     = `${paperW}px`
+      letter.style.transform = ''
+
+      const contentH = letter.scrollHeight
+
+      // Restore (CSS class reinstates position:absolute; inset:0)
+      letter.style.position = ''
+      letter.style.bottom   = ''
+      letter.style.height   = ''
+      letter.style.width    = ''
+      measuring = false
+
+      const scale = contentH > paperH ? paperH / contentH : 1
+
+      if (scale < 1) {
+        // Widen the element to (paperW / scale) so that after scale() is applied
+        // the visual width equals paperW — keeps ruler lines spanning the full paper.
+        // overflow:visible lets the paper's own overflow:hidden do the final clip.
+        letter.style.overflow        = 'visible'
+        letter.style.width           = `${Math.round(paperW / scale)}px`
+        letter.style.transform       = `scale(${scale})`
+        letter.style.transformOrigin = 'top left'
+      } else {
+        letter.style.overflow  = ''
+        letter.style.width     = ''
+        letter.style.transform = ''
+      }
+      setContentScale(scale)
+    }
+
+    applyScale()
+
+    // Re-run whenever the paper resizes (covers the unfolding animation)
+    const ro = new ResizeObserver(applyScale)
+    ro.observe(paper)
+    return () => ro.disconnect()
+  }, [fitContent])
+
   const rulerColor = type === 'color' ? computeColorRuler(color) : typeData.rulerColor
   const rulerLines = showRuler
     ? `repeating-linear-gradient(to bottom, transparent, transparent ${lineSpacing - 1}px, ${rulerColor} ${lineSpacing - 1}px, ${rulerColor} ${lineSpacing}px)`
@@ -719,7 +796,11 @@ export default function PaperCanvas({
             onPointerDown={() => onSelectSticker?.(null)}
             onDoubleClick={() => onBgClick?.()}
           >
-            <div className={styles.letterContent} style={letterContentStyle}>
+            <div
+              ref={letterRef}
+              className={styles.letterContent}
+              style={letterContentStyle}
+            >
               {/* Stains at z-index:-1 paint above letterContent's solid bg but below text */}
               {typeData.hasStains && <div className={styles.stains} aria-hidden />}
               {isEmpty && (
