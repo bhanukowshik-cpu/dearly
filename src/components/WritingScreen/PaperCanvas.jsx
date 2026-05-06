@@ -73,11 +73,15 @@ function normalizeMarkup(text) {
    'strike' | 'bold' | 'size-sm' | 'size-lg' | 'delim'
    ───────────────────────────────────────────────────────────────────────── */
 function computeCharTypes(text) {
-  const types = new Array(text.length).fill('text')
+  // Replace astral-plane codepoints (emoji etc.) with a single BMP placeholder so
+  // regex match indices align with codepoint indices, not UTF-16 code units.
+  const codepoints = Array.from(text)
+  const safeText   = codepoints.map(cp => cp.length > 1 ? '' : cp).join('')
+  const types = new Array(codepoints.length).fill('text')
   /* ==text==  ==pink::text==  ==sage::text==  ~~text~~  **text**  @@sm::text@@  @@lg::text@@ */
   const re = /==((?:pink|sage)::)?([^=\n]+)==|~~([^~\n]+)~~|\*\*([^*\n]+)\*\*|@@(sm|lg)::([^@\n]+)@@/g
   let m
-  while ((m = re.exec(text)) !== null) {
+  while ((m = re.exec(safeText)) !== null) {
     const s = m.index, e = s + m[0].length
     if (m[0].startsWith('~~')) {
       types[s] = types[s + 1] = types[e - 2] = types[e - 1] = 'delim'

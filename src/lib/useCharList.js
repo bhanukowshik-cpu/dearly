@@ -14,7 +14,8 @@ function newId() { return ++_uid }
  *  - Characters added in the middle get fresh IDs    → animate in
  *  - Deleted characters vanish from the array        → instant removal (no AnimatePresence needed)
  *
- * This gives O(n) diff per keystroke and ≤1 setState call.
+ * Diff is done on Unicode codepoints (Array.from) so emoji and other astral-plane
+ * characters count as one unit — avoids index drift from UTF-16 surrogate pairs.
  */
 export function useCharList(text) {
   const [chars, setChars] = useState(() =>
@@ -24,29 +25,30 @@ export function useCharList(text) {
 
   useEffect(() => {
     if (text === prev.current) return
-    const oldT = prev.current
-    const newT = text
-    prev.current = newT
+    const oldArr = Array.from(prev.current)
+    const newArr = Array.from(text)
+    prev.current = text
 
     /* ── Find common prefix ─────────────────────────────────────────── */
-    const minLen = Math.min(oldT.length, newT.length)
+    const minLen = Math.min(oldArr.length, newArr.length)
     let p = 0
-    while (p < minLen && oldT[p] === newT[p]) p++
+    while (p < minLen && oldArr[p] === newArr[p]) p++
 
     /* ── Find common suffix (must not overlap the prefix) ───────────── */
     let s = 0
     while (
-      s < oldT.length - p &&
-      s < newT.length - p &&
-      oldT[oldT.length - 1 - s] === newT[newT.length - 1 - s]
+      s < oldArr.length - p &&
+      s < newArr.length - p &&
+      oldArr[oldArr.length - 1 - s] === newArr[newArr.length - 1 - s]
     ) s++
 
     /* ── Splice in new middle characters ────────────────────────────── */
     setChars(existing => {
       const prefix    = existing.slice(0, p)
       const suffix    = s > 0 ? existing.slice(existing.length - s) : []
-      const midStr    = newT.slice(p, s > 0 ? newT.length - s : undefined)
-      const newMiddle = Array.from(midStr).map(ch => ({ id: newId(), ch }))
+      const newMiddle = newArr
+        .slice(p, s > 0 ? newArr.length - s : undefined)
+        .map(ch => ({ id: newId(), ch }))
       return [...prefix, ...newMiddle, ...suffix]
     })
   }, [text])
