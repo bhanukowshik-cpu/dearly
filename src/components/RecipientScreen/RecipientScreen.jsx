@@ -263,6 +263,7 @@ function FoldedLetter({
                 onMoveSticker={NOOP}  onResizeSticker={NOOP} onRotateSticker={NOOP}
                 readingMode={readingMode}
                 revealedWordIdx={revealedWordIdx}
+                fitContent
               />
             </div>
 
@@ -406,6 +407,7 @@ export default function RecipientScreen({
   const [readingMode,      setReadingMode]      = useState(false)
   const [revealedWordIdx,  setRevealedWordIdx]  = useState(0)
   const [loadingPng,       setLoadingPng]       = useState(false)
+  const [downloadDone,     setDownloadDone]     = useState(false)
   const ambientRef   = useRef(null)
   const elevenAudio  = useRef(null)
   const elevenRaf    = useRef(null)
@@ -512,21 +514,44 @@ export default function RecipientScreen({
     else         { a.play();  setMusicOn(true)  }
   }, [musicOn])
 
+  const downloadTimerRef = useRef(null)
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+
   const handleDownloadPng = useCallback(async () => {
     if (loadingPng) return
     setLoadingPng(true)
+    setDownloadDone(false)
     try {
       const canvas = await captureCanvas(paperRef)
-      const link   = document.createElement('a')
-      link.href     = canvas.toDataURL('image/png')
-      link.download = 'dearly-note.png'
-      link.click()
+      await new Promise((resolve, reject) => {
+        canvas.toBlob(blob => {
+          if (!blob) { reject(new Error('toBlob failed')); return }
+          const url = URL.createObjectURL(blob)
+          if (isIOS) {
+            window.open(url, '_blank')
+            setTimeout(() => URL.revokeObjectURL(url), 8000)
+            setDownloadDone('ios')
+          } else {
+            const a = document.createElement('a')
+            a.href = url
+            a.download = 'dearly-note.png'
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            setTimeout(() => URL.revokeObjectURL(url), 1000)
+            setDownloadDone('done')
+          }
+          if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current)
+          downloadTimerRef.current = setTimeout(() => setDownloadDone(false), 4000)
+          resolve()
+        }, 'image/png')
+      })
     } catch (e) {
       console.error('PNG export failed', e)
     } finally {
       setLoadingPng(false)
     }
-  }, [loadingPng])
+  }, [loadingPng, isIOS])
 
   function stopReading() {
     cancelAnimationFrame(elevenRaf.current)
@@ -775,21 +800,26 @@ export default function RecipientScreen({
                     </span>
                   </button>
 
-                  {/* Download — plain icon, same height as music button */}
+                  {/* Download — icon + state label */}
                   <button
                     className={styles.downloadBtn}
                     onClick={handleDownloadPng}
                     disabled={loadingPng}
                     aria-label="Save as image"
+                    title={downloadDone === 'ios' ? 'Long press the image to save' : downloadDone === 'done' ? 'Check your downloads!' : 'Save as image'}
                   >
                     {loadingPng
                       ? <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
                           <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.6" strokeDasharray="4 3"/>
                         </svg>
-                      : <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-                          <path d="M10 3v10M6.5 9.5l3.5 3.5 3.5-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M3.5 15.5h13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-                        </svg>
+                      : downloadDone
+                        ? <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+                            <path d="M4 10l4.5 4.5L16 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        : <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+                            <path d="M10 3v10M6.5 9.5l3.5 3.5 3.5-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M3.5 15.5h13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                          </svg>
                     }
                   </button>
                 </div>
@@ -871,7 +901,7 @@ export default function RecipientScreen({
           )}
         </AnimatePresence>
 
-        {/* Share toast — appears 9s after unwrap */}
+        {/* Share toast — appears 9s after unwrap, always stays */}
         <AnimatePresence>
           {showToast && (
             <motion.div
@@ -884,7 +914,6 @@ export default function RecipientScreen({
               exit={{ opacity: 0, y: 24 }}
               transition={{ duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
             >
-              <button className={styles.toastClose} onClick={() => setShowToast(false)} aria-label="Dismiss">✕</button>
               <div className={styles.toastLeft}>
                 <p className={styles.toastText}>
                   {senderName
