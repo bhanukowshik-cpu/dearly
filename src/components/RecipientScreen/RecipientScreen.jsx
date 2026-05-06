@@ -634,10 +634,16 @@ export default function RecipientScreen({
 
   const isLetterPhase = phase === 'letter'
 
+  const tryStartMusic = useCallback(() => {
+    if (musicOn) return
+    ambientRef.current?.play(0.08).then(() => setMusicOn(true)).catch(() => {})
+  }, [musicOn])
+
   return (
     <div
       className={styles.root}
       style={isLetterPhase ? { justifyContent: 'flex-start', paddingTop: 64 } : undefined}
+      onPointerDown={tryStartMusic}
     >
       <VideoBackground />
       <div className={styles.bgBlur}  aria-hidden />
