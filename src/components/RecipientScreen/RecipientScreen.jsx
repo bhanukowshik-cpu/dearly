@@ -891,8 +891,8 @@ export default function RecipientScreen({
         </div>
       )}
 
-      {/* ── Rating toast — bottom right ──────────────────────────────────────── */}
-      <div className={styles.toastStack}>
+      {/* ── Rating toast — bottom right, lifts up when share banner is showing ── */}
+      <div className={styles.toastStack} style={showToast ? { bottom: 116 } : undefined}>
         <AnimatePresence>
           {showRatingToast && !ratingDone && (
             <motion.div
