@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useRef } from 'react'
 
 /* Module-level monotonic counter — survives HMR, never collides */
 let _uid = 0
@@ -12,29 +12,38 @@ function newId() { return ++_uid }
  * When the text changes:
  *  - Common prefix/suffix characters keep their IDs  → no re-animation
  *  - Characters added in the middle get fresh IDs    → animate in
- *  - Deleted characters vanish from the array        → instant removal (no AnimatePresence needed)
+ *  - Deleted characters vanish from the array        → instant removal
  *
- * Diff is done on Unicode codepoints (Array.from) so emoji and other astral-plane
- * characters count as one unit — avoids index drift from UTF-16 surrogate pairs.
+ * Implemented with a ref updated synchronously during render (not via
+ * useEffect) so buildSegments always sees up-to-date IDs on the same render
+ * that the text changed. The previous useState+useEffect approach left chars
+ * one render stale, causing all characters after an insertion to fall back to
+ * positional 's${i}' keys, remounting their CharPath and re-triggering the
+ * draw animation (visible jitter).
  */
 export function useCharList(text) {
-  const [chars, setChars] = useState(() =>
-    Array.from(text).map(ch => ({ id: newId(), ch }))
-  )
-  const prev = useRef(text)
+  const ref = useRef(null)
 
-  useEffect(() => {
-    if (text === prev.current) return
-    const oldArr = Array.from(prev.current)
-    const newArr = Array.from(text)
-    prev.current = text
+  /* First render — initialise directly from text */
+  if (!ref.current) {
+    ref.current = {
+      text,
+      chars: Array.from(text).map(ch => ({ id: newId(), ch })),
+    }
+  }
 
-    /* ── Find common prefix ─────────────────────────────────────────── */
+  /* Subsequent renders — diff synchronously so keys are correct this render */
+  if (ref.current.text !== text) {
+    const oldArr   = Array.from(ref.current.text)
+    const newArr   = Array.from(text)
+    const existing = ref.current.chars
+
+    /* Find common prefix */
     const minLen = Math.min(oldArr.length, newArr.length)
     let p = 0
     while (p < minLen && oldArr[p] === newArr[p]) p++
 
-    /* ── Find common suffix (must not overlap the prefix) ───────────── */
+    /* Find common suffix (must not overlap the prefix) */
     let s = 0
     while (
       s < oldArr.length - p &&
@@ -42,16 +51,14 @@ export function useCharList(text) {
       oldArr[oldArr.length - 1 - s] === newArr[newArr.length - 1 - s]
     ) s++
 
-    /* ── Splice in new middle characters ────────────────────────────── */
-    setChars(existing => {
-      const prefix    = existing.slice(0, p)
-      const suffix    = s > 0 ? existing.slice(existing.length - s) : []
-      const newMiddle = newArr
-        .slice(p, s > 0 ? newArr.length - s : undefined)
-        .map(ch => ({ id: newId(), ch }))
-      return [...prefix, ...newMiddle, ...suffix]
-    })
-  }, [text])
+    const prefix    = existing.slice(0, p)
+    const suffix    = s > 0 ? existing.slice(existing.length - s) : []
+    const newMiddle = newArr
+      .slice(p, s > 0 ? newArr.length - s : undefined)
+      .map(ch => ({ id: newId(), ch }))
 
-  return chars
+    ref.current = { text, chars: [...prefix, ...newMiddle, ...suffix] }
+  }
+
+  return ref.current.chars
 }
