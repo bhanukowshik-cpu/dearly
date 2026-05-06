@@ -84,10 +84,10 @@
   background: none;
   border: none;
   outline: none;
-  font-family: 'Caveat', cursive;
-  font-size: 26px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.92);
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92) !important;
   caret-color: rgba(255, 255, 255, 0.55);
   width: 100%;
   padding: 0;
