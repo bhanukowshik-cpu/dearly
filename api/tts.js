@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   const { text, voiceId = 'EXAVITQu4vr4xnSDxMaL' } = req.body ?? {}
   if (!text?.trim()) { res.status(400).json({ error: 'text required' }); return }
 
-  const apiKey = process.env.ELEVENLABS_API_KEY
+  const apiKey = process.env.ELEVENLABS_API_KEY ?? process.env.VITE_ELEVENLABS_API_KEY
   if (!apiKey) { res.status(500).json({ error: 'missing ELEVENLABS_API_KEY' }); return }
 
   const upstream = await fetch(
@@ -14,8 +14,8 @@ export default async function handler(req, res) {
       headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text,
-        model_id: 'eleven_multilingual_v2',
-        voice_settings: { stability: 0.50, similarity_boost: 0.75, style: 0.20 },
+        model_id: 'eleven_turbo_v2_5',
+        voice_settings: { stability: 0.35, similarity_boost: 0.85, style: 0.40, use_speaker_boost: true },
       }),
     }
   )
