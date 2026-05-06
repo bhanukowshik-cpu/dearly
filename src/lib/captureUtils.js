@@ -29,17 +29,22 @@ export async function captureCanvas(paperRef) {
   if (wrapEl) wrapEl.style.filter = 'none'
 
   const fontEmbedCSS = await buildFontEmbedCSS()
-
   const bgColor = window.getComputedStyle(paperEl).backgroundColor || '#ffffff'
 
-  const dataUrl = await toPng(paperEl, {
+  const opts = {
     pixelRatio: 3,
     backgroundColor: bgColor,
-    onclone: (_doc, el) => {
-      // Force all SVG stroke animations to their completed state so
-      // TegakiRenderer characters are fully drawn (not mid-animation invisible).
-      const style = _doc.createElement('style')
-      style.textContent = [
+    onclone: (_doc) => {
+      // Inject font directly into cloned document — Safari ignores fontEmbedCSS
+      // option alone and needs the @font-face in a real <style> tag to render text.
+      if (fontEmbedCSS) {
+        const fontStyle = _doc.createElement('style')
+        fontStyle.textContent = fontEmbedCSS
+        _doc.head.appendChild(fontStyle)
+      }
+      // Freeze all SVG stroke animations so TegakiRenderer chars are fully drawn.
+      const animStyle = _doc.createElement('style')
+      animStyle.textContent = [
         '*, *::before, *::after {',
         '  animation-duration: 0.001ms !important;',
         '  animation-delay: 0ms !important;',
@@ -50,10 +55,15 @@ export async function captureCanvas(paperRef) {
         '  stroke-dasharray: none !important;',
         '}',
       ].join('\n')
-      _doc.head.appendChild(style)
+      _doc.head.appendChild(animStyle)
     },
     ...(fontEmbedCSS ? { fontEmbedCSS } : {}),
-  })
+  }
+
+  // Safari requires two toPng calls: first warms up resource loading (fonts,
+  // images), second captures with everything available.
+  await toPng(paperEl, opts).catch(() => {})
+  const dataUrl = await toPng(paperEl, opts)
 
   if (wrapEl) wrapEl.style.filter = savedFilter
 
