@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dearly | Letters people actually keep.</title>
-    <meta name="description" content="Letters people actually keep." />
+    <title>Dearly — Turn what you write into something worth sending.</title>
+    <meta name="description" content="Turn what you write into something worth sending." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
@@ -26,6 +26,21 @@
             return Reflect.construct(Target, args);
           }
         });
+      })();
+    </script>
+    <!-- Google Analytics (only loads when VITE_GA_ID is set) -->
+    <script>
+      (function() {
+        var id = '%VITE_GA_ID%';
+        if (!id || id === 'VITE_GA_ID' || id.indexOf('VITE_') === 0) return;
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=' + id;
+        document.head.appendChild(s);
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function() { window.dataLayer.push(arguments); };
+        window.gtag('js', new Date());
+        window.gtag('config', id, { send_page_view: false });
       })();
     </script>
   </head>

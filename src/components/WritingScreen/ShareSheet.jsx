@@ -4,6 +4,7 @@ import styles from './ShareSheet.module.css'
 import { generateShareUrl } from '../../lib/shareUtils'
 import { saveNote } from '../../lib/supabase'
 import { captureCanvas } from '../../lib/captureUtils'
+import { trackEvent } from '../../lib/analytics'
 
 // ── Hand-drawn icons ────────────────────────────────────────────────────────
 function IconLink() {
@@ -60,7 +61,18 @@ function IconClose() {
 // ── ShareSheet ──────────────────────────────────────────────────────────────
 const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
 
-export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet = false }) {
+function legacyCopy(text) {
+  const el = document.createElement('textarea')
+  el.value = text
+  el.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0'
+  document.body.appendChild(el)
+  el.focus()
+  el.select()
+  try { document.execCommand('copy') } catch {}
+  document.body.removeChild(el)
+}
+
+export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMobileSheet = false }) {
   const [linkUrl,      setLinkUrl]      = useState('')
   const [copied,       setCopied]       = useState(false)
   const [creatingLink, setCreatingLink] = useState(false)
@@ -87,19 +99,36 @@ export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet 
         return
       }
       const url = generateShareUrl(id, noteData)
+      trackEvent('note_link_created', { method: isMobileSheet ? 'mobile' : 'desktop' })
+
+      // On mobile: use native share sheet (iOS/Android) — no keyboard, no clipboard issues
+      if (isMobileSheet && typeof navigator.share === 'function') {
+        try {
+          await navigator.share({ url, title: `A note for ${noteData.recipient || 'you'}` })
+          return
+        } catch {
+          // user cancelled or share failed — fall through to copy
+        }
+      }
+
       setLinkUrl(url)
       setCopied(false)
     } finally {
       setCreatingLink(false)
     }
-  }, [noteData, creatingLink])
+  }, [noteData, creatingLink, isMobileSheet])
 
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(linkUrl).then(() => {
-      setCopied(true)
-      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current)
-      copiedTimerRef.current = setTimeout(() => setCopied(false), 2200)
-    })
+    if (!linkUrl) return
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(linkUrl).then(() => {
+        setCopied(true)
+        if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current)
+        copiedTimerRef.current = setTimeout(() => setCopied(false), 2200)
+      }).catch(() => legacyCopy(linkUrl))
+    } else {
+      legacyCopy(linkUrl)
+    }
   }, [linkUrl])
 
   const handlePng = useCallback(async () => {
@@ -107,6 +136,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet 
     setLoadingPng(true)
     setDownloadDone(false)
     setExportErr('')
+    onToast?.('Preparing your image…')
     try {
       const canvas = await captureCanvas(paperRef)
       await new Promise((resolve, reject) => {
@@ -127,6 +157,10 @@ export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet 
             setTimeout(() => URL.revokeObjectURL(url), 1000)
             setDownloadDone('done')
           }
+          trackEvent('png_downloaded', { source: 'share_sheet' })
+          onToast?.(isIOS
+            ? 'Image saved — check your Files or Photos app.'
+            : 'Image downloaded — check your Downloads folder.')
           downloadTimerRef.current = setTimeout(() => setDownloadDone(false), 4000)
           resolve()
         }, 'image/png')
@@ -134,6 +168,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, isMobileSheet 
     } catch (e) {
       console.error('PNG export failed', e)
       setExportErr('Export failed — please try again.')
+      onToast?.('Could not export image, please try again.')
     } finally {
       setLoadingPng(false)
     }

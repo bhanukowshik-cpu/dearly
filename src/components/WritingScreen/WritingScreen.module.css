@@ -640,6 +640,8 @@
     background: rgba(4, 9, 20, 0.60);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
   }
 }
 

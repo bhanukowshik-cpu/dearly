@@ -26,10 +26,10 @@ export const PAPER_TYPES = {
   },
   vintage: {
     label:       'Vintage',
-    bg:          '#EEE8DC',
+    bg:          '#EDE5C8',
     inkColor:    '#2C1A0E',
     hasStains:   true,
-    rulerColor:  'rgba(100,70,30,0.24)',
+    rulerColor:  'rgba(100,70,30,0.18)',
   },
 }
 

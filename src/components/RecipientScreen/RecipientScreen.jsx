@@ -7,6 +7,7 @@ import { PAPER_TYPES } from '../WritingScreen/stylePresets'
 import VideoBackground from '../VideoBackground/VideoBackground'
 import { captureCanvas } from '../../lib/captureUtils'
 import { submitFeedback } from '../../lib/supabase'
+import { trackEvent } from '../../lib/analytics'
 import styles from './RecipientScreen.module.css'
 
 // ── Ambient audio ──────────────────────────────────────────────────────────────
@@ -473,6 +474,7 @@ export default function RecipientScreen({
   const handleRate = (star) => {
     setRating(star)
     submitFeedback(star)
+    trackEvent('feedback_submitted', { stars: star })
     if (star >= 4) setTimeout(() => setRatingDone(true), 1200)
     // < 4: stay open and show the feedback textarea
   }
@@ -501,6 +503,7 @@ export default function RecipientScreen({
 
   const openNote         = useCallback(() => {
     setPhase('opening')
+    trackEvent('note_opened')
     if (!musicOn) {
       ambientRef.current?.play(0.08).then(() => setMusicOn(true)).catch(() => {})
     }
@@ -890,8 +893,16 @@ export default function RecipientScreen({
                       autoFocus
                       value={feedbackText}
                       onChange={e => setFeedbackText(e.target.value)}
+                      onBlur={() => {
+                        if (feedbackText.trim()) submitFeedback(rating, feedbackText.trim())
+                        setRatingDone(true)
+                      }}
                       onKeyDown={e => {
-                        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); setRatingDone(true) }
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          if (feedbackText.trim()) submitFeedback(rating, feedbackText.trim())
+                          setRatingDone(true)
+                        }
                       }}
                     />
                   </motion.div>

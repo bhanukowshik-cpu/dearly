@@ -45,7 +45,8 @@ export async function getNoteById(id) {
   }
 }
 
-export async function submitFeedback(stars) {
-  const { error } = await supabase.from('feedback').insert({ stars })
+export async function submitFeedback(stars, feedbackText) {
+  const payload = { stars, ...(feedbackText ? { feedback_text: feedbackText } : {}) }
+  const { error } = await supabase.from('feedback').insert(payload)
   if (error) console.error('[dearly] submitFeedback failed:', error.message)
 }
