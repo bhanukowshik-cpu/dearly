@@ -975,8 +975,8 @@ export default function RecipientScreen({
             <div className={styles.toastLeft}>
               <p className={styles.toastText}>
                 {senderName
-                  ? <>That smile? Pass it on — write a note to <strong>{senderName}</strong>.</>
-                  : <>That smile? Pass it on — write a note for someone you love.</>
+                  ? <>You have a lovely smile — pass it on by sending a note to <strong>{senderName}</strong> or anyone you care about.</>
+                  : <>You have a lovely smile — pass it on by sending a note to someone you care about.</>
                 }
               </p>
             </div>
