@@ -891,9 +891,8 @@ export default function RecipientScreen({
         </div>
       )}
 
-      {/* ── Toast stack ────────────────────────────────────────────────────────── */}
+      {/* ── Rating toast — bottom right ──────────────────────────────────────── */}
       <div className={styles.toastStack}>
-        {/* Rating toast — appears 12s after unwrap */}
         <AnimatePresence>
           {showRatingToast && !ratingDone && (
             <motion.div
@@ -971,42 +970,46 @@ export default function RecipientScreen({
           )}
         </AnimatePresence>
 
-        {/* Share toast — appears 9s after unwrap, always stays */}
-        <AnimatePresence>
-          {showToast && (
-            <motion.div
-              className={styles.toast}
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 24 }}
-              transition={{ duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
-            >
-              <div className={styles.toastLeft}>
-                <p className={styles.toastText}>
-                  That feeling you just had? Someone in your life deserves it too.
-                </p>
-              </div>
-              <div className={styles.toastRight}>
-                <motion.button
-                  className={styles.toastCtaCompact}
-                  onClick={onWriteOwn}
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.96 }}
-                  transition={{ duration: 0.1 }}
-                >
-                  <svg className={styles.toastCtaBg} viewBox="0 0 160 38" preserveAspectRatio="none" fill="none" aria-hidden>
-                    <path d="M 10,5 C 48,2 112,3 150,5 C 152,14 153,24 150,33 C 112,36 48,35 10,33 C 7,24 7,14 10,5 Z" fill="white"/>
-                  </svg>
-                  <span>Write a Note</span>
-                </motion.button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
+
+      {/* ── Share banner — full width, centered at bottom ─────────────────────── */}
+      <AnimatePresence>
+        {showToast && (
+          <motion.div
+            className={styles.shareBanner}
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            transition={{ duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className={styles.toastLeft}>
+              <p className={styles.toastText}>
+                {senderName
+                  ? <>{senderName} thought of you. Now think of a friend, sibling, parent, or anyone you want to share this magic with.</>
+                  : <>That feeling you just had? A friend, sibling, parent — someone you love deserves to feel it too.</>
+                }
+              </p>
+            </div>
+            <div className={styles.toastRight}>
+              <motion.button
+                className={styles.toastCtaCompact}
+                onClick={onWriteOwn}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ duration: 0.1 }}
+              >
+                <svg className={styles.toastCtaBg} viewBox="0 0 160 38" preserveAspectRatio="none" fill="none" aria-hidden>
+                  <path d="M 10,5 C 48,2 112,3 150,5 C 152,14 153,24 150,33 C 112,36 48,35 10,33 C 7,24 7,14 10,5 Z" fill="white"/>
+                </svg>
+                <span>Write a Note</span>
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
