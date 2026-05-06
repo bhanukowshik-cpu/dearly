@@ -149,6 +149,9 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   useEffect(() => {
     if (!showShare) return
     function handleOutside(e) {
+      // On mobile the sheet has its own backdrop — skip the document listener
+      // so tapping inside the sheet doesn't close it immediately.
+      if (isMobile) return
       if (shareWrapRef.current && !shareWrapRef.current.contains(e.target)) {
         setShowShare(false)
       }
@@ -162,7 +165,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       document.removeEventListener('pointerdown', handleOutside)
       document.removeEventListener('keydown', handleEscape)
     }
-  }, [showShare])
+  }, [showShare, isMobile])
 
   const isEmpty       = message.trim() === ''
   const recipientName = extractName(recipient)

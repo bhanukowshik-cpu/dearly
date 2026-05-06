@@ -524,6 +524,9 @@ export default function RecipientScreen({
     if (loadingPng) return
     setLoadingPng(true)
     setDownloadDone(false)
+    // Pre-open a window synchronously while the user gesture is still active —
+    // iOS Safari blocks window.open() called inside async callbacks.
+    const iosWin = isIOS ? window.open('about:blank', '_blank') : null
     try {
       const canvas = await captureCanvas(paperRef)
       await new Promise((resolve, reject) => {
@@ -531,7 +534,8 @@ export default function RecipientScreen({
           if (!blob) { reject(new Error('toBlob failed')); return }
           const url = URL.createObjectURL(blob)
           if (isIOS) {
-            window.open(url, '_blank')
+            if (iosWin) iosWin.location.href = url
+            else window.open(url, '_blank')
             setTimeout(() => URL.revokeObjectURL(url), 8000)
             setDownloadDone('ios')
           } else {
@@ -551,6 +555,7 @@ export default function RecipientScreen({
       })
     } catch (e) {
       console.error('PNG export failed', e)
+      if (iosWin) iosWin.close()
     } finally {
       setLoadingPng(false)
     }

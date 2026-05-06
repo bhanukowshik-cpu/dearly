@@ -137,6 +137,9 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
     setDownloadDone(false)
     setExportErr('')
     onToast?.('Preparing your image…')
+    // Pre-open a window synchronously while the user gesture is still active —
+    // iOS Safari blocks window.open() called inside async callbacks.
+    const iosWin = isIOS ? window.open('about:blank', '_blank') : null
     try {
       const canvas = await captureCanvas(paperRef)
       await new Promise((resolve, reject) => {
@@ -144,7 +147,8 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
           if (!blob) { reject(new Error('toBlob failed')); return }
           const url = URL.createObjectURL(blob)
           if (isIOS) {
-            window.open(url, '_blank')
+            if (iosWin) iosWin.location.href = url
+            else window.open(url, '_blank')
             setTimeout(() => URL.revokeObjectURL(url), 8000)
             setDownloadDone('ios')
           } else {
@@ -167,6 +171,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
       })
     } catch (e) {
       console.error('PNG export failed', e)
+      if (iosWin) iosWin.close()
       setExportErr('Export failed — please try again.')
       onToast?.('Could not export image, please try again.')
     } finally {

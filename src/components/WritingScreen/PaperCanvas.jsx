@@ -733,6 +733,14 @@ export default function PaperCanvas({
       letter.style.width     = `${paperW}px`
       letter.style.transform = ''
 
+      // Also let the body child expand freely so its content height is included
+      const body = bodyRef.current
+      if (body) {
+        body.style.overflow   = 'visible'
+        body.style.flexShrink = '0'
+        body.style.height     = 'auto'
+      }
+
       const contentH = letter.scrollHeight
 
       // Restore (CSS class reinstates position:absolute; inset:0)
@@ -740,6 +748,11 @@ export default function PaperCanvas({
       letter.style.bottom   = ''
       letter.style.height   = ''
       letter.style.width    = ''
+      if (body) {
+        body.style.overflow   = ''
+        body.style.flexShrink = ''
+        body.style.height     = ''
+      }
       measuring = false
 
       const scale = contentH > paperH ? paperH / contentH : 1
