@@ -178,7 +178,7 @@
 
 /* ── Mobile — dropdown becomes a bottom sheet ─────────────────────────────── */
 
-@media (max-width: 860px) {
+@media (max-width: 599px), (max-width: 1180px) and (orientation: portrait) {
   /* Rendered at root level (outside topBar) so position:fixed works vs viewport */
   .dropdown {
     position: fixed;

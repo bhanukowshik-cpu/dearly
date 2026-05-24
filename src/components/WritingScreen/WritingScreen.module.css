@@ -624,9 +624,12 @@
   margin-top: 2px;
 }
 
-/* ── Desktop / tablet adjustments at the 860px breakpoint ─────────────── */
+/* ── Mobile + iPad-portrait layout ──────────────────────────────────────
+   Phones (≤599px any orientation) + tablets up to iPad Pro 11" in portrait
+   (≤1180px portrait) get the bottom-nav layout. iPad landscape and desktop
+   keep the sidebar so the paper stays tall.                              */
 
-@media (max-width: 860px) {
+@media (max-width: 599px), (max-width: 1180px) and (orientation: portrait) {
   /* Top bar: hide tagline on narrow screens to save space */
   .topBarTagline,
   .topBarSep {
@@ -678,7 +681,7 @@
   pointer-events: none;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 599px), (max-width: 1180px) and (orientation: portrait) {
   .toast {
     right: auto;
     left: 50%;

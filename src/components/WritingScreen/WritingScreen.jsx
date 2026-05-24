@@ -20,13 +20,17 @@ import {
   DEFAULT_HIGHLIGHTER_COLOR,
 } from '../../lib/drawingPresets'
 /* Top-bar + mobile-tab icons — sourced from editorIcons.jsx so the whole
-   chrome reads as hand-drawn. (IconWrite → IconPen, IconPalette →
-   IconSticker on the Style tab.) */
+   chrome reads as hand-drawn. Mobile bottom nav mirrors the desktop
+   EditorToolbar so the same tool labels/icons show across breakpoints. */
 import {
   IconShare,
-  IconLook    as IconEye,
-  IconPen     as IconWrite,
-  IconSticker as IconPalette,
+  IconLook  as IconEye,
+  IconPlane,
+  IconText,
+  IconImage as IconUpload,
+  IconMic,
+  IconPen,
+  IconSticker,
 } from './editorIcons'
 
 /* ── Hand-drawn action buttons ───────────────────────────────────────────── */
@@ -105,9 +109,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   const toastTimerRef  = useRef(null)
   const toastCounterRef = useRef(0)
   const [isMobile,           setIsMobile]           = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 860px)').matches : false
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 599px), (max-width: 1180px) and (orientation: portrait)').matches : false
   )
-  const [mobileTab,          setMobileTab]          = useState('write')
   const [activeTool,         setActiveTool]         = useState('people')
 
   // ── Drawing layer state ────────────────────────────────────────────────
@@ -161,7 +164,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
 
   /* Respond to viewport width changes */
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 860px)')
+    const mq = window.matchMedia('(max-width: 599px), (max-width: 1180px) and (orientation: portrait)')
     const handler = e => setIsMobile(e.matches)
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
@@ -882,76 +885,54 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               </div>
             </div>
 
-            {/* Animated tab panels */}
+            {/* Animated tool panel — mirrors desktop EditorToolbar tools */}
             <div className={styles.mobilePanelArea}>
               <AnimatePresence mode="wait" initial={false}>
-                {mobileTab === 'write' ? (
-                  <motion.div
-                    key="write"
-                    className={styles.mobilePanel}
-                    initial={{ opacity: 0, x: 18 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -18 }}
-                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                  >
-                    {namePanel}
-                    <div className={styles.sidebarDivider} />
-                    {inputPanel}
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="style"
-                    className={styles.mobilePanel}
-                    initial={{ opacity: 0, x: 18 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -18 }}
-                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                  >
-                    <CanvasSidebar
-                      paperConfig={paperConfig}
-                      onChangePaper={setPaperConfig}
-                    />
-                    <div className={styles.sidebarDivider} />
-                    {/* Media picker on mobile — without it, mobile users
-                        had no way to add photos at all. */}
-                    {mediaPanel}
-                    <div className={styles.sidebarDivider} />
-                    {stickerPanel}
-                  </motion.div>
-                )}
+                <motion.div
+                  key={activeTool ?? 'none'}
+                  className={styles.mobilePanel}
+                  initial={{ opacity: 0, x: 18 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -18 }}
+                  transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  {activeTool === 'people'   && namePanel}
+                  {activeTool === 'text'     && inputPanel}
+                  {activeTool === 'upload'   && mediaPanel}
+                  {activeTool === 'record'   && voicePanel}
+                  {activeTool === 'draw'     && drawingPanel}
+                  {activeTool === 'stickers' && stickerPanel}
+                </motion.div>
               </AnimatePresence>
             </div>
 
-            {/* Bottom tab bar */}
-            <nav className={styles.mobileTabBar} aria-label="Editor sections">
-              <button
-                className={`${styles.mobileTabBtn} ${mobileTab === 'write' ? styles.mobileTabBtnActive : ''}`}
-                onClick={() => setMobileTab('write')}
-              >
-                <span className={styles.mobileTabIcon}><IconWrite size={20} /></span>
-                <span className={styles.mobileTabLabel}>Write</span>
-                {mobileTab === 'write' && (
-                  <motion.span
-                    className={styles.mobileTabPip}
-                    layoutId="tab-pip"
-                    transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                  />
-                )}
-              </button>
-              <button
-                className={`${styles.mobileTabBtn} ${mobileTab === 'style' ? styles.mobileTabBtnActive : ''}`}
-                onClick={() => setMobileTab('style')}
-              >
-                <span className={styles.mobileTabIcon}><IconPalette size={20} /></span>
-                <span className={styles.mobileTabLabel}>Style</span>
-                {mobileTab === 'style' && (
-                  <motion.span
-                    className={styles.mobileTabPip}
-                    layoutId="tab-pip"
-                    transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                  />
-                )}
-              </button>
+            {/* Bottom tab bar — same tool set + order as desktop EditorToolbar */}
+            <nav className={styles.mobileTabBar} aria-label="Editor tools">
+              {[
+                { tool: 'people',   label: 'To/From',  icon: <IconPlane size={20} /> },
+                { tool: 'text',     label: 'Write',    icon: <IconText size={20} /> },
+                { tool: 'upload',   label: 'Pictures', icon: <IconUpload size={20} /> },
+                { tool: 'record',   label: 'Voice',    icon: <IconMic size={20} /> },
+                { tool: 'draw',     label: 'Draw',     icon: <IconPen size={20} /> },
+                { tool: 'stickers', label: 'Stickers', icon: <IconSticker size={20} /> },
+              ].map(({ tool, label, icon }) => (
+                <button
+                  key={tool}
+                  className={`${styles.mobileTabBtn} ${activeTool === tool ? styles.mobileTabBtnActive : ''}`}
+                  onClick={() => setActiveTool(tool)}
+                  aria-pressed={activeTool === tool}
+                >
+                  <span className={styles.mobileTabIcon}>{icon}</span>
+                  <span className={styles.mobileTabLabel}>{label}</span>
+                  {activeTool === tool && (
+                    <motion.span
+                      className={styles.mobileTabPip}
+                      layoutId="tab-pip"
+                      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                    />
+                  )}
+                </button>
+              ))}
             </nav>
 
           </div>

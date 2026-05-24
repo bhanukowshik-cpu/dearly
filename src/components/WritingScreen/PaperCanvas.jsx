@@ -671,10 +671,10 @@ export default function PaperCanvas({
   }, [])
 
   const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 860px)').matches : false
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 599px), (max-width: 1180px) and (orientation: portrait)').matches : false
   )
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 860px)')
+    const mq = window.matchMedia('(max-width: 599px), (max-width: 1180px) and (orientation: portrait)')
     const h = e => setIsMobile(e.matches)
     mq.addEventListener('change', h)
     return () => mq.removeEventListener('change', h)
