@@ -13,14 +13,14 @@ export const PAPER_TYPES = {
   minimal: {
     label:       'Default',
     bg:          '#FAFAF8',
-    inkColor:    '#1C1C1E',
+    inkColor:    '#252525',
     hasStains:   false,
     rulerColor:  'rgba(37,37,37,0.09)',
   },
   color: {
     label:       'Color',
     bg:          '#FAFAF8',     // overridden by paperColor state
-    inkColor:    '#1C1C1E',
+    inkColor:    '#252525',
     hasStains:   false,
     rulerColor:  'rgba(0,0,0,0.07)',  // overridden dynamically in PaperCanvas
   },
@@ -41,9 +41,29 @@ export const COLOR_SWATCHES = [
   { id: 'dark',   label: 'Dark',   value: '#252525' },
 ]
 
+/* Paper sizes — aspect ratio is width / height */
+export const PAPER_SIZES = {
+  strip: {
+    label:        'Strip',
+    aspectRatio:  '4 / 1',
+    mobileAspect: '4 / 1',
+  },
+  postcard: {
+    label:        'Postcard',
+    aspectRatio:  '3 / 2',
+    mobileAspect: '4 / 3',
+  },
+  a4: {
+    label:        'A4',
+    aspectRatio:  '1 / 1.414',
+    mobileAspect: '1 / 1.414',
+  },
+}
+
 export const DEFAULT_PAPER = {
   type:        'minimal',
   color:       '#FFF0F5',
+  size:        'postcard',
   showRuler:   true,
   showZigzag:  true,
 }

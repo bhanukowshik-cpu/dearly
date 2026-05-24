@@ -1,0 +1,168 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px 18px;
+}
+
+.tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+/* Each tool sits in a "holder". The illustration overflows the bottom of
+   this container and is clipped — visually the pen / highlighter / eraser
+   is parked in its slot. On hover/active it lifts. */
+.toolBtn {
+  position: relative;
+  height: 70px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 12px;
+  color: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.toolBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.toolBtnActive,
+.toolBtnActive:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
+/* The "slot" is just a positioning context for the absolutely-placed SVG. */
+.toolBtnSlot {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+/* SVG anchors to the bottom-centre of the slot. Sized at ~half its previous
+   footprint so plenty of dark "air" sits above each tool — the pen and
+   highlighter read as small objects parked in a roomy holder, not as
+   illustrations that fill the card. Still tall enough that the bottom is
+   clipped below the holder, preserving the "tool in a tray" feel. */
+.toolIllustration {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  height: 105%;             /* 1.25× the previous 84% — icons read larger */
+  width: auto;
+  transform: translate(-50%, 40%);
+  transform-origin: 50% 100%;
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.toolBtn:hover .toolIllustration {
+  transform: translate(-50%, 32%);
+}
+
+.toolBtnActive .toolIllustration,
+.toolBtnActive:hover .toolIllustration {
+  /* Lift further when active — tip rises into clearer view. */
+  transform: translate(-50%, 22%);
+}
+
+/* Reserve vertical space matching the swatch row so the panel doesn't
+   jump as the user toggles tools / cross-fades between palettes. 64px
+   = section label (~14) + gap (~6) + swatch (~28) + a little headroom. */
+.colorArea {
+  position: relative;
+  min-height: 64px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionLabel {
+  margin: 0;
+  font: 500 11px/1.2 'Inter', system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.colorRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.swatch {
+  --swatch: #000;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.12s ease, transform 0.12s ease;
+}
+.swatch:hover { transform: scale(1.06); border-color: rgba(255, 255, 255, 0.36); }
+.swatchActive {
+  border-color: #fff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+.swatchDot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.actionBtn {
+  flex: 1;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.82);
+  font: 500 12px/1 'Inter', system-ui, sans-serif;
+  cursor: pointer;
+  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+.actionBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+.actionBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.actionBtnDanger {
+  color: rgba(255, 180, 175, 0.92);
+}
+.actionBtnDanger:hover:not(:disabled) {
+  background: rgba(255, 120, 110, 0.10);
+  border-color: rgba(255, 120, 110, 0.32);
+  color: #ffd7d2;
+}
+
+.hint {
+  margin: 4px 0 0;
+  font: 400 12px/1.4 'Caveat', cursive;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.58);
+}

@@ -112,6 +112,45 @@
 
 .editorWrap {
   position: relative;
+  /* Scrollable only when content actually overflows (overflow-y: auto, not
+     scroll). Track is invisible; only the thumb is painted, and only while
+     hovering / actively scrolling — so the rail no longer dominates the
+     panel when the message is short. */
+  max-height: 340px;
+  overflow-y: auto;
+  overscroll-behavior: contain;            /* don't bubble scroll to the panel */
+  scrollbar-gutter: stable;                /* reserve space so text doesn't reflow when the thumb shows */
+  scrollbar-width: thin;                   /* Firefox: thin thumb, no track */
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+  -webkit-overflow-scrolling: touch;       /* smooth scroll on iOS */
+}
+
+/* WebKit (Chrome / Safari) — invisible track, fading thumb that only shows
+   on hover or active scroll. */
+.editorWrap::-webkit-scrollbar {
+  width: 6px;
+  background: transparent;
+}
+.editorWrap::-webkit-scrollbar-track {
+  background: transparent;
+  border: none;
+}
+.editorWrap::-webkit-scrollbar-thumb {
+  background: transparent;                 /* hidden by default */
+  border-radius: 4px;
+  transition: background 0.18s ease;
+}
+.editorWrap:hover::-webkit-scrollbar-thumb,
+.editorWrap:focus-within::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+}
+.editorWrap::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.40);
+}
+.editorWrap::-webkit-scrollbar-corner,
+.editorWrap::-webkit-scrollbar-button {
+  background: transparent;
+  display: none;
 }
 
 /* Single-line variant — used for the recipient editor */
@@ -130,18 +169,12 @@
   color: rgba(255, 255, 255, 0.82);
   caret-color: rgba(255, 255, 255, 0.55);
   line-height: 1.65;
-  min-height: 96px;
-  max-height: 220px;
-  overflow-y: auto;
+  min-height: 200px;
+  /* max-height + overflow live on .editorWrap so scrolling works reliably */
   word-break: break-word;
   white-space: pre-wrap;
   box-sizing: border-box;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
 }
-
-.messageEditor::-webkit-scrollbar       { width: 3px; }
-.messageEditor::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 2px; }
 
 .messageEditor.atLimit {
   color: rgba(255, 255, 255, 0.70);
@@ -597,12 +630,14 @@
 .emojiTrigger {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 20px;
+  border-radius: 50%;
   cursor: pointer;
-  padding: 5px 11px 5px 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   line-height: 1;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;

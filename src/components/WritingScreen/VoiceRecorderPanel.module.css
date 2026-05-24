@@ -1,0 +1,339 @@
+/* ── VoiceRecorderPanel — side panel for recording a voice note ────────── */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 14px 16px;
+}
+
+.atLimitNote {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 11.5px;
+  color: rgba(245, 240, 230, 0.55);
+  letter-spacing: 0.2px;
+  text-align: center;
+  padding: 4px 0 2px;
+}
+
+/* ── Idle: big inviting mic button ─────────────────────────────────────── */
+.idleZone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 22px 14px 18px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 150, 150, 0.06), transparent 65%),
+    rgba(255, 255, 255, 0.03);
+  color: rgba(245, 240, 230, 0.92);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
+}
+.idleZone:hover {
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 150, 150, 0.14), transparent 65%),
+    rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.38);
+}
+.idleZone:active { transform: scale(0.99); }
+
+.micCircle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 110, 110, 0.18);
+  color: rgba(255, 220, 220, 0.95);
+  margin-bottom: 2px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.idleTitle {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.15px;
+  color: rgba(245, 240, 230, 0.95);
+}
+.idleSub {
+  margin-top: 2px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 11.5px;
+  letter-spacing: 0.25px;
+  color: rgba(245, 240, 230, 0.55);
+}
+
+/* ── Recording / playback card ─────────────────────────────────────────── */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 12px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cardRecording {
+  border-color: rgba(255, 110, 110, 0.55);
+  background:
+    radial-gradient(140% 100% at 50% 0%, rgba(255, 110, 110, 0.10), transparent 70%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.waveformBox {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timerRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.4px;
+  color: rgba(245, 240, 230, 0.92);
+}
+
+.recDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 100, 100, 0.95);
+  box-shadow: 0 0 0 0 rgba(255, 100, 100, 0.5);
+  animation: dly-voice-pulse 1.4s ease-in-out infinite;
+}
+@keyframes dly-voice-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(255, 100, 100, 0.55); }
+  70%  { box-shadow: 0 0 0 8px rgba(255, 100, 100, 0);    }
+  100% { box-shadow: 0 0 0 0   rgba(255, 100, 100, 0);    }
+}
+
+.timer {
+  font-variant-numeric: tabular-nums;
+  color: rgba(245, 240, 230, 0.98);
+}
+
+/* ── Action rows ───────────────────────────────────────────────────────── */
+.actionRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.secondaryBtn,
+.dangerBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px 10px;
+  white-space: nowrap;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease, transform 0.1s ease;
+}
+.secondaryBtn:active,
+.dangerBtn:active { transform: scale(0.98); }
+
+/* Icon-only flavor — used for Delete so the action row stays compact. */
+.iconOnly {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+}
+
+/* Primary CTA — hand-drawn crooked-edge style matching the top-bar
+   "Share this note" button. The wobbly SVG path is the background; the
+   icon + label sit above it via z-index. Padding is intentionally
+   generous so the label + icon land well inside the wobbly shape rather
+   than kissing its inner edges. */
+.primaryBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;          /* never let flex squeeze content under the wobbly shape */
+  height: 44px;
+  padding: 0 32px;
+  background: none;
+  border: none;
+  color: #252525;
+  font-family: 'Caveat', cursive;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: opacity 0.14s ease, transform 0.1s ease;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.primaryBtn:hover  { opacity: 0.88; }
+.primaryBtn:active { transform: scale(0.98); }
+.primaryBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.primaryBtnBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.primaryBtn > span,
+.primaryBtn > svg:not(.primaryBtnBg) {
+  position: relative;
+  z-index: 1;
+}
+
+.secondaryBtn {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(245, 240, 230, 0.92);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.secondaryBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.30);
+}
+
+.dangerBtn {
+  background: rgba(220, 60, 60, 0.10);
+  color: rgba(255, 200, 200, 0.92);
+  border-color: rgba(220, 60, 60, 0.40);
+}
+.dangerBtn:hover {
+  background: rgba(220, 60, 60, 0.22);
+  color: #fff;
+}
+
+.stopBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 110, 110, 0.55);
+  background: rgba(255, 110, 110, 0.18);
+  color: rgba(255, 235, 235, 0.98);
+  cursor: pointer;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.25px;
+  transition: background 0.14s ease, transform 0.1s ease;
+}
+.stopBtn:hover  { background: rgba(255, 110, 110, 0.30); }
+.stopBtn:active { transform: scale(0.98); }
+
+.stopSquare {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+/* ── Error state ───────────────────────────────────────────────────────── */
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 12px;
+  border: 1px solid rgba(220, 60, 60, 0.40);
+  border-radius: 12px;
+  background: rgba(220, 60, 60, 0.08);
+  color: rgba(255, 220, 220, 0.92);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+  text-align: center;
+}
+.errorTitle {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: #fff;
+}
+
+/* ── Permissions hint ──────────────────────────────────────────────────── */
+.hint {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 11.5px;
+  letter-spacing: 0.2px;
+  color: rgba(245, 240, 230, 0.55);
+  text-align: center;
+  padding: 0 4px;
+}
+
+/* Idle CTA centering — gives the "Record your message" pill comfortable
+   vertical room where the dashed dropzone used to sit. */
+.idleCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 110px;
+  padding: 12px 4px;
+}
+
+/* Loading spinner shown while we wait for the browser's mic prompt.
+   Pure CSS — no extra deps. Sized to feel like a quiet little pause,
+   not an aggressive progress bar. */
+.spinnerBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+}
+.spinner {
+  display: inline-block;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255, 110, 110, 0.22);
+  border-top-color: rgba(245, 138, 71, 0.95);    /* sunrise orange */
+  animation: dly-mic-spin 0.85s linear infinite;
+}
+@keyframes dly-mic-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* "Enhancing audio…" pulsing dot — same warm accent as the waveform. */
+.processingDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(245, 138, 71, 0.95);
+  margin-right: 6px;
+  vertical-align: middle;
+  box-shadow: 0 0 0 0 rgba(245, 138, 71, 0.55);
+  animation: dly-enhance-pulse 1.4s ease-in-out infinite;
+}
+@keyframes dly-enhance-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(245, 138, 71, 0.55); }
+  70%  { box-shadow: 0 0 0 8px rgba(245, 138, 71, 0);    }
+  100% { box-shadow: 0 0 0 0   rgba(245, 138, 71, 0);    }
+}
+

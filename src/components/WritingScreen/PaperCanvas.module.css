@@ -22,7 +22,7 @@
 .paper {
   position: relative;
   width: 100%;
-  aspect-ratio: 3 / 2;
+  /* aspect-ratio is set inline from PaperCanvas based on paperConfig.size */
   border-radius: 12px;
   overflow: hidden;
 }
@@ -189,7 +189,8 @@
   user-select: none;
   -webkit-user-select: none;
   cursor: grab;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.20));
+  /* No drop-shadow — stickers sit flat on the paper. */
+  filter: none;
 }
 .stickerRoot:active { cursor: grabbing; }
 
@@ -366,10 +367,4 @@
 }
 
 
-/* ── Mobile ──────────────────────────────────────────────────────────────── */
-
-@media (max-width: 600px) {
-  .paper {
-    aspect-ratio: 4 / 3;
-  }
-}
+/* Mobile aspect ratio is handled via the inline style (mobileAspect from PAPER_SIZES). */

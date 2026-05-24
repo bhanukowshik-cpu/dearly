@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, useAnimate } from 'framer-motion'
 import EmojiPicker from './EmojiPicker'
 import { extractName } from './nameUtils'
+import { useTypingSound } from '../../lib/useTypingSound'
 import styles from './InputPanel.module.css'
 
 const SIZE_WORD_LIMITS = { lg: 100, md: 220, sm: 440 }
@@ -248,7 +249,6 @@ const EmojiTrigger = forwardRef(function EmojiTrigger({ onClick, active }, ref) 
       transition={{ duration: 0.12, ease: 'easeOut' }}
     >
       <span className={styles.emojiTriggerFace}>🙂</span>
-      <span className={styles.emojiTriggerLabel}>emoji</span>
     </motion.button>
   )
 })
@@ -377,6 +377,9 @@ function RecipientBox({ value, onChange, onHide, shakeKey }) {
   const lastValidRef = useRef(value)
   const [boxScope, animateBox] = useAnimate()
   const prevShakeKey = useRef(0)
+
+  // Pencil-scratch sound on each typed character (recipient field)
+  useTypingSound(editorRef)
 
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [selActive, setSelActive] = useState(false)
@@ -580,13 +583,17 @@ function RecipientBox({ value, onChange, onHide, shakeKey }) {
 /* ─────────────────────────────────────────────────────────────────────────
    MessageBox — contenteditable message editor
    ───────────────────────────────────────────────────────────────────────── */
-function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onSizeChange, onLimitToast }) {
+function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onSizeChange, onLimitToast, resyncKey = 0 }) {
   const editorRef           = useRef(null)
   const triggerRef          = useRef(null)
   const isEditingRef        = useRef(false)
   const lastValidRef        = useRef(value)
   const tooltipDismissedRef = useRef(false)
   const firstWordSeenRef    = useRef(false)
+
+  // Pencil-scratch sound on each typed character (message body)
+  useTypingSound(editorRef)
+
   const [boxScope, animateBox] = useAnimate()
   const prevShakeKey = useRef(0)
 
@@ -624,6 +631,21 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
     lastValidRef.current = value
     setWordCount(countWords(el.textContent || ''))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hard sync from external (e.g. WritingScreen reverted `value` after detecting
+  // paper overflow). Force-flush the contenteditable even when focused, because
+  // during typing the editor is the source of truth and won't otherwise pick up
+  // the rollback.
+  useEffect(() => {
+    if (!resyncKey) return
+    const el = editorRef.current
+    if (!el) return
+    const html = markupToHtml(value)
+    if (el.innerHTML !== html) el.innerHTML = html
+    lastValidRef.current = value
+    setWordCount(countWords(el.textContent || ''))
+    placeCursorAtEnd(el)
+  }, [resyncKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (shakeKey === prevShakeKey.current) return
@@ -826,7 +848,22 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
         </div>
       </div>
 
-      <div className={styles.editorWrap}>
+      <div
+        className={styles.editorWrap}
+        onWheel={e => {
+          // Manual scroll forwarding — Chrome/Safari sometimes ignore wheel
+          // events inside contenteditable, leaving the wrapper "stuck" even
+          // when overflow-y is set. Forward the delta to scrollTop ourselves.
+          // Only preventDefault when the wrapper can actually consume the
+          // scroll so we don't trap the page when at the top/bottom edge.
+          const el = e.currentTarget
+          const atTop    = el.scrollTop === 0
+          const atBottom = Math.ceil(el.scrollTop + el.clientHeight) >= el.scrollHeight
+          if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBottom)) return
+          el.scrollTop += e.deltaY
+          e.preventDefault()
+        }}
+      >
         <div
           ref={editorRef}
           className={`${styles.messageEditor} ${atLimit ? styles.atLimit : ''}`}
@@ -864,11 +901,8 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
             )}
           </AnimatePresence>
         </div>
-        <div className={styles.footerRight}>
-          <span className={`${styles.wordCount} ${atLimit ? styles.wordCountLimit : ''}`}>
-            {wordCount} / {maxWords}
-          </span>
-        </div>
+        {/* Word count removed — the active limit is now paper space, not a
+            fixed word ceiling, so the "2 / 220" counter was misleading. */}
       </div>
 
       <AnimatePresence>
@@ -927,47 +961,16 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
    ───────────────────────────────────────────────────────────────────────── */
 export default function InputPanel({
   recipient,
-  onRecipientChange,
   message,
   onMessageChange,
-  showRecipient,
-  onToggleRecipient,
   shakeKey,
   textSize,
   onTextSizeChange,
-  senderName,
-  onSenderNameChange,
   onLimitToast,
+  editorResyncKey = 0,
 }) {
   return (
     <div className={styles.panel}>
-      <AnimatePresence initial={false}>
-        {showRecipient && (
-          <RecipientBox
-            value={recipient}
-            onChange={onRecipientChange}
-            onHide={onToggleRecipient}
-            shakeKey={shakeKey}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {!showRecipient && (
-          <motion.button
-            type="button"
-            className={styles.restoreBtn}
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            transition={{ duration: 0.2 }}
-            onClick={onToggleRecipient}
-          >
-            + Add recipient
-          </motion.button>
-        )}
-      </AnimatePresence>
-
       <MessageBox
         recipient={recipient}
         value={message}
@@ -976,25 +979,8 @@ export default function InputPanel({
         textSize={textSize}
         onSizeChange={onTextSizeChange}
         onLimitToast={onLimitToast}
+        resyncKey={editorResyncKey}
       />
-
-      <motion.div
-        className={styles.senderBox}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.14 }}
-      >
-        <span className={styles.senderLabel}>From (your name)</span>
-        <input
-          className={styles.senderInput}
-          type="text"
-          value={senderName ?? ''}
-          onChange={e => onSenderNameChange?.(e.target.value)}
-          placeholder="So they know it's from you"
-          maxLength={40}
-          spellCheck
-        />
-      </motion.div>
     </div>
   )
 }

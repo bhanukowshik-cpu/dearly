@@ -1,0 +1,348 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   MediaFrameRenderer — a media-frame canvas object
+   Frame body sits in the paper as % positioned; controls overlay sits on
+   top (same rotation); contextual toolbar sits at paper-top (no rotation).
+   ───────────────────────────────────────────────────────────────────────── */
+
+.body {
+  position: absolute;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  /* No drop-shadow — frames get visible strokes on the .frame_* variants
+     instead, so the photo sits flat on the paper without an artificial lift. */
+}
+.body:active { cursor: grabbing; }
+
+/* The frame itself fills the body wrapper; variants change padding/bg/mask. */
+.frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  background: #fdfdfb;
+}
+
+.media {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: rgba(0,0,0,0.05);
+}
+
+/* Empty-state placeholder */
+.empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: rgba(60,60,60,0.62);
+  background:
+    repeating-linear-gradient(45deg,
+      rgba(0,0,0,0.04) 0 8px,
+      transparent 8px 16px),
+    #f4f1ec;
+  pointer-events: none;
+}
+.emptyIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.78);
+  color: rgba(60,60,60,0.78);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+}
+.emptyLabel {
+  font-family: 'Caveat', cursive;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+/* ── Frame variants ─────────────────────────────────────────────────────── */
+
+/* None: bare photo with no decorative frame. This is the new default,
+   so an uploaded photo lands on the paper without a polaroid card or
+   any padding around it. */
+.frame_none {
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+/* Polaroid: soft-gray paper card, thicker bottom for the caption strip.
+   Padding values are percentages of the frame's WIDTH so the polaroid look
+   stays proportional at any size — small frames don't look "loose" with a
+   thick border, big frames don't look "tight" with a thin one. */
+.frame_polaroid {
+  background: #F2F2F2;
+  padding: 5% 5% 20% 5%;
+  border-radius: 10px;
+  /* Enables `cqi`/`cqh` units for the caption font-size below. */
+  container-type: inline-size;
+}
+
+/* Round the photo inside the polaroid to match the outer card. `.media`
+   already has overflow:hidden so the <img> inside gets clipped to the
+   rounded corners. */
+.frame_polaroid .media {
+  border-radius: 10px;
+}
+
+/* Caption fills the polaroid's bottom strip exactly. The strip's height is
+   20% of frame WIDTH (matches the .frame_polaroid padding-bottom), so we
+   use `cqi` units here — `cqi` resolves against the polaroid's inline
+   (width) size because .frame_polaroid declares container-type: inline-size.
+   Display-only — text is edited from the Pictures side panel — and
+   pointer-events: none so clicks pass through to the drag handler. */
+.caption {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  bottom: 0;
+  height: 20cqi;
+  margin: 0;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Caveat', cursive;
+  font-size: clamp(10px, 12cqi, 28px);
+  font-weight: 600;
+  line-height: 1;
+  color: rgba(36, 32, 28, 0.88);
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+  z-index: 4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Placeholder state — shown when the frame is selected but no caption has
+   been typed yet. Lighter weight + italic so it reads as a prompt rather
+   than authored text. */
+.captionPlaceholder {
+  color: rgba(36, 32, 28, 0.34);
+  font-style: italic;
+  font-weight: 500;
+}
+
+/* ── Selection overlay (in body, so it rotates with the frame) ─────────── */
+
+.selFrame {
+  position: absolute;
+  inset: -4px;
+  border: 1.5px dashed rgba(100, 150, 255, 0.78);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.removeBtn {
+  position: absolute;
+  top: -14px;
+  left: -14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.42);
+  background: rgba(18, 12, 6, 0.88);
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  z-index: 5;
+  pointer-events: auto;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: background 0.12s ease;
+}
+.removeBtn:hover { background: rgba(210, 45, 30, 0.92); }
+
+.handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border: 1.5px solid rgba(80, 130, 255, 0.92);
+  border-radius: 2px;
+  z-index: 4;
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+}
+.handle::after {
+  content: '';
+  position: absolute;
+  inset: -16px;
+}
+.handle:hover { background: rgba(220, 230, 255, 1); }
+
+.handleTL { top: -5px;    left:  -5px;   cursor: nwse-resize; }
+.handleTR { top: -5px;    right: -5px;   cursor: nesw-resize; }
+.handleBL { bottom: -5px; left:  -5px;   cursor: nesw-resize; }
+.handleBR { bottom: -5px; right: -5px;   cursor: nwse-resize; }
+
+.rotateBtn {
+  position: absolute;
+  bottom: -36px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(14, 10, 6, 0.86);
+  border: 1.5px solid rgba(255, 255, 255, 0.24);
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  z-index: 5;
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+}
+.rotateBtn:hover {
+  background: rgba(80, 130, 255, 0.30);
+  border-color: rgba(80, 130, 255, 0.65);
+}
+
+/* Flipped variant — used when the frame is near the bottom of the paper
+   so the rotate handle stays on-paper. */
+.rotateBtnAbove {
+  bottom: auto;
+  top: -36px;
+}
+
+/* ── Contextual toolbar (unrotated, anchored to paper top) ─────────────── */
+
+.toolbar {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(20, 18, 14, 0.86);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.28);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 50;
+  pointer-events: auto;
+  max-width: calc(100% - 24px);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.toolGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.toolSep {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 2px;
+  background: rgba(255,255,255,0.16);
+}
+
+.toolBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.82);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.toolBtn:hover {
+  background: rgba(255,255,255,0.10);
+  color: #fff;
+}
+.toolBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.toolBtnActive {
+  background: rgba(80, 130, 255, 0.22);
+  border-color: rgba(80, 130, 255, 0.70);
+  color: #fff;
+}
+.toolBtnPreview {
+  padding: 3px;
+  background: rgba(255,255,255,0.06);
+}
+
+/* ── Preview tiles inside the toolbar ──────────────────────────────────── */
+
+.filterSwatch {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+  background:
+    linear-gradient(135deg, #f8a16a 0%, #c46a5f 40%, #6a8cc4 100%);
+}
+
+.framePreview {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #fdfdfb;
+}
+.framePreviewMedia {
+  position: absolute;
+  inset: 2px;
+  background:
+    linear-gradient(135deg, #cfd9e3 0%, #a8b5c3 100%);
+  border-radius: 1px;
+}
+.tapeTLPreview {
+  top: -3px;
+  left: -3px;
+  width: 12px;
+  height: 5px;
+  transform: rotate(-22deg);
+  min-width: 0;
+  max-width: none;
+}
+.tapeTRPreview {
+  top: -3px;
+  right: -3px;
+  width: 12px;
+  height: 5px;
+  transform: rotate(20deg);
+  min-width: 0;
+  max-width: none;
+}
+
+/* In the polaroid preview, leave more space at the bottom */
+.framePreview.frame_polaroid {
+  padding: 2px 2px 6px 2px;
+}
+.framePreview.frame_polaroid .framePreviewMedia {
+  inset: 2px 2px 6px 2px;
+}

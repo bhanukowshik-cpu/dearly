@@ -1,0 +1,175 @@
+/* ── VoiceNoteRenderer — voice-note canvas object (paper card) ─────────── */
+
+.body {
+  position: absolute;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+.body:active { cursor: grabbing; }
+
+/* Cozy paper card — pastel cream with a hand-drawn-ish soft border. */
+.card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0 6% 0 6%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 3%;
+
+  /* No CSS background / border / radius — the SVG cardBg below renders
+     the wobbly hand-drawn shape. No drop-shadow either: the card sits
+     flat on the paper like ink, not floating above it. */
+  background: transparent;
+  container-type: inline-size;
+}
+
+/* The wobbly SVG background — sits behind everything else and fills the
+   full card box. preserveAspectRatio="none" lets it stretch so any card
+   size keeps the same hand-drawn silhouette. */
+.cardBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* All other card children sit above the SVG. */
+.card > *:not(.cardBg) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Inline duration — sits at the right end of the play/waveform row.
+   Caveat (hand-lettered) so the number reads like ink on the card rather
+   than a digital readout. Sized a touch larger than Inter would be since
+   script fonts visually shrink relative to their nominal point size. */
+.duration {
+  flex: 0 0 auto;
+  font-family: 'Caveat', cursive;
+  font-size: clamp(12px, 10cqi, 20px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  padding-left: 4px;
+}
+
+/* Just the hand-drawn play/pause icon — no filled circle, no shadow.
+   The icon is the button. Color is set inline from the paper-derived
+   accent so it stays in family with the waveform strokes. */
+.playBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(22px, 14cqi, 36px);
+  height: clamp(22px, 14cqi, 36px);
+  border-radius: 0;
+  border: none;
+  background: none !important;     /* overrides the inline accent fill */
+  /* `color` is set inline from the accent; the SVG uses currentColor. */
+  cursor: pointer;
+  padding: 0;
+  box-shadow: none;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+.playBtn:hover  { transform: scale(1.05); opacity: 0.92; }
+.playBtn:active { transform: scale(0.95); }
+.playBtn svg    { width: 100%; height: 100%; display: block; }
+
+.waveformBox {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: clamp(20px, 16cqi, 44px);
+  display: flex;
+  align-items: center;
+}
+
+
+/* ── Selection overlay (rotates with body) ─────────────────────────────── */
+.selFrame {
+  position: absolute;
+  inset: -4px;
+  border: 1.5px dashed rgba(100, 150, 255, 0.78);
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.removeBtn {
+  position: absolute;
+  top: -14px;
+  left: -14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.42);
+  background: rgba(18, 12, 6, 0.88);
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  z-index: 5;
+  pointer-events: auto;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: background 0.12s ease;
+}
+.removeBtn:hover { background: rgba(210, 45, 30, 0.92); }
+
+.handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border: 1.5px solid rgba(80, 130, 255, 0.92);
+  border-radius: 2px;
+  z-index: 4;
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+}
+.handle::after {
+  content: '';
+  position: absolute;
+  inset: -16px;
+}
+.handle:hover { background: rgba(220, 230, 255, 1); }
+
+.handleTL { top: -5px;    left:  -5px;   cursor: nwse-resize; }
+.handleTR { top: -5px;    right: -5px;   cursor: nesw-resize; }
+.handleBL { bottom: -5px; left:  -5px;   cursor: nesw-resize; }
+.handleBR { bottom: -5px; right: -5px;   cursor: nwse-resize; }
+
+.rotateBtn {
+  position: absolute;
+  bottom: -36px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(14, 10, 6, 0.86);
+  border: 1.5px solid rgba(255, 255, 255, 0.24);
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  z-index: 5;
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+}
+.rotateBtn:hover {
+  background: rgba(80, 130, 255, 0.30);
+  border-color: rgba(80, 130, 255, 0.65);
+}

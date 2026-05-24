@@ -1,46 +1,21 @@
 import { useMemo, useRef, useState, useEffect, useLayoutEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { TegakiRenderer } from 'tegaki/react'
-import { font } from '../../lib/tegakiFont'
 import { useCharList } from '../../lib/useCharList'
-import { PAPER_TYPES } from './stylePresets'
+import { PAPER_TYPES, PAPER_SIZES } from './stylePresets'
 import { STICKER_REGISTRY } from './handDrawnStickers'
+import GlyphChar from './GlyphChar'
+import MediaFrameRenderer from './MediaFrameRenderer'
+import VoiceNoteRenderer from './VoiceNoteRenderer'
+import DrawingLayer from './DrawingLayer'
+import { IconClose, IconRotate } from './editorIcons'
+import { getScaledMetrics } from '../../lib/typographyMetadata'
 import styles from './PaperCanvas.module.css'
 
 const BASE_SIZE = 52
 
-// Mac Safari clears TegakiRenderer canvases when many instances are present
-// — skip the animated renderer and use plain text on Mac Safari only.
-// iOS Safari works fine, so we exclude it explicitly.
-const isSafari =
-  typeof navigator !== 'undefined' &&
-  /^((?!chrome|android).)*safari/i.test(navigator.userAgent) &&
-  !/iP(hone|od|ad)/.test(navigator.userAgent)
-
-/* ─────────────────────────────────────────────────────────────────────────
-   Control icons
-   ───────────────────────────────────────────────────────────────────────── */
-function IconClose() {
-  return (
-    <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden>
-      <path d="M1.5 1.5L7.5 7.5M7.5 1.5L1.5 7.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-    </svg>
-  )
-}
-
-function IconRotate() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
-      {/* 270° clockwise arc — start top (7.5,2), end left (2,7.5), radius 5.5 */}
-      <path d="M 7.5 2 A 5.5 5.5 0 1 1 2 7.5"
-            stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none"/>
-      {/* Arrowhead at end pointing downward (clockwise tangent at 9 o'clock) */}
-      <path d="M 0 5.5 L 2 7.5 L 4 5.5"
-            stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  )
-}
-
+/* IconClose + IconRotate come from editorIcons.jsx now (hand-drawn).
+   IconMove stays geometric below — there isn't a hand-drawn move/drag
+   asset in Dearly V2/Icons yet. Easy to swap when one arrives. */
 function IconMove() {
   return (
     <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
@@ -134,41 +109,22 @@ function buildSegments(text, types, chars) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   CharPath — single character, animates in via TegakiRenderer stroke-draw.
+   CharPath — single character, drawn via hand-made SVG glyph animation.
    Space chars are plain inline spans so word-wrapping works naturally.
    ───────────────────────────────────────────────────────────────────────── */
-function CharPath({ ch, inkColor, fontWeight, fontSize }) {
+function CharPath({ ch, inkColor, fontWeight, fontSize, size, viewportWidth }) {
   if (ch === ' ') {
     return <span>{' '}</span>
   }
-  if (isSafari) {
-    return (
-      <span style={{
-        display:     'inline-block',
-        verticalAlign: 'text-bottom',
-        lineHeight:  1,
-        fontFamily:  "'Caveat', cursive",
-        fontSize:    fontSize ?? 'inherit',
-        color:       inkColor,
-        fontWeight:  fontWeight ?? 400,
-      }}>{ch}</span>
-    )
-  }
   return (
-    <span style={{ display: 'inline-block', verticalAlign: 'text-bottom', lineHeight: 1 }}>
-      <TegakiRenderer
-        font={font}
-        time={{ mode: 'uncontrolled', duration: 0.085 }}
-        style={{
-          fontSize:   fontSize ?? 'inherit',
-          color:      inkColor,
-          fontWeight: fontWeight ?? 400,
-          lineHeight: 1,
-        }}
-      >
-        {ch}
-      </TegakiRenderer>
-    </span>
+    <GlyphChar
+      ch={ch}
+      inkColor={inkColor}
+      fontWeight={fontWeight ?? 700}
+      fontSize={fontSize ?? 'inherit'}
+      size={size ?? null}
+      viewportWidth={viewportWidth ?? null}
+    />
   )
 }
 
@@ -182,7 +138,7 @@ function CharPath({ ch, inkColor, fontWeight, fontSize }) {
    segment begins. A local counter increments purely within this call —
    no shared mutable state across components or segments.
    ───────────────────────────────────────────────────────────────────────── */
-function renderWordWrapped(items, renderChar, readingConfig = null, wordStyle = null, wordIndexStart = 0) {
+function renderWordWrapped(items, renderChar, readingConfig = null, wordStyle = null, wordIndexStart = 0, wordSpacingPx = null) {
   const result    = []
   let wordItems   = []
   let wordKey     = null
@@ -223,7 +179,7 @@ function renderWordWrapped(items, renderChar, readingConfig = null, wordStyle = 
       result.push(
         <span
           key={`w-${wordKey}`}
-          style={{ display: 'inline-block', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}
+          style={{ display: 'inline-block', whiteSpace: 'nowrap', verticalAlign: 'bottom', lineHeight: 0 }}
         >
           {wordItems.map(({ id, ch }) => renderChar(id, ch))}
         </span>
@@ -237,7 +193,11 @@ function renderWordWrapped(items, renderChar, readingConfig = null, wordStyle = 
   for (const { id, ch } of items) {
     if (ch === ' ') {
       flushWord()
-      result.push(<span key={`sp-${id}`}>{' '}</span>)
+      result.push(
+        wordSpacingPx
+          ? <span key={`sp-${id}`} style={{ display: 'inline-block', width: `${wordSpacingPx}px`, flexShrink: 0 }} />
+          : <span key={`sp-${id}`}>{' '}</span>
+      )
     } else {
       if (!wordKey) wordKey = id
       wordItems.push({ id, ch })
@@ -310,6 +270,7 @@ function GreetingText({ text, inkColor, readingConfig, wordIndexStart = 0 }) {
 
 /* ─────────────────────────────────────────────────────────────────────────
    BodyText — with ==highlight== ==pink::== ==sage::== ~~strike~~ **bold**
+   Sizing is metadata-driven via typographyMetadata size tokens.
    ───────────────────────────────────────────────────────────────────────── */
 const HL_CLASS = {
   'highlight':      styles.highlight,
@@ -317,19 +278,12 @@ const HL_CLASS = {
   'highlight-sage': styles.highlightSage,
 }
 
-const BODY_FS_MAP = {
-  sm: 'clamp(11px, 1.4vw, 14px)',
-  md: 'clamp(13px, 1.7vw, 17px)',
-  lg: 'clamp(15px, 2.0vw, 20px)',
-}
-const BODY_FS = BODY_FS_MAP.lg
-
-function BodyText({ text, inkColor, textSize = 'lg', readingConfig, lineSpacing = 32, wordIndexStart = 0 }) {
+function BodyText({ text, inkColor, textSize = 'lg', readingConfig, wordIndexStart = 0, viewportWidth = null }) {
   const normText = useMemo(() => normalizeMarkup(text), [text])
   const chars  = useCharList(normText)
   const types  = useMemo(() => computeCharTypes(normText), [normText])
   const segs   = useMemo(() => buildSegments(normText, types, chars), [normText, types, chars])
-  const baseFz = BODY_FS_MAP[textSize] ?? BODY_FS_MAP.lg
+  const baseMetrics = getScaledMetrics(textSize, viewportWidth)
 
   // Chain wordIndexStart across segments locally — no shared external state.
   let segWordIdx = wordIndexStart
@@ -337,24 +291,26 @@ function BodyText({ text, inkColor, textSize = 'lg', readingConfig, lineSpacing 
   return (
     <span style={{
       fontFamily:   "'Caveat', cursive",
-      fontSize:     baseFz,
-      fontWeight:   400,
+      fontSize:     `${baseMetrics.fontSize}px`,
+      fontWeight:   700,
       color:        inkColor,
-      lineHeight:   `${lineSpacing}px`,
+      lineHeight:   `${baseMetrics.computedLineHeight}px`,
       whiteSpace:   'pre-wrap',
       overflowWrap: 'break-word',
       display:      'block',
     }}>
       {segs.map(seg => {
         if (seg.type === 'br') return <br key={seg.id} />
-        const segFs  = seg.type === 'size-sm' ? BODY_FS_MAP.sm
-                     : seg.type === 'size-lg' ? BODY_FS_MAP.lg
-                     : baseFz
-        const isBold = seg.type === 'bold'
-        const ws     = readingConfig ? { inkColor, fontWeight: isBold ? 700 : 400, fontSize: segFs } : null
+        // @@sm:: and @@lg:: markup tokens switch the size token for that segment
+        const segSizeKey = seg.type === 'size-sm' ? 'sm'
+                         : seg.type === 'size-lg' ? 'lg'
+                         : textSize
+        const segMetrics = getScaledMetrics(segSizeKey, viewportWidth)
+        const isBold     = seg.type === 'bold'
+        const ws         = readingConfig ? { inkColor, fontWeight: 700, fontSize: `${segMetrics.fontSize}px` } : null
         const { els, nextIdx } = renderWordWrapped(seg.items, (id, ch) => (
-          <CharPath key={id} ch={ch} inkColor={inkColor} fontWeight={isBold ? 700 : 400} fontSize={segFs} />
-        ), readingConfig, ws, segWordIdx)
+          <CharPath key={id} ch={ch} inkColor={inkColor} fontWeight={700} size={segSizeKey} viewportWidth={viewportWidth} />
+        ), readingConfig, ws, segWordIdx, segMetrics.wordSpacingPx)
         const allRevealed = !readingConfig || readingConfig.revealedWordIdx >= nextIdx
         segWordIdx = nextIdx
         if (seg.type.startsWith('highlight')) {
@@ -362,12 +318,6 @@ function BodyText({ text, inkColor, textSize = 'lg', readingConfig, lineSpacing 
         }
         if (seg.type === 'strike') {
           return <span key={seg.firstId} className={styles.strike}>{els}</span>
-        }
-        if (seg.type === 'bold') {
-          return <span key={seg.firstId}>{els}</span>
-        }
-        if (seg.type === 'size-sm' || seg.type === 'size-lg') {
-          return <span key={seg.firstId} style={{ fontSize: segFs }}>{els}</span>
         }
         return <span key={seg.firstId}>{els}</span>
       })}
@@ -550,7 +500,7 @@ function StickerControls({ sticker, paperRef, onRemove, onMove, onResize, onRota
         onClick={e => { e.stopPropagation(); onRemove(sticker.uid) }}
         aria-label="Remove sticker"
       >
-        <IconClose />
+        <IconClose size={10} />
       </button>
 
       {/* Corner resize handles — fixed 8px regardless of sticker scale */}
@@ -567,7 +517,7 @@ function StickerControls({ sticker, paperRef, onRemove, onMove, onResize, onRota
           title="Rotate"
           aria-label="Rotate sticker"
         >
-          <IconRotate />
+          <IconRotate size={15} />
         </button>
         <button
           className={styles.stickerActionBtn}
@@ -594,17 +544,32 @@ function hexLuminance(hexColor) {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255
 }
 
-function computeColorRuler(hexColor) {
+// Returns a single baseline ruler color — grey tinted to the paper.
+// Dark paper gets a lighter line; light paper gets a darker tint.
+//
+// 0.10 alpha was too faint to read as a guide on bright papers: the line
+// existed but visually "disappeared" against the background, especially on
+// empty paper where there were no glyph strokes nearby for reference. 0.14
+// keeps the line subtle (still feels like a printed ruled-paper guide) while
+// reading clearly at typical viewing distance.
+function computeRulerColors(hexColor) {
   const lum = hexLuminance(hexColor)
-  if (lum < 0.4) return 'rgba(255,255,255,0.10)'
-  const r = parseInt(hexColor.slice(1, 3), 16)
-  const g = parseInt(hexColor.slice(3, 5), 16)
-  const b = parseInt(hexColor.slice(5, 7), 16)
-  return `rgba(${Math.round(r * 0.68)},${Math.round(g * 0.68)},${Math.round(b * 0.68)},0.32)`
+  return lum < 0.4
+    ? 'rgba(255,255,255,0.22)'
+    : 'rgba(0,0,0,0.14)'
+}
+
+// Builds the repeating-linear-gradient with a single 1px baseline rule.
+// Line sits at the end of the period; the rulerOffset positions it to the text baseline.
+function buildRulerGradient(color, m) {
+  const { computedLineHeight: period } = m
+  const end = period.toFixed(2)
+  const start = (period - 1).toFixed(2)
+  return `repeating-linear-gradient(to bottom, transparent 0px, transparent ${start}px, ${color} ${start}px, ${color} ${end}px)`
 }
 
 function computeColorInk(hexColor) {
-  return hexLuminance(hexColor) < 0.5 ? '#F0F0EE' : '#1C1C1E'
+  return hexLuminance(hexColor) < 0.5 ? '#F0F0EE' : '#252525'
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -622,14 +587,39 @@ export default function PaperCanvas({
   onMoveSticker,
   onResizeSticker,
   onRotateSticker,
+  mediaFrames = [],
+  selectedFrameId = null,
+  onSelectFrame,
+  onRemoveFrame,
+  onMoveFrame,
+  onResizeFrame,
+  onRotateFrame,
+  onUpdateFrame,
+  onFrameInvalidFile,
+  voiceNotes = [],
+  selectedVoiceNoteId = null,
+  onSelectVoiceNote,
+  onRemoveVoiceNote,
+  onMoveVoiceNote,
+  onResizeVoiceNote,
+  onRotateVoiceNote,
   onBgClick,
   textSize = 'lg',
   readingMode = false,
   revealedWordIdx = 0,
   fitContent = false,
+  // Drawing layer — vector strokes drawn directly on the paper.
+  // When `drawingTool` is non-null, the overlay captures pointer events; when
+  // null, the rendered strokes stay visible but are inert.
+  strokes = [],
+  drawingTool = null,
+  drawingColor = '#1F2024',
+  onAddStroke = null,
+  onEraseStrokes = null,
 }) {
-  const { type = 'minimal', color = '#FAFAF8', showRuler = true, showZigzag = false } = paperConfig ?? {}
+  const { type = 'minimal', color = '#FAFAF8', size = 'postcard', showRuler = true, showZigzag = false } = paperConfig ?? {}
   const typeData = PAPER_TYPES[type] ?? PAPER_TYPES.minimal
+  const sizeData = PAPER_SIZES[size] ?? PAPER_SIZES.postcard
   const bg       = type === 'color' ? color : typeData.bg
   const inkColor = type === 'color' ? computeColorInk(color) : typeData.inkColor
 
@@ -667,6 +657,18 @@ export default function PaperCanvas({
   const [rulerOffset,    setRulerOffset]    = useState(21)
   const [contentScale,   setContentScale]   = useState(1)
   const [bodyFitStyle,   setBodyFitStyle]   = useState(null)
+  const [viewportWidth, setViewportWidth] = useState(
+    typeof window !== 'undefined' ? window.innerWidth : 1024
+  )
+
+  // Track viewport width for breakpoint-based font scaling (mobile/tablet/desktop).
+  // useLayoutEffect fires before paint so the correct tier is applied from frame 1.
+  useLayoutEffect(() => {
+    const update = () => setViewportWidth(window.innerWidth)
+    window.addEventListener('resize', update)
+    update()
+    return () => window.removeEventListener('resize', update)
+  }, [])
 
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 860px)').matches : false
@@ -677,7 +679,9 @@ export default function PaperCanvas({
     mq.addEventListener('change', h)
     return () => mq.removeEventListener('change', h)
   }, [])
-  const lineSpacing = isMobile ? 22 : 26
+
+  // Ruler period and baseline position from metadata — responsive to paper width
+  const { computedLineHeight, scaledBaselineY } = getScaledMetrics(textSize, viewportWidth)
 
   const hasMessage = !!message
   useEffect(() => {
@@ -688,8 +692,35 @@ export default function PaperCanvas({
       const pr = paper.getBoundingClientRect()
       const bd = bodyRef.current
       if (!bd || pr.height === 0) return
-      const bodyTopRel = bd.getBoundingClientRect().top - pr.top
-      const raw = ((bodyTopRel - 10) % lineSpacing + lineSpacing) % lineSpacing
+
+      const { computedLineHeight: period, scaledBaselineY: blY, scaledHeight } = getScaledMetrics(textSize, viewportWidth)
+
+      // Prefer direct glyph measurement: find the first rendered glyph span,
+      // measure its top from the paper, add scaledBaselineY → exact baseline.
+      // data-glyph is set on every glyph container in GlyphChar — explicit, browser-independent.
+      const firstGlyph = bd.querySelector('span[data-glyph]')
+      let baseline
+      if (firstGlyph) {
+        baseline = firstGlyph.getBoundingClientRect().top - pr.top + blY
+      } else {
+        // Fallback for empty paper: body top + halfLeading + scaledBaselineY
+        const halfLeading = (period - scaledHeight) / 2
+        baseline = bd.getBoundingClientRect().top - pr.top + blY + halfLeading
+      }
+
+      // Gradient line occupies period-1 → period within each tile, so the
+      // painted line ends up at (baseline + lineDrop) in body coords.
+      //
+      // We deliberately drop the line a couple px into the upper descender
+      // area instead of placing it exactly on the baseline. At larger sizes
+      // the glyph strokes are 2–3px thick on screen, and their anti-aliasing
+      // wipes out a 1px, ~10%-alpha line drawn directly on the baseline (the
+      // reason the ruler appeared to "disappear" under large text). Scaling
+      // the drop with font size keeps the line clear of stroke endings at
+      // every size while still hugging the baseline visually.
+      const descentHeight = scaledHeight - blY
+      const lineDrop = Math.max(1, Math.min(descentHeight * 0.35, scaledHeight * 0.085))
+      const raw = ((baseline + lineDrop) % period + period) % period
       setRulerOffset(Math.round(raw))
     }
 
@@ -697,7 +728,7 @@ export default function PaperCanvas({
     ro.observe(paper)
     measure()
     return () => ro.disconnect()
-  }, [showRuler, liveRecipient, hasMessage, lineSpacing])
+  }, [showRuler, liveRecipient, hasMessage, textSize, viewportWidth]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scale letter content to fit within the fixed paper dimensions.
   // Scale letter content to fit within the paper on the recipient screen.
@@ -798,13 +829,16 @@ export default function PaperCanvas({
     return () => ro.disconnect()
   }, [fitContent])
 
-  const rulerColor = type === 'color' ? computeColorRuler(color) : typeData.rulerColor
-  const rulerLines = showRuler
-    ? `repeating-linear-gradient(to bottom, transparent, transparent ${lineSpacing - 1}px, ${rulerColor} ${lineSpacing - 1}px, ${rulerColor} ${lineSpacing}px)`
-    : null
-  const paperStyle = { backgroundColor: bg }
+  const bgHex = type === 'color' ? color : typeData.bg
+  const rulerColors = computeRulerColors(bgHex)
+  const fullMetrics = getScaledMetrics(textSize, viewportWidth)
+  const rulerLines = showRuler ? buildRulerGradient(rulerColors, fullMetrics) : null
+  const paperStyle = {
+    backgroundColor: bg,
+    aspectRatio: isMobile ? sizeData.mobileAspect : sizeData.aspectRatio,
+  }
   const letterContentStyle = rulerLines
-    ? { backgroundColor: bg, backgroundImage: rulerLines, backgroundSize: `100% ${lineSpacing}px`, backgroundPositionY: `${rulerOffset}px` }
+    ? { backgroundColor: bg, backgroundImage: rulerLines, backgroundSize: `100% ${fullMetrics.computedLineHeight}px`, backgroundPositionY: `${rulerOffset}px` }
     : typeData.hasStains ? {} : { backgroundColor: bg }
 
   return (
@@ -823,7 +857,7 @@ export default function PaperCanvas({
             data-paper-canvas
             className={`${styles.paper} ${showZigzag ? styles.paperZigzag : ''}`}
             style={paperStyle}
-            onPointerDown={() => onSelectSticker?.(null)}
+            onPointerDown={() => { onSelectSticker?.(null); onSelectFrame?.(null); onSelectVoiceNote?.(null) }}
             onDoubleClick={() => onBgClick?.()}
           >
             {/* Stains at paper level so they cover the full paper even when letterContent is scaled */}
@@ -853,15 +887,50 @@ export default function PaperCanvas({
                 </div>
               )}
               {message && (
-                <div ref={bodyRef} className={styles.body} style={bodyFitStyle || undefined}>
+                <div ref={bodyRef} data-paper-body className={styles.body} style={bodyFitStyle || undefined}>
                   <BodyText
                     text={message} inkColor={inkColor}
                     textSize={textSize} readingConfig={readingConfig}
-                    lineSpacing={lineSpacing} wordIndexStart={greetingWordCount}
+                    wordIndexStart={greetingWordCount} viewportWidth={viewportWidth}
                   />
                 </div>
               )}
             </div>
+
+            {/* Media frames — DOM-based <img> so GIFs stay animated */}
+            <AnimatePresence>
+              {mediaFrames.map(frame => (
+                <MediaFrameRenderer
+                  key={frame.id}
+                  frame={frame}
+                  isSelected={selectedFrameId === frame.id}
+                  paperRef={paperRef}
+                  onSelect={onSelectFrame}
+                  onMove={onMoveFrame}
+                  onResize={onResizeFrame}
+                  onRotate={onRotateFrame}
+                  onRemove={onRemoveFrame}
+                  onUpdate={onUpdateFrame}
+                  onInvalidFile={onFrameInvalidFile}
+                />
+              ))}
+            </AnimatePresence>
+
+            {/* Voice notes — paper cards with playback + waveform */}
+            {voiceNotes.map(note => (
+              <VoiceNoteRenderer
+                key={note.id}
+                note={note}
+                isSelected={selectedVoiceNoteId === note.id}
+                paperRef={paperRef}
+                paperBg={bg}
+                onSelect={onSelectVoiceNote}
+                onMove={onMoveVoiceNote}
+                onResize={onResizeVoiceNote}
+                onRotate={onRotateVoiceNote}
+                onRemove={onRemoveVoiceNote}
+              />
+            ))}
 
             {/* Sticker icons — scaled via Framer Motion */}
             <AnimatePresence>
@@ -877,6 +946,15 @@ export default function PaperCanvas({
                 />
               ))}
             </AnimatePresence>
+
+            {/* Handwritten drawing overlay — vector strokes on top of text/media. */}
+            <DrawingLayer
+              activeTool={drawingTool}
+              toolColor={drawingColor}
+              strokes={strokes}
+              onStrokeComplete={onAddStroke ?? (() => {})}
+              onEraseStrokes={onEraseStrokes ?? (() => {})}
+            />
 
             {/* Selection controls — outside the scale context, handles stay fixed pixel size */}
             <AnimatePresence>

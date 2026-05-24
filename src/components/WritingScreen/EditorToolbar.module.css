@@ -1,0 +1,196 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Type scale — brand-voice (Caveat) sized to standard product proportions
+     Nav label (tool icons)      Caveat 15 / 700   ← used here
+     Panel section heading       Caveat 20 / 700
+     Panel hero intro            Caveat 22 / 700
+     Utility / form labels       Inter  13–14 / 500–600 (set per-panel)
+
+   Icon sizes — Apple / Figma sidebar conventions
+     Inline                      14–16
+     Sidebar / tool icon         18  ← used here
+     Action / hero               24
+
+   Spacing — 4 / 8 / 12 / 16 / 20 / 24 (4-pt baseline)
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ── Root — flex row: [icon column] [panel] ──────────────────────────────── */
+
+.root {
+  display: flex;
+  align-items: flex-start;  /* panel attaches to the top of the icon column */
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  gap: 8px;
+}
+
+/* ── Vertical icon column ────────────────────────────────────────────────── */
+
+.iconBar {
+  flex-shrink: 0;
+  width: 78px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;          /* breathing room between actions */
+  padding: 10px 6px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.toolBtn {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;           /* icon ↔ label gap */
+  padding: 10px 4px 8px;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.50);
+  transition: background 0.14s ease, color 0.14s ease;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+.toolBtn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.toolBtn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.40);
+  outline-offset: -2px;
+}
+
+.toolBtnActive {
+  background: rgba(255, 255, 255, 0.13);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.toolBtnIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+/* Give the hand-drawn SVG icons extra visual weight */
+.toolBtnIcon svg path,
+.toolBtnIcon svg g {
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  paint-order: stroke fill;
+}
+
+.toolBtnLabel {
+  font-family: 'Caveat', cursive;
+  font-size: 15px;             /* Caveat reads smaller than Inter at the same px */
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  user-select: none;
+}
+
+/* ── Side panel wrapper — width animated by Framer Motion ────────────────── */
+
+.panelWrap {
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  /* Grow to fit content — the Pictures panel stacks caption + frame chips +
+     filter chips + actions and was clipping. A viewport-based max-height
+     keeps it from spilling off the screen on short viewports; internal
+     scroll kicks in only when the panel actually exceeds that cap. */
+  height: auto;
+  max-height: calc(100vh - 80px);
+}
+
+.panelInner {
+  width: 280px;          /* must match motion animate.width */
+  box-sizing: border-box;
+  padding: 14px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.panelInner::-webkit-scrollbar { display: none; }
+
+/* ── Shared panel hero — Caveat heading + soft gradient rule ─────────────── */
+
+.panelHero {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.panelHeroTitle {
+  /* Brand voice — Caveat. Matches the toolbar labels + paper handwriting so
+     panel heros feel handwritten, not utility-system text. */
+  font-family: 'Caveat', cursive;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.005em;
+  color: rgba(255, 255, 255, 0.92);
+  margin: 0;
+}
+
+.panelHeroRule {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0.20) 0%,
+    rgba(255, 255, 255, 0.08) 60%,
+    transparent 100%
+  );
+}
+
+/* ── Coming-soon placeholder ─────────────────────────────────────────────── */
+
+.comingSoon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 30px 18px 22px;
+  text-align: center;
+}
+
+.comingSoonEmoji {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.comingSoonTitle {
+  font-family: 'Caveat', cursive;
+  font-size: 22px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.2;
+}
+
+.comingSoonSub {
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.40);
+  max-width: 220px;
+}

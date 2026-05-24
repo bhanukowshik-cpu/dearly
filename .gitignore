@@ -18,6 +18,10 @@ public/*.mp4
 Images/
 Music/
 
+# Source design assets — runtime SVGs are inlined into the bundle, no need
+# to ship the originals (~22 MB) in the production repo.
+Dearly V2/
+
 # Claude Code
 .claude/
 

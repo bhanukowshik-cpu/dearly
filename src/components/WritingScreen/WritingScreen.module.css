@@ -288,31 +288,41 @@
 
 .threeCol {
   display: flex;
-  gap: 24px;
+  gap: 28px;
   width: 100%;
   max-width: 1280px;
   align-items: flex-start;
-  margin-top: auto;
+  margin-top: 0;
   margin-bottom: auto;
 }
 
-/* Left — fixed-width input panel, top-aligned */
-.leftCol {
-  flex: 0 0 272px;
-  min-width: 0;
-  align-self: flex-start;
-  position: sticky;
-  top: 0;
-  max-height: calc(100vh - 52px - 80px);
-  overflow-y: auto;
-  scrollbar-width: none;
+/* Layout — [toolbar] [paper canvas] [canvas sidebar], centered as a group */
+.twoCol {
+  display: flex;
+  gap: 24px;
+  width: 100%;
+  max-width: 1400px;
+  align-items: flex-start;
+  margin: auto;
+  justify-content: center;
 }
-.leftCol::-webkit-scrollbar { display: none; }
 
-/* Center — postcard, takes remaining space, centered by threeCol */
+
+/* Left column — EditorToolbar manages its own width via internal flex layout */
+.leftCol {
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+/* Center — postcard. Width is viewport-derived but NOT flex-grown, so opening
+   or closing the editor's side panel never changes the canvas size. The
+   `calc(100vw - 720px)` reserves space for: leftCol expanded (~372px) +
+   rightSidebar (230px) + gaps (48px) + page padding (~70px). The clamp
+   keeps the canvas sane on narrow laptops and ultra-wide monitors. */
 .centerCol {
-  flex: 1;
-  min-width: 320px;
+  flex: 0 0 auto;
+  width: clamp(420px, calc(100vw - 720px), 760px);
+  min-width: 0;
 }
 
 /* Right — sidebar for paper controls + sticker picker, top-aligned */

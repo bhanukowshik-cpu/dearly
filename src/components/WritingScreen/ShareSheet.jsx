@@ -58,6 +58,18 @@ function IconClose() {
   )
 }
 
+// Envelope — for the "Send via email" option.
+function IconEmail() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden>
+      <rect x="2.5" y="4.5" width="17" height="13" rx="2"
+        stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M3 5.5L11 12L19 5.5"
+        stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
 // ── ShareSheet ──────────────────────────────────────────────────────────────
 const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
 const isMobileDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod|Android/i.test(navigator.userAgent)
@@ -82,12 +94,21 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
   const [downloadDone,   setDownloadDone]   = useState(false) // 'done' | 'ios' | false
   const [exportErr,      setExportErr]      = useState('')
   const [imageOverlayUrl, setImageOverlayUrl] = useState(null)
+  // Email-send state — opens an inline form when the user clicks "Send via email"
+  const [emailOpen,      setEmailOpen]      = useState(false)
+  const [emailTo,        setEmailTo]        = useState('')
+  const [emailNote,      setEmailNote]      = useState('')
+  const [emailSending,   setEmailSending]   = useState(false)
+  const [emailSentTo,    setEmailSentTo]    = useState('')   // shows the success copy
+  const [emailErr,       setEmailErr]       = useState('')
   const copiedTimerRef   = useRef(null)
   const downloadTimerRef = useRef(null)
+  const emailSentTimerRef = useRef(null)
 
   useEffect(() => () => {
-    if (copiedTimerRef.current)   clearTimeout(copiedTimerRef.current)
-    if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current)
+    if (copiedTimerRef.current)    clearTimeout(copiedTimerRef.current)
+    if (downloadTimerRef.current)  clearTimeout(downloadTimerRef.current)
+    if (emailSentTimerRef.current) clearTimeout(emailSentTimerRef.current)
   }, [])
 
   const handleCreateLink = useCallback(async () => {
@@ -177,6 +198,76 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
       setLoadingPng(false)
     }
   }, [paperRef, loadingPng])
+
+  // Ensures we have a share URL ready before sending the email. If the user
+  // hasn't already clicked "Create link", we silently save the note and
+  // mint the URL here. Returns null on failure.
+  const ensureShareUrl = useCallback(async () => {
+    if (linkUrl) return linkUrl
+    try {
+      const id = await saveNote(noteData)
+      if (!id) return null
+      const url = generateShareUrl(id, noteData)
+      setLinkUrl(url)
+      return url
+    } catch {
+      return null
+    }
+  }, [linkUrl, noteData])
+
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+  const handleSendEmail = useCallback(async (e) => {
+    e?.preventDefault?.()
+    if (emailSending) return
+    const to = emailTo.trim()
+    if (!EMAIL_RE.test(to)) {
+      setEmailErr('Please enter a valid email address.')
+      return
+    }
+    setEmailErr('')
+    setEmailSending(true)
+
+    const url = await ensureShareUrl()
+    if (!url) {
+      setEmailErr('Could not save the note — please try again.')
+      setEmailSending(false)
+      return
+    }
+
+    try {
+      const resp = await fetch('/api/email', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to,
+          fromName:      noteData.senderName || 'Someone',
+          recipientName: noteData.recipientName || noteData.recipient || '',
+          shareUrl:      url,
+          personalNote:  emailNote.trim(),
+        }),
+      })
+      const data = await resp.json().catch(() => ({}))
+      if (!resp.ok || data.ok === false) {
+        const msg = data?.error || `Email send failed (${resp.status})`
+        setEmailErr(msg.length > 120 ? msg.slice(0, 117) + '…' : msg)
+        trackEvent('email_send_failed', { reason: msg.slice(0, 60) })
+        return
+      }
+      // Success — clear the form, show confirmation chip for ~5s.
+      setEmailSentTo(to)
+      setEmailTo('')
+      setEmailNote('')
+      onToast?.(`Sent to ${to}.`)
+      trackEvent('email_sent', { source: 'share_sheet' })
+      if (emailSentTimerRef.current) clearTimeout(emailSentTimerRef.current)
+      emailSentTimerRef.current = setTimeout(() => setEmailSentTo(''), 5000)
+    } catch (err) {
+      setEmailErr(err?.message || 'Network error — please try again.')
+    } finally {
+      setEmailSending(false)
+    }
+  }, [emailTo, emailNote, emailSending, ensureShareUrl, noteData, onToast])
 
   const motionProps = isMobileSheet
     ? { initial: { opacity: 0, y: 40 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: 40 }, transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } }
@@ -280,6 +371,90 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
             )}
           </span>
         </button>
+
+        {/* ── Send via email ── */}
+        <div className={styles.optionGroup}>
+          <button
+            className={styles.option}
+            onClick={() => { setEmailOpen(v => !v); setEmailErr('') }}
+            aria-expanded={emailOpen}
+          >
+            <svg className={styles.optionBorder} viewBox="0 0 290 54" preserveAspectRatio="none" fill="none" aria-hidden>
+              <path d="M 9,4  C 97,2  193,2  281,4"   stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
+              <path d="M 281,4 C 284,20 284,34 281,50" stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
+              <path d="M 281,50 C 193,53 97,53 9,50"  stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
+              <path d="M 9,50  C 6,34  6,20  9,4"    stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
+            </svg>
+            <span className={styles.optionIcon}><IconEmail /></span>
+            <span className={styles.optionText}>
+              <span className={styles.optionLabel}>
+                {emailSentTo ? `Sent to ${emailSentTo} ✓` : 'Send via email'}
+              </span>
+            </span>
+          </button>
+
+          <AnimatePresence>
+            {emailOpen && (
+              <motion.form
+                className={styles.linkRow}
+                style={{ flexDirection: 'column', gap: 8, alignItems: 'stretch' }}
+                onSubmit={handleSendEmail}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <input
+                  className={styles.linkInput}
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="recipient@example.com"
+                  value={emailTo}
+                  onChange={e => setEmailTo(e.target.value)}
+                  disabled={emailSending}
+                  required
+                />
+                <textarea
+                  className={styles.linkInput}
+                  style={{ minHeight: 60, resize: 'vertical', fontFamily: 'inherit', padding: '8px 12px' }}
+                  placeholder="Add a short note (optional)"
+                  value={emailNote}
+                  onChange={e => setEmailNote(e.target.value)}
+                  maxLength={500}
+                  disabled={emailSending}
+                />
+                <button
+                  type="submit"
+                  className={styles.copyBtn}
+                  disabled={emailSending}
+                  style={{ alignSelf: 'flex-end' }}
+                >
+                  <span>{emailSending ? 'Sending…' : 'Send'}</span>
+                </button>
+              </motion.form>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {emailErr && (
+              <motion.p
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{
+                  margin: '4px 16px 0',
+                  fontSize: 12,
+                  color: 'rgba(255, 120, 100, 0.90)',
+                  fontFamily: 'Inter, sans-serif',
+                }}
+              >
+                {emailErr}
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
 
       </div>
 

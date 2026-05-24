@@ -47,11 +47,37 @@ function elevenLabsDevApi(apiKey) {
   }
 }
 
+// Dev-only middleware: proxies /api/email to the same handler used in prod.
+// We dynamically import api/email.js so behavior is identical between dev
+// and the Vercel serverless deploy — no parallel code paths to keep in sync.
+function emailDevApi() {
+  return {
+    name: 'email-dev-api',
+    configureServer(server) {
+      server.middlewares.use('/api/email', async (req, res) => {
+        try {
+          // Re-import on every request so edits to api/email.js hot-reload.
+          const mod = await server.ssrLoadModule('/api/email.js')
+          await mod.default(req, res)
+        } catch (e) {
+          res.statusCode = 500
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ ok: false, error: e.message || 'dev api error' }))
+        }
+      })
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  // Make RESEND_API_KEY + EMAIL_FROM available to api/email.js at dev time —
+  // Vercel sets these via env-var dashboard in prod.
+  if (env.RESEND_API_KEY) process.env.RESEND_API_KEY = env.RESEND_API_KEY
+  if (env.EMAIL_FROM)     process.env.EMAIL_FROM     = env.EMAIL_FROM
   return {
     base: '/',
-    plugins: [react(), elevenLabsDevApi(env.VITE_ELEVENLABS_API_KEY)],
+    plugins: [react(), elevenLabsDevApi(env.VITE_ELEVENLABS_API_KEY), emailDevApi()],
     resolve: {
       // Force all packages to share the same React instance
       alias: {

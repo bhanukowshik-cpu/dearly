@@ -1,0 +1,28 @@
+.root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;       /* persisted strokes are visible but inert */
+  z-index: 12;                /* above text body, below selection chrome */
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.rootActive {
+  pointer-events: auto;       /* tool active → capture all pointer input */
+  cursor: crosshair;
+  touch-action: none;         /* prevent page scroll on touch / Pencil */
+}
+
+/* Eraser hides the OS cursor — the in-SVG ring is the real affordance. */
+.rootEraser { cursor: none; }
+
+.svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* Multiply blend lets highlighter ink darken paper realistically instead
+     of just sitting on top. Falls back gracefully on browsers without it. */
+  mix-blend-mode: multiply;
+}
