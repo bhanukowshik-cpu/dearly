@@ -165,6 +165,32 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
      Pinch-to-zoom on the paper container shares this state. */
   const [zoomLevel, setZoomLevel] = useState(1)
 
+  /* Visual-viewport tracking (iPad). When the user focuses the paper
+     contenteditable the iOS keyboard slides up and covers the bottom of
+     the screen — visualViewport.height shrinks by the keyboard height.
+     We mirror that value onto the root container's height so the flex
+     layout re-centers the paper inside the still-visible area instead
+     of letting the keyboard cover it. Empty top space gets used too,
+     since `mobilePaperFull` is align-items: center inside a shorter box.
+     Triggers on every paper size (strip / postcard / A4) for free
+     because the math is layout-driven, not size-specific. */
+  const [visibleVpHeight, setVisibleVpHeight] = useState(() => {
+    if (typeof window === 'undefined') return 0
+    return window.visualViewport?.height ?? window.innerHeight
+  })
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return
+    const vv = window.visualViewport
+    function update() { setVisibleVpHeight(vv.height) }
+    vv.addEventListener('resize', update)
+    vv.addEventListener('scroll', update)
+    update()
+    return () => {
+      vv.removeEventListener('resize', update)
+      vv.removeEventListener('scroll', update)
+    }
+  }, [])
+
   const paperRef    = useRef(null)
   const shareWrapRef = useRef(null)
   const selectedStickerIdRef = useRef(selectedStickerId)
@@ -1072,7 +1098,12 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   )
 
   return (
-    <div className={styles.root}>
+    <div
+      className={styles.root}
+      /* iPad only — pin the root to visualViewport.height so the layout
+         re-centers above the keyboard instead of being covered by it. */
+      style={isIpad && visibleVpHeight ? { height: `${visibleVpHeight}px`, transition: 'height 0.2s ease' } : undefined}
+    >
 
       <div className={styles.bgImage} aria-hidden />
       <div className={styles.bgTint}  aria-hidden />
