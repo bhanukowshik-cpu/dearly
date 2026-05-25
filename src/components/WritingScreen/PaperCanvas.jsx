@@ -229,7 +229,7 @@ const GREETING_FS = GREETING_FS_MAP.md
    when `resyncKey` bumps (eg. the overflow guard reverts an invalid edit).
    Paste is forced to plain text so users don't bring foreign HTML styling.
    ───────────────────────────────────────────────────────────────────────── */
-function EditablePaperBody({ message, onMessageChange, resyncKey, inkColor, textSize, viewportWidth }) {
+function EditablePaperBody({ message, onMessageChange, onBlur, resyncKey, inkColor, textSize, viewportWidth, autoFocus = false }) {
   const ref = useRef(null)
   const baseMetrics = getScaledMetrics(textSize, viewportWidth)
 
@@ -263,6 +263,21 @@ function EditablePaperBody({ message, onMessageChange, resyncKey, inkColor, text
     document.execCommand('insertText', false, text)
   }
 
+  // Auto-focus + place caret at end on mount when summoned by Text FAB / tap
+  useEffect(() => {
+    if (!autoFocus) return
+    const el = ref.current
+    if (!el) return
+    el.focus()
+    // Move caret to end so user types where the existing content ends
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    range.collapse(false)
+    const sel = window.getSelection()
+    sel.removeAllRanges()
+    sel.addRange(range)
+  }, [autoFocus])
+
   return (
     <div
       ref={ref}
@@ -270,6 +285,7 @@ function EditablePaperBody({ message, onMessageChange, resyncKey, inkColor, text
       suppressContentEditableWarning
       onInput={handleInput}
       onPaste={handlePaste}
+      onBlur={onBlur}
       data-placeholder="Write your heart out…"
       spellCheck
       autoCorrect="on"
@@ -653,11 +669,17 @@ function computeColorInk(hexColor) {
 export default function PaperCanvas({
   recipient,
   message,
-  /* iPad-only: when true the paper body becomes contenteditable so iOS
-     Scribble + the system keyboard write directly on the paper. Requires
-     onMessageChange to sync edits back to React state. editorResyncKey
-     bumps when the parent forces a content reset (eg. overflow guard). */
+  /* iPad-only: when true the paper body MAY become contenteditable (for
+     typing). But we only mount the editable surface while `editorActive`
+     is true — defaulting it off is what definitively defeats iOS
+     Scribble. Scribble's gesture recognizer engages at the system level
+     before any JS event handler fires, so the only reliable way to stop
+     it is to have no contenteditable surface present when the pen touches.
+     editorResyncKey bumps when the parent forces a content reset (eg.
+     overflow guard). */
   isIpad = false,
+  editorActive = false,
+  onEditorBlur = null,
   onMessageChange = null,
   editorResyncKey = 0,
   showRecipient,
@@ -1023,10 +1045,11 @@ export default function PaperCanvas({
               className={styles.letterContent}
               style={letterContentStyle}
             >
-              {/* Empty-state hint only on non-iPad — on iPad the contenteditable
-                  body below renders its own "Write your heart out…" placeholder
-                  via :empty::before so the user has a tap target. */}
-              {isEmpty && !isIpad && (
+              {/* Empty-state hint. iPad shows it whenever the editor isn't
+                  active and there's no message — the paper has no
+                  contenteditable in that state (so Scribble can't engage),
+                  but we still need a "tap to write" affordance. */}
+              {isEmpty && (!isIpad || !editorActive) && (
                 <motion.div
                   className={styles.emptyHint}
                   style={{ color: inkColor }}
@@ -1034,7 +1057,7 @@ export default function PaperCanvas({
                   animate={{ opacity: 0.30 }}
                   transition={{ duration: 0.5, delay: 0.2 }}
                 >
-                  Your letter will appear here…
+                  {isIpad ? 'Write your heart out…' : 'Your letter will appear here…'}
                 </motion.div>
               )}
               {liveRecipient && (
@@ -1045,21 +1068,28 @@ export default function PaperCanvas({
                   />
                 </div>
               )}
-              {/* Body: iPad always renders an editable surface (even if empty)
-                  so Scribble + tap-to-type Just Work. Other breakpoints keep
-                  the read-only BodyText render with full markup formatting. */}
-              {isIpad ? (
+              {/* Body render rules:
+                    - non-iPad: existing BodyText (read-only, styled) when message.
+                    - iPad + editorActive: contenteditable (typing mode). Scribble
+                      can't engage because we only mount this when the user
+                      explicitly entered typing mode (via Text FAB or finger tap).
+                    - iPad + !editorActive: BodyText (read-only, styled) so the
+                      message is visible; pen on paper stays in DrawingLayer
+                      territory because there's no contenteditable to hijack. */}
+              {isIpad && editorActive ? (
                 <div ref={bodyRef} data-paper-body className={styles.body} style={bodyFitStyle || undefined}>
                   <EditablePaperBody
                     message={message}
                     onMessageChange={onMessageChange}
+                    onBlur={onEditorBlur}
                     resyncKey={editorResyncKey}
                     inkColor={inkColor}
                     textSize={textSize}
                     viewportWidth={viewportWidth}
+                    autoFocus
                   />
                 </div>
-              ) : message && (
+              ) : message ? (
                 <div ref={bodyRef} data-paper-body className={styles.body} style={bodyFitStyle || undefined}>
                   <BodyText
                     text={message} inkColor={inkColor}
@@ -1067,7 +1097,7 @@ export default function PaperCanvas({
                     wordIndexStart={greetingWordCount} viewportWidth={viewportWidth}
                   />
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* Media frames — DOM-based <img> so GIFs stay animated */}

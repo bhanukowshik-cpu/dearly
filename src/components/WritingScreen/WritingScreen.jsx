@@ -165,6 +165,13 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
      Pinch-to-zoom on the paper container shares this state. */
   const [zoomLevel, setZoomLevel] = useState(1)
 
+  /* iPad text-edit mode. False by default → paper has no contenteditable
+     surface → iOS Scribble can never engage on pen contact. The user
+     enters edit mode explicitly via the Text FAB or by tapping with a
+     finger; the contenteditable mounts, auto-focuses, and the keyboard
+     opens. Blur returns to false so pen strokes stay as ink again. */
+  const [editorActive, setEditorActive] = useState(false)
+
   /* Visual-viewport tracking (iPad). When the user focuses the paper
      contenteditable the iOS keyboard slides up and covers the bottom of
      the screen — visualViewport.height shrinks by the keyboard height.
@@ -881,9 +888,24 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
      sticker (Emoji FAB), and pinch-to-zoom on the paper container with
      finger only — Pencil pinch never fires since pen pointers go to
      DrawingLayer's pen-only capture instead. */
+  /* Text FAB / finger tap entry into edit mode. Setting editorActive
+     mounts the contenteditable, and its autoFocus effect focuses it +
+     places the caret at end on mount. Setting it AFTER React's render
+     pass via setState is correct — focus happens on the freshly-mounted
+     element. */
   const focusPaperEditor = useCallback(() => {
-    const editor = paperRef.current?.querySelector('[contenteditable="true"]')
-    if (editor) editor.focus()
+    setEditorActive(true)
+  }, [])
+
+  const handleEditorBlur = useCallback((e) => {
+    // Don't unmount if focus is moving INTO a portalled picker / popover —
+    // the editor needs to stay alive so insertEmojiAtCaret can find it.
+    const next = e?.relatedTarget
+    if (next && (
+      next.closest?.('em-emoji-picker') ||
+      next.closest?.('[class*="emojiPickerRoot"]')
+    )) return
+    setEditorActive(false)
   }, [])
 
   /* Insert the picked emoji at the caret in the paper contenteditable.
@@ -928,18 +950,24 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
      We compute the live finger-to-finger distance vs the starting distance
      and multiply the zoom level by the ratio. */
   const pinchStateRef = useRef(null)  // { p1: PointerEvent, p2: PointerEvent, startDist, startZoom }
+  /* Tracks a potential single-finger tap so we can enter edit mode on
+     pointerup. If a second finger joins, the gesture upgrades to a pinch
+     and the tap intent is cancelled. */
+  const tapStartRef = useRef(null)
   const handlePaperPointerDown = useCallback((e) => {
     if (!isIpad) return
     if (e.pointerType !== 'touch') return
     const st = pinchStateRef.current
     if (!st) {
       pinchStateRef.current = { p1: { id: e.pointerId, x: e.clientX, y: e.clientY }, p2: null, startDist: 0, startZoom: zoomLevel }
+      tapStartRef.current = { t: Date.now(), x: e.clientX, y: e.clientY }
     } else if (!st.p2 && st.p1.id !== e.pointerId) {
       st.p2 = { id: e.pointerId, x: e.clientX, y: e.clientY }
       const dx = st.p2.x - st.p1.x
       const dy = st.p2.y - st.p1.y
       st.startDist = Math.hypot(dx, dy)
       st.startZoom = zoomLevel
+      tapStartRef.current = null  // upgraded to a pinch
     }
   }, [isIpad, zoomLevel])
   const handlePaperPointerMove = useCallback((e) => {
@@ -959,9 +987,22 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     const st = pinchStateRef.current
     if (!st) return
     if (e.pointerId === st.p1?.id || e.pointerId === st.p2?.id) {
+      const wasSingleFingerGesture = !st.p2
+      const tap = tapStartRef.current
       pinchStateRef.current = null
+      tapStartRef.current = null
+      // Single-finger tap on the paper enters edit mode (mounts the
+      // contenteditable + focuses it). Pinches don't trigger this because
+      // the second-pointer branch above already nulled tapStartRef.
+      if (
+        wasSingleFingerGesture && tap && !editorActive && isIpad &&
+        e.pointerType === 'touch' && (Date.now() - tap.t) < 400
+      ) {
+        const moved = Math.hypot((e.clientX ?? tap.x) - tap.x, (e.clientY ?? tap.y) - tap.y)
+        if (moved < 10) setEditorActive(true)
+      }
     }
-  }, [])
+  }, [editorActive, isIpad])
 
   /* ── Shared JSX fragments ───────────────────────────────────────────── */
   const paperCanvas = (
@@ -970,6 +1011,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       message={message}
       onMessageChange={setMessage}
       isIpad={isIpad}
+      editorActive={editorActive}
+      onEditorBlur={handleEditorBlur}
       editorResyncKey={editorResyncKey}
       showRecipient={showRecipient}
       paperConfig={paperConfig}
