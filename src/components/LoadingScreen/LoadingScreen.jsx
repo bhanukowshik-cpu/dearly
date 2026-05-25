@@ -84,13 +84,16 @@ const HERO_PX = { mobile: 56, tablet: 70, desktop: 82 }
 //   document.querySelector('[data-paper-canvas]').offsetWidth
 // in the editor and update this constant.
 //
-// Scale is capped at 1.0 — we never zoom IN past the design size. Upscaling
-// CSS-transformed content blurs text (the renderer doesn't re-rasterize at
-// the new size, it just stretches pixels). So on wider carousel containers
-// the paper sits at its natural size with empty margin around it; on
-// narrower containers it scales down uniformly. The wrapper centers the
-// scaled inner horizontally so the paper isn't left-anchored.
+// Scale is allowed to grow ABOVE 1 (up to MAX_SCALE) so the paper fills
+// wider carousel containers on desktop/iPad — capping at 1 made the paper
+// look tiny in a big browser window. CSS transform scale-up doesn't
+// re-rasterize text (so it gets slightly softer at scale > 1) but the
+// layout stays pixel-perfect: text wraps identically, photos stay where
+// they were placed, highlights track the words they were drawn on. Keep
+// MAX_SCALE under 2 so text doesn't go visibly blurry; 1.7 fills a 680px+
+// carousel comfortably from a 480px design width.
 const DESIGN_WIDTH = 480
+const MAX_SCALE    = 1.7
 
 function ScaledPaper({ children, designWidth = DESIGN_WIDTH }) {
   const wrapRef  = useRef(null)
