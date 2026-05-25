@@ -111,6 +111,12 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   const [isMobile,           setIsMobile]           = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 599px), (max-width: 1180px) and (orientation: portrait)').matches : false
   )
+  /* iPad portrait gets a contenteditable paper (Scribble-ready). Phones keep
+     the InputPanel below the paper because the paper itself is too small to
+     comfortably write on. */
+  const [isIpad,             setIsIpad]             = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 600px) and (max-width: 1180px) and (orientation: portrait)').matches : false
+  )
   const [activeTool,         setActiveTool]         = useState('people')
 
   // ── Drawing layer state ────────────────────────────────────────────────
@@ -167,8 +173,21 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     const mq = window.matchMedia('(max-width: 599px), (max-width: 1180px) and (orientation: portrait)')
     const handler = e => setIsMobile(e.matches)
     mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
+    const ipadMq = window.matchMedia('(min-width: 600px) and (max-width: 1180px) and (orientation: portrait)')
+    const ipadHandler = e => setIsIpad(e.matches)
+    ipadMq.addEventListener('change', ipadHandler)
+    return () => {
+      mq.removeEventListener('change', handler)
+      ipadMq.removeEventListener('change', ipadHandler)
+    }
   }, [])
+
+  /* If the user lands on iPad mode while activeTool is 'text', snap to a
+     valid tool — the Write tab doesn't exist on iPad because the paper itself
+     is the text surface. */
+  useEffect(() => {
+    if (isIpad && activeTool === 'text') setActiveTool('people')
+  }, [isIpad, activeTool])
 
   /* Cleanup toast timer on unmount */
   useEffect(() => () => {
@@ -671,6 +690,9 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     <PaperCanvas
       recipient={recipient}
       message={message}
+      onMessageChange={setMessage}
+      isIpad={isIpad}
+      editorResyncKey={editorResyncKey}
       showRecipient={showRecipient}
       paperConfig={paperConfig}
       stickers={stickers}
@@ -897,7 +919,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
                   transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 >
                   {activeTool === 'people'   && namePanel}
-                  {activeTool === 'text'     && inputPanel}
+                  {activeTool === 'text'     && !isIpad && inputPanel}
                   {activeTool === 'upload'   && mediaPanel}
                   {activeTool === 'record'   && voicePanel}
                   {activeTool === 'draw'     && drawingPanel}
@@ -906,11 +928,14 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               </AnimatePresence>
             </div>
 
-            {/* Bottom tab bar — same tool set + order as desktop EditorToolbar */}
+            {/* Bottom tab bar — same tool set + order as desktop EditorToolbar.
+                On iPad the Write tab is dropped because the paper itself is
+                contenteditable (Scribble-ready) so a separate text panel is
+                redundant. Phones keep the Write tab. */}
             <nav className={styles.mobileTabBar} aria-label="Editor tools">
               {[
                 { tool: 'people',   label: 'To/From',  icon: <IconPlane size={20} /> },
-                { tool: 'text',     label: 'Write',    icon: <IconText size={20} /> },
+                ...(isIpad ? [] : [{ tool: 'text', label: 'Write', icon: <IconText size={20} /> }]),
                 { tool: 'upload',   label: 'Pictures', icon: <IconUpload size={20} /> },
                 { tool: 'record',   label: 'Voice',    icon: <IconMic size={20} /> },
                 { tool: 'draw',     label: 'Draw',     icon: <IconPen size={20} /> },

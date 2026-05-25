@@ -165,6 +165,25 @@
   overflow: visible;
 }
 
+/* ── Editable body (iPad) ────────────────────────────────────────────────
+   Empty-state placeholder via :empty::before so the user always has a
+   tap target on the paper. touch-action:manipulation avoids double-tap
+   zoom on iOS Safari. webkit-user-modify keeps Scribble + system
+   spell-check enabled (the default for contenteditable). */
+.editableBody {
+  caret-color: currentColor;
+  touch-action: manipulation;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.editableBody:empty::before {
+  content: attr(data-placeholder);
+  color: currentColor;
+  opacity: 0.30;
+  font-style: italic;
+  pointer-events: none;
+}
+
 .wordReveal {
   display: block;
 }

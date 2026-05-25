@@ -92,7 +92,10 @@ const CONFIG = {
                                 // still reads as a chop: the last few dB of a
                                 // linear fade pass through the audible range
                                 // too fast for the ear to register as a fade.
-    peakDb:            -2,      // ~+4 dB bump from -6 → roughly 50% louder
+    peakDb:            -8,      // -6 dB drop from -2 → roughly 50% quieter
+                                // (linear half amplitude). All personality
+                                // volDb offsets compose on top of this, so
+                                // whisper / accent dynamics stay proportional.
     rateJitter:        0.08,    // ±8% playbackRate variation
     volJitter:         2.5,     // ±dB random per-slice trim
 
@@ -363,7 +366,50 @@ async function init() {
         const buffer = new Tone.ToneAudioBuffer()
         await buffer.load(s.url)
         const loud = analyzeLoudRegion(buffer)
-        return { ...s, buffer, dur: buffer.duration, loudStartSec: loud.startSec, loudEndSec: loud.endSec }
+
+        // Precompute a SEPARATE reversed copy of the buffer for the "reverse"
+        // typing personality. Tone.Player's `reverse = true` setter mutates
+        // the underlying AudioBuffer IN PLACE — and since every tick shares
+        // one `ToneAudioBuffer`, flipping it on one player flips it for all
+        // subsequent ticks (forward becomes reversed-treated-as-forward, etc).
+        // Result: garbled / random-sounding playback once any reverse tick
+        // fires. Owning a dedicated reversed buffer fixes this cleanly.
+        let bufferReversed   = null
+        let loudStartReverse = 0
+        let loudEndReverse   = 0
+        if (s.role === 'tick') {
+          try {
+            const raw = buffer.get()
+            if (raw) {
+              const ctx = Tone.getContext().rawContext
+              const rev = ctx.createBuffer(raw.numberOfChannels, raw.length, raw.sampleRate)
+              for (let ch = 0; ch < raw.numberOfChannels; ch++) {
+                const src = raw.getChannelData(ch)
+                const dst = rev.getChannelData(ch)
+                const N   = src.length
+                for (let i = 0; i < N; i++) dst[i] = src[N - 1 - i]
+              }
+              bufferReversed = new Tone.ToneAudioBuffer().set(rev)
+              // Loud region maps to (dur - loudEnd, dur - loudStart) under reversal.
+              loudStartReverse = buffer.duration - loud.endSec
+              loudEndReverse   = buffer.duration - loud.startSec
+            }
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.warn(`[penSoundManager] reverse-buffer build failed for ${s.url}:`, e)
+          }
+        }
+
+        return {
+          ...s,
+          buffer,
+          bufferReversed,
+          dur:               buffer.duration,
+          loudStartSec:      loud.startSec,
+          loudEndSec:        loud.endSec,
+          loudStartReverse,
+          loudEndReverse,
+        }
       } catch (e) {
         // eslint-disable-next-line no-console
         console.warn(`[penSoundManager] failed to load ${s.url}:`, e)
@@ -608,13 +654,24 @@ function playTypingTick() {
   const baseSlice = cfg.sliceMinSec + Math.random() * (cfg.sliceMaxSec - cfg.sliceMinSec)
   const sliceSec  = Math.max(0.03, baseSlice * pers.sliceMult)
 
+  // Reverse personality routes to a SEPARATE precomputed reversed buffer
+  // (see init), with its own pre-flipped loud-region bounds. If the reversed
+  // buffer failed to build (e.g. context not yet available), fall back to
+  // forward playback silently — better one forward tick than a missing one.
+  const useReverse  = pers.reverse && sample.bufferReversed
+  const srcBuffer   = useReverse ? sample.bufferReversed : sample.buffer
+  const loudStart   = useReverse ? sample.loudStartReverse : sample.loudStartSec
+  const loudEnd     = useReverse ? sample.loudEndReverse   : sample.loudEndSec
+
   // Source position — sequential playhead, or random jump for variants
-  // that want to escape the marching-forward feel.
+  // that want to escape the marching-forward feel. Reverse always uses the
+  // random-jump path against the reversed buffer's loud region; the forward
+  // playhead state isn't meaningful in reverse time.
   if (state.typingNextStartSec == null) state.typingNextStartSec = sample.loudStartSec
   let startSec
-  if (pers.jumpStart) {
-    const loudLen = Math.max(0.05, sample.loudEndSec - sample.loudStartSec - sliceSec)
-    startSec = sample.loudStartSec + Math.random() * loudLen
+  if (pers.jumpStart || useReverse) {
+    const loudLen = Math.max(0.05, loudEnd - loudStart - sliceSec)
+    startSec = loudStart + Math.random() * loudLen
   } else {
     startSec = state.typingNextStartSec
     state.typingNextStartSec += cfg.chunkSec
@@ -629,16 +686,17 @@ function playTypingTick() {
   const volJ     = (Math.random() * 2 - 1) * cfg.volJitter
   const peakGain = Tone.dbToGain(cfg.peakDb + volJ + pers.volDb)
 
-  // Build a transient slice graph.
+  // Build a transient slice graph. NOTE: we no longer pass `reverse: true`
+  // on the Player — that flag mutates the shared underlying AudioBuffer in
+  // place, corrupting every subsequent tick. Reverse uses srcBuffer above.
   const now = Tone.now()
   const env = new Tone.Gain(0).connect(state.typingGain)
   const player = new Tone.Player({
-    url:          sample.buffer,
+    url:          srcBuffer,
     autostart:    false,
     fadeIn:       0,   // we apply our own envelope on `env`
     fadeOut:      0,
     playbackRate: rateJ,
-    reverse:      pers.reverse,
   }).connect(env)
 
   try {
@@ -857,10 +915,13 @@ if (import.meta.hot) {
       if (state.typingGain) { try { state.typingGain.dispose() } catch {} }
       if (state.masterGain) { try { state.masterGain.dispose() } catch {} }
 
-      // Free WAV buffers held by Tone
+      // Free WAV buffers held by Tone (forward + reversed copies)
       for (const s of state.samples) {
         if (s.buffer && typeof s.buffer.dispose === 'function') {
           try { s.buffer.dispose() } catch {}
+        }
+        if (s.bufferReversed && typeof s.bufferReversed.dispose === 'function') {
+          try { s.bufferReversed.dispose() } catch {}
         }
       }
     } catch { /* best-effort cleanup */ }

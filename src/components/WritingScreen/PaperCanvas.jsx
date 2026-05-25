@@ -221,6 +221,76 @@ const GREETING_FS_MAP = {
 }
 const GREETING_FS = GREETING_FS_MAP.md
 
+/* ─────────────────────────────────────────────────────────────────────────
+   EditablePaperBody — iPad-only contenteditable that replaces BodyText.
+   Caveat-styled to visually match the read-only render, but accepts taps,
+   the system keyboard, iOS Scribble (Pencil → text), and Pencil hover.
+   Uncontrolled to preserve caret position; the parent only writes back
+   when `resyncKey` bumps (eg. the overflow guard reverts an invalid edit).
+   Paste is forced to plain text so users don't bring foreign HTML styling.
+   ───────────────────────────────────────────────────────────────────────── */
+function EditablePaperBody({ message, onMessageChange, resyncKey, inkColor, textSize, viewportWidth }) {
+  const ref = useRef(null)
+  const baseMetrics = getScaledMetrics(textSize, viewportWidth)
+
+  // Set initial content on mount + whenever the parent forces a resync.
+  // We deliberately do NOT depend on `message` here — that would re-write
+  // the DOM on every keystroke and kill the caret.
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const next = message ?? ''
+    if (el.innerText !== next) el.innerText = next
+  }, [resyncKey])
+
+  // Initial mount sync (resyncKey starts at 0 so the effect above doesn't
+  // fire on first mount when message is non-empty).
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    if (el.innerText !== (message ?? '')) el.innerText = message ?? ''
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function handleInput(e) {
+    onMessageChange?.(e.currentTarget.innerText)
+  }
+
+  function handlePaste(e) {
+    // Force plain text so users can't paste rich styling into the paper.
+    e.preventDefault()
+    const text = e.clipboardData?.getData('text/plain') ?? ''
+    document.execCommand('insertText', false, text)
+  }
+
+  return (
+    <div
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      onInput={handleInput}
+      onPaste={handlePaste}
+      data-placeholder="Write your heart out…"
+      spellCheck
+      autoCorrect="on"
+      className={styles.editableBody}
+      style={{
+        fontFamily:   "'Caveat', cursive",
+        fontSize:     `${baseMetrics.fontSize}px`,
+        fontWeight:   700,
+        color:        inkColor,
+        lineHeight:   `${baseMetrics.computedLineHeight}px`,
+        whiteSpace:   'pre-wrap',
+        overflowWrap: 'break-word',
+        display:      'block',
+        outline:      'none',
+        minHeight:    '1em',
+        cursor:       'text',
+      }}
+    />
+  )
+}
+
 function GreetingText({ text, inkColor, readingConfig, wordIndexStart = 0 }) {
   const normText = useMemo(() => normalizeMarkup(text), [text])
   const chars = useCharList(normText)
@@ -578,6 +648,13 @@ function computeColorInk(hexColor) {
 export default function PaperCanvas({
   recipient,
   message,
+  /* iPad-only: when true the paper body becomes contenteditable so iOS
+     Scribble + the system keyboard write directly on the paper. Requires
+     onMessageChange to sync edits back to React state. editorResyncKey
+     bumps when the parent forces a content reset (eg. overflow guard). */
+  isIpad = false,
+  onMessageChange = null,
+  editorResyncKey = 0,
   showRecipient,
   paperConfig,
   stickers = [],
@@ -867,7 +944,10 @@ export default function PaperCanvas({
               className={styles.letterContent}
               style={letterContentStyle}
             >
-              {isEmpty && (
+              {/* Empty-state hint only on non-iPad — on iPad the contenteditable
+                  body below renders its own "Write your heart out…" placeholder
+                  via :empty::before so the user has a tap target. */}
+              {isEmpty && !isIpad && (
                 <motion.div
                   className={styles.emptyHint}
                   style={{ color: inkColor }}
@@ -886,7 +966,21 @@ export default function PaperCanvas({
                   />
                 </div>
               )}
-              {message && (
+              {/* Body: iPad always renders an editable surface (even if empty)
+                  so Scribble + tap-to-type Just Work. Other breakpoints keep
+                  the read-only BodyText render with full markup formatting. */}
+              {isIpad ? (
+                <div ref={bodyRef} data-paper-body className={styles.body} style={bodyFitStyle || undefined}>
+                  <EditablePaperBody
+                    message={message}
+                    onMessageChange={onMessageChange}
+                    resyncKey={editorResyncKey}
+                    inkColor={inkColor}
+                    textSize={textSize}
+                    viewportWidth={viewportWidth}
+                  />
+                </div>
+              ) : message && (
                 <div ref={bodyRef} data-paper-body className={styles.body} style={bodyFitStyle || undefined}>
                   <BodyText
                     text={message} inkColor={inkColor}
