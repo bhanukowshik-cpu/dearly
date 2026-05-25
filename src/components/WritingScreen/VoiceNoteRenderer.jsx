@@ -333,12 +333,22 @@ export default function VoiceNoteRenderer({
     <div
       className={styles.body}
       style={{
-        left:      `${note.x}%`,
-        top:       `${note.y}%`,
-        width:     `${note.width}%`,
-        height:    `${note.height}%`,
-        transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-        zIndex:    isSelected ? 17 : 7,
+        left:        `${note.x}%`,
+        top:         `${note.y}%`,
+        width:       `${note.width}%`,
+        // Height is DERIVED from width via aspect-ratio — not stored as a
+        // separate paper-% so the card keeps the same visual shape on
+        // every paper size. Storing height as % of paper height made
+        // strips squash the card vertically (4:1 paper → height % maps
+        // to far fewer px) and A4 stretch it (tall paper → height %
+        // becomes too many px). Pinning aspect-ratio to ~3.1:1 matches
+        // the postcard look the user signed off on as correct.
+        // note.height is still kept in state for the resize handler
+        // (which scales width + height proportionally via diagonal
+        // distance) — it just doesn't drive rendering anymore.
+        aspectRatio: '3.1 / 1',
+        transform:   `translate(-50%, -50%) rotate(${rotation}deg)`,
+        zIndex:      isSelected ? 17 : 7,
       }}
       onPointerDown={handleBodyPointerDown}
     >
