@@ -1,8 +1,20 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import AnimatedGlyphText from '../WritingScreen/AnimatedGlyphText'
+import PaperCanvas from '../WritingScreen/PaperCanvas'
 import VideoBackground from '../VideoBackground/VideoBackground'
 import styles from './LoadingScreen.module.css'
+
+// Reference letters exported from the editor, inlined as static modules.
+// Each JSON contains the full PaperCanvas state (paperConfig, message,
+// stickers, mediaFrames with base64 images, voiceNotes with base64 audio,
+// strokes, etc.) — so each slide renders through the same component the
+// editor uses, no manual reconstruction. Order matters: Priya (conference)
+// → Marcus (manager) → Mai (friend). Builds emotional arc from professional
+// acquaintance → important boss → oldest friend.
+import priyaLetter   from '../../data/loadingLetters/priya.json'
+import marcusLetter  from '../../data/loadingLetters/marcus.json'
+import maiLetter     from '../../data/loadingLetters/mai.json'
 
 function IconArrow() {
   return (
@@ -34,24 +46,27 @@ const PACE_HERO = 360   // ≈ 7 chars × 360ms ≈ 2.5s
 const HERO_PX = { mobile: 56, tablet: 70, desktop: 82 }
 
 // ─── Carousel slides ──────────────────────────────────────────────────────
-// Placeholder for the use-case carousel — the user is designing the four
-// reference letters (Partner / Friend / Manager / Client) in the writing
-// editor and will send screenshots. Once those arrive, this constant + the
-// rendering JSX below will be rebuilt to match each design 1:1.
-// Until then the postcard area is intentionally omitted from the layout
-// so the loading screen reads as clean (hero → CTA → meta) instead of
-// half-finished. The carousel CSS classes are kept in the stylesheet so
-// the rebuild is purely a JSX/data swap, not a styling exercise.
+// Each slide is a real exported letter rendered through PaperCanvas. The
+// eyebrow label sits above the paper as a one-line scenario header so the
+// viewer instantly knows who the note is for. label is purely UI copy;
+// it's not stored in the JSON itself.
+const SLIDES = [
+  { id: 'priya',   eyebrow: 'A note to someone you just met',  data: priyaLetter   },
+  { id: 'marcus',  eyebrow: 'A thank-you to your manager',     data: marcusLetter  },
+  { id: 'mai',     eyebrow: 'A voice memo for your best friend', data: maiLetter   },
+]
+
+const SLIDE_INTERVAL_MS = 5000
 
 export default function LoadingScreen({ onCta = () => {} }) {
   // Sequencing:
   //   writeStarted → kicks off "Dearly," hero
-  //   writeDone    → CTA + meta mount
-  // (The postcard carousel will land between heroSub and CTA once the
-  //  designed references are ready; gated by its own state when added.)
+  //   writeDone    → carousel + CTA mount
+  //   slideIdx     → which letter is showing right now (0..SLIDES.length-1)
   const [writeStarted, setWriteStarted] = useState(reducedMotion)
   const [writeDone,    setWriteDone]    = useState(reducedMotion)
   const [ctaVisible,   setCtaVisible]   = useState(false)
+  const [slideIdx,     setSlideIdx]     = useState(0)
 
   // Kick off the Dearly, handwriting after a beat (skip if reduced motion)
   useEffect(() => {
@@ -79,8 +94,17 @@ export default function LoadingScreen({ onCta = () => {} }) {
     return () => clearTimeout(id)
   }, [writeDone])
 
-  // (Carousel auto-rotation effect removed alongside the placeholder
-  // carousel JSX. Will return when the real designed letters land.)
+  // Carousel auto-rotation. Pauses entirely under reduced-motion so the
+  // user isn't dragged through animations they explicitly opted out of.
+  // Resets the interval when slideIdx changes from a manual dot-click so
+  // the user always gets the full 5 s on whatever they just selected.
+  useEffect(() => {
+    if (reducedMotion || !ctaVisible || SLIDES.length <= 1) return
+    const id = setInterval(() => {
+      setSlideIdx(i => (i + 1) % SLIDES.length)
+    }, SLIDE_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [ctaVisible, slideIdx])
 
   return (
     <div className={styles.root}>
@@ -123,12 +147,63 @@ export default function LoadingScreen({ onCta = () => {} }) {
         </motion.p>
       </motion.div>
 
-      {/* ── CTA + meta ────────────────────────────────────────────────────
-         Card/carousel slot intentionally omitted — pending the four real
-         designed letters (Partner / Friend / Manager / Client) coming
-         back from the editor as screenshots. The carousel JSX + state +
-         auto-rotation effect will be reintroduced once those land.
-         Until then, the screen is clean: hero → tagline → CTA → meta. */}
+      {/* ── Carousel: real letters rendered via PaperCanvas ─────────────
+         Each slide loads a JSON export of a complete letter and feeds it
+         straight into PaperCanvas as props — same component the editor
+         uses, so what you see here is exactly what the user will design.
+         Auto-rotates every 5 s; the dot indicators below let you jump. */}
+      {ctaVisible && (
+        <motion.div
+          className={styles.carousel}
+          initial={{ opacity: 0, y: reducedMotion ? 0 : 22 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={SLIDES[slideIdx].id}
+              className={styles.slide}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className={styles.slideEyebrow}>{SLIDES[slideIdx].eyebrow}</div>
+              <div className={styles.slidePaperWrap}>
+                <PaperCanvas
+                  recipient={SLIDES[slideIdx].data.recipient ?? ''}
+                  message={SLIDES[slideIdx].data.message ?? ''}
+                  senderName={SLIDES[slideIdx].data.senderName ?? ''}
+                  showRecipient={SLIDES[slideIdx].data.showRecipient ?? false}
+                  paperConfig={SLIDES[slideIdx].data.paperConfig}
+                  stickers={SLIDES[slideIdx].data.stickers ?? []}
+                  mediaFrames={SLIDES[slideIdx].data.mediaFrames ?? []}
+                  voiceNotes={SLIDES[slideIdx].data.voiceNotes ?? []}
+                  strokes={SLIDES[slideIdx].data.strokes ?? []}
+                  textSize={SLIDES[slideIdx].data.textSize ?? 'md'}
+                />
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Dot indicators — click to jump, also reflect auto-rotation */}
+          <div className={styles.slideDots} role="tablist" aria-label="Choose a scenario">
+            {SLIDES.map((s, i) => (
+              <button
+                key={s.id}
+                type="button"
+                role="tab"
+                aria-selected={i === slideIdx}
+                aria-label={s.eyebrow}
+                className={`${styles.slideDot} ${i === slideIdx ? styles.slideDotActive : ''}`}
+                onClick={() => setSlideIdx(i)}
+              />
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── CTA + meta ────────────────────────────────────────────────── */}
       {ctaVisible && (
         <>
           <motion.button

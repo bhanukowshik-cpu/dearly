@@ -339,70 +339,46 @@
    ─────────────────────────────────────────────────────────────────────────── */
 .carousel {
   position: relative;
-  width: 100%;
-  /* Reserve enough vertical space so the cross-fade between slides of
-     different heights doesn't collapse the card. Same on desktop + tablet;
-     mobile overrides to a column layout below. */
-  min-height: 220px;
-  padding: clamp(16px, 3%, 24px) clamp(18px, 3.5%, 28px);
-  box-sizing: border-box;
+  z-index: 1;
+  width: min(680px, 92vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
 }
 
 .slide {
-  /* Image left, note right. min-width:0 on children lets the text column
-     shrink past its content-implied minimum so long notes wrap correctly. */
-  display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
-  gap: clamp(14px, 2.4%, 22px);
-  align-items: center;
-}
-
-.slideImageWrap {
-  position: relative;
+  /* Eyebrow stacked above the rendered paper. Width fills the carousel;
+     PaperCanvas inside .slidePaperWrap auto-sizes via its own aspect-ratio. */
   width: 100%;
-  aspect-ratio: 4 / 3;
-  overflow: hidden;
-  border-radius: 10px;
-  background: rgba(74, 51, 21, 0.05);   /* warm cream placeholder while loading */
-  /* Subtle inner shadow + warm border so the photo doesn't float as a flat rectangle */
-  box-shadow:
-    inset 0 0 0 1px rgba(74, 51, 21, 0.12),
-    0 2px 6px rgba(74, 51, 21, 0.10);
-}
-
-.slideImage {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  /* Slight desaturation so the photo blends with the cream-paper palette
-     instead of competing as a stock image. */
-  filter: saturate(0.92) contrast(0.96);
-}
-
-.slideNote {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-width: 0;
+  align-items: center;
+  gap: 12px;
 }
 
 .slideEyebrow {
   font-family: 'Inter', sans-serif;
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: rgba(74, 51, 21, 0.62);
+  color: rgba(255, 255, 255, 0.62);
+  text-align: center;
 }
 
-.slideText {
-  margin: 0;
-  font-family: 'Caveat', cursive;
-  font-weight: 500;
-  font-size: clamp(18px, 2.3vw, 24px);
-  line-height: 1.35;
-  color: #1A2A3A;
+/* Container for the PaperCanvas. PaperCanvas's own .paper element applies
+   aspect-ratio from paperConfig.size (postcard 3:2, strip 4:1, A4 1:1.414),
+   so we just give it a max-width and let the height fall out naturally.
+   Centering keeps short / wide papers (strip) from looking left-anchored
+   inside a wide carousel container.
+   ─────────────────────────────────────────────────────────────────────── */
+.slidePaperWrap {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 /* ── Dot indicators — bottom-center under the carousel ─────────────────── */
@@ -414,14 +390,16 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 0 0 14px;
+  padding: 8px 0 0;
 }
 
 .slideDot {
   width: 7px;
   height: 7px;
   border-radius: 999px;
-  background: rgba(74, 51, 21, 0.22);
+  /* Dots sit on the dark page background (not on cream paper), so use a
+     translucent-white scale to read at any background tint. */
+  background: rgba(255, 255, 255, 0.28);
   border: none;
   padding: 0;
   cursor: pointer;
@@ -430,11 +408,11 @@
 }
 
 .slideDot:hover {
-  background: rgba(74, 51, 21, 0.42);
+  background: rgba(255, 255, 255, 0.52);
 }
 
 .slideDotActive {
-  background: rgba(74, 51, 21, 0.72);
+  background: rgba(255, 255, 255, 0.92);
   /* Active dot stretches to a pill — common pattern (App Store, etc) that
      reads as "you are here" without being a different shape from the others */
   width: 18px;
@@ -468,20 +446,15 @@
     min-height: 64px;
   }
 
-  /* Carousel — stack image above note on phones so neither side cramps */
+  /* Carousel on mobile: full-width minus 4 vw side gutters; PaperCanvas
+     inside handles its own internal scaling and aspect-ratio. */
   .carousel {
-    min-height: 0;
-    padding: 14px 16px 4px;
+    width: min(94vw, 540px);
+    gap: 10px;
   }
-  .slide {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-  .slideImageWrap {
-    aspect-ratio: 16 / 9;     /* wider crop reads better when stacked */
-  }
-  .slideText {
-    font-size: 19px;
+  .slideEyebrow {
+    font-size: 11px;
+    letter-spacing: 0.08em;
   }
 
   /* (Designer credit mobile override removed alongside the JSX/desktop
