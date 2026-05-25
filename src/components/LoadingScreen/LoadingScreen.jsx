@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef, useLayoutEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import AnimatedGlyphText from '../WritingScreen/AnimatedGlyphText'
 import PaperCanvas from '../WritingScreen/PaperCanvas'
@@ -15,6 +15,26 @@ import styles from './LoadingScreen.module.css'
 import priyaLetter   from '../../data/loadingLetters/priya.json'
 import marcusLetter  from '../../data/loadingLetters/marcus.json'
 import maiLetter     from '../../data/loadingLetters/mai.json'
+
+// Pool of short, gender-diverse first names. On each page load we pick one
+// per slide (without repeats) and substitute it for "Bhanu" in the message
+// text. The point is to make each letter feel like a different real person
+// sent it — not "the same template signed three ways". Names are short
+// because long sign-offs crowd the cream-paper aesthetic.
+const NAME_POOL = ['Aaron', 'Lena', 'Riya', 'Kai', 'Sam', 'Mira', 'Tomi', 'Devi']
+
+// Fisher-Yates sample of n names from the pool. Deterministic-per-render
+// callers should wrap in useMemo so the pick doesn't reroll mid-session.
+function pickNames(n) {
+  const pool = [...NAME_POOL]
+  const out = []
+  for (let i = 0; i < n; i++) {
+    if (pool.length === 0) break
+    const idx = Math.floor(Math.random() * pool.length)
+    out.push(pool.splice(idx, 1)[0])
+  }
+  return out
+}
 
 function IconArrow() {
   return (
@@ -46,17 +66,43 @@ const PACE_HERO = 360   // ≈ 7 chars × 360ms ≈ 2.5s
 const HERO_PX = { mobile: 56, tablet: 70, desktop: 82 }
 
 // ─── Carousel slides ──────────────────────────────────────────────────────
-// Each slide is a real exported letter rendered through PaperCanvas. The
-// eyebrow label sits above the paper as a one-line scenario header so the
-// viewer instantly knows who the note is for. label is purely UI copy;
-// it's not stored in the JSON itself.
+// Each slide bundles the rendered letter + a recipient's-reply banner that
+// sits beneath it as a glassmorphic strip. The reply is what makes each
+// scenario feel real — it's the second half of a conversation. Without it,
+// each letter is a one-sided shot; with it, the viewer sees the loop close.
 const SLIDES = [
-  { id: 'priya',   eyebrow: 'A note to someone you just met',  data: priyaLetter   },
-  { id: 'marcus',  eyebrow: 'A thank-you to your manager',     data: marcusLetter  },
-  { id: 'mai',     eyebrow: 'A voice memo for your best friend', data: maiLetter   },
+  {
+    id:        'priya',
+    eyebrow:   'A note to someone you just met',
+    data:      priyaLetter,
+    replyFrom: 'Priya',
+    reply:     "Great catching up! Coffee next time you're in town. ✨",
+  },
+  {
+    id:        'marcus',
+    eyebrow:   'A thank-you to your manager',
+    data:      marcusLetter,
+    replyFrom: 'Marcus',
+    reply:     "Made my day. You're one of the kindest folks I've worked with. 💛",
+  },
+  {
+    id:        'mai',
+    eyebrow:   'A voice memo for your best friend',
+    data:      maiLetter,
+    replyFrom: 'Mai',
+    reply:     "Crying. Calling you in five. 💌",
+  },
 ]
 
 const SLIDE_INTERVAL_MS = 5000
+
+// Substitute the JSON's hard-coded "Bhanu" sign-off with a per-slide
+// randomized name. Handles both the "— Bhanu" (em-dash + space) and
+// "-Bhanu" (hyphen, no space) variants the source JSONs use.
+function swapSignOff(message, name) {
+  if (!message) return message
+  return message.replace(/Bhanu/g, name)
+}
 
 export default function LoadingScreen({ onCta = () => {} }) {
   // Sequencing:
@@ -67,6 +113,12 @@ export default function LoadingScreen({ onCta = () => {} }) {
   const [writeDone,    setWriteDone]    = useState(reducedMotion)
   const [ctaVisible,   setCtaVisible]   = useState(false)
   const [slideIdx,     setSlideIdx]     = useState(0)
+
+  // One random name per slide, picked once per page load. Memoized so
+  // the names stay stable across rotation + state changes within a
+  // session — only a fresh page load rerolls them. Index mapped 1:1
+  // to SLIDES order so swapSignOff is always paired correctly.
+  const senderNames = useMemo(() => pickNames(SLIDES.length), [])
 
   // Kick off the Dearly, handwriting after a beat (skip if reduced motion)
   useEffect(() => {
@@ -172,8 +224,8 @@ export default function LoadingScreen({ onCta = () => {} }) {
               <div className={styles.slidePaperWrap}>
                 <PaperCanvas
                   recipient={SLIDES[slideIdx].data.recipient ?? ''}
-                  message={SLIDES[slideIdx].data.message ?? ''}
-                  senderName={SLIDES[slideIdx].data.senderName ?? ''}
+                  message={swapSignOff(SLIDES[slideIdx].data.message ?? '', senderNames[slideIdx])}
+                  senderName={senderNames[slideIdx]}
                   showRecipient={SLIDES[slideIdx].data.showRecipient ?? false}
                   paperConfig={SLIDES[slideIdx].data.paperConfig}
                   stickers={SLIDES[slideIdx].data.stickers ?? []}
@@ -182,6 +234,43 @@ export default function LoadingScreen({ onCta = () => {} }) {
                   strokes={SLIDES[slideIdx].data.strokes ?? []}
                   textSize={SLIDES[slideIdx].data.textSize ?? 'md'}
                 />
+              </div>
+
+              {/* Reply banner LEFT + per-slide CTA RIGHT.
+                  The banner is the recipient's response with emoji — closes
+                  the conversational loop so each slide reads as one
+                  exchange, not a one-sided note. The CTA mirrors the
+                  Share-note button's hand-drawn crooked SVG so it visually
+                  belongs to the brand chrome. Both stack on mobile. */}
+              <div className={styles.slideMeta}>
+                <div className={styles.replyBanner}>
+                  <span className={styles.replyFrom}>{SLIDES[slideIdx].replyFrom}</span>
+                  <span className={styles.replyText}>{SLIDES[slideIdx].reply}</span>
+                </div>
+                <motion.button
+                  type="button"
+                  className={styles.slideCta}
+                  onClick={onCta}
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.96 }}
+                  transition={{ duration: 0.1 }}
+                >
+                  <svg
+                    className={styles.slideCtaBg}
+                    viewBox="0 0 220 44"
+                    preserveAspectRatio="none"
+                    fill="none"
+                    aria-hidden
+                  >
+                    <path
+                      d="M 12,6 C 70,3 150,4 208,6 C 211,16 212,28 208,38 C 150,41 70,40 12,38 C 9,28 9,16 12,6 Z"
+                      fill="white"
+                    />
+                  </svg>
+                  <span className={styles.slideCtaLabel}>
+                    Write a similar note
+                  </span>
+                </motion.button>
               </div>
             </motion.div>
           </AnimatePresence>

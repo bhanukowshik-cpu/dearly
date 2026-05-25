@@ -381,6 +381,100 @@
   align-items: center;
 }
 
+/* ── Slide meta row — reply banner LEFT + per-slide CTA RIGHT ──────────────
+   Sits below the rendered paper, paired as one beat. The banner closes
+   the conversational loop (recipient's reply); the CTA invites the viewer
+   to write something similar. flex:1 + min-width:0 on the banner lets the
+   reply text wrap on its own line rather than crowding the CTA. */
+.slideMeta {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+/* Glassmorphic reply pill — matches the editor toolbar/panel chrome
+   (white/0.08 fill, blur, hair-thin border) so it reads as UI, not as a
+   second letter. Translucent so a glimpse of the page bg bleeds through. */
+.replyBanner {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 14px;
+  backdrop-filter: blur(14px) saturate(125%);
+  -webkit-backdrop-filter: blur(14px) saturate(125%);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+.replyFrom {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.replyText {
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: rgba(255, 255, 255, 0.96);
+}
+
+/* Per-slide CTA — clone of the WritingScreen Share button. White wobbly
+   SVG fill (the "crooked" hand-drawn rectangle) with Caveat dark text on
+   top. Same vibe as "Share this note" so the visual language carries from
+   landing → editor. */
+.slideCta {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 22px;
+  background: none;
+  border: none;
+  color: #252525;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+.slideCta:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.60);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+.slideCtaBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.slideCtaLabel {
+  position: relative;
+  z-index: 1;
+  font-family: 'Caveat', cursive;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #252525;
+  user-select: none;
+}
+
 /* ── Dot indicators — bottom-center under the carousel ─────────────────── */
 
 .slideDots {
@@ -455,6 +549,21 @@
   .slideEyebrow {
     font-size: 11px;
     letter-spacing: 0.08em;
+  }
+  /* Meta row stacks vertically on narrow screens — reply banner above,
+     CTA below, both full width. Side-by-side at narrow widths cramps
+     the banner's reply text into 1-2 words per line. */
+  .slideMeta {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .slideCta {
+    height: 42px;
+    width: 100%;
+  }
+  .slideCtaLabel {
+    font-size: 19px;
   }
 
   /* (Designer credit mobile override removed alongside the JSX/desktop

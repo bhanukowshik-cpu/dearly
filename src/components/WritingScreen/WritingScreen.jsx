@@ -173,28 +173,30 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   const [editorActive, setEditorActive] = useState(false)
 
   /* Visual-viewport tracking (iPad). When the user focuses the paper
-     contenteditable the iOS keyboard slides up and covers the bottom of
-     the screen — visualViewport.height shrinks by the keyboard height.
-     We mirror that value onto the root container's height so the flex
-     layout re-centers the paper inside the still-visible area instead
-     of letting the keyboard cover it. Empty top space gets used too,
-     since `mobilePaperFull` is align-items: center inside a shorter box.
-     Triggers on every paper size (strip / postcard / A4) for free
-     because the math is layout-driven, not size-specific. */
-  const [visibleVpHeight, setVisibleVpHeight] = useState(() => {
-    if (typeof window === 'undefined') return 0
-    return window.visualViewport?.height ?? window.innerHeight
-  })
+     contenteditable the iOS keyboard slides up and visualViewport.height
+     shrinks by the keyboard height. We mirror that onto a CSS variable
+     (`--vv-height`) on the document element — pure DOM mutation, no
+     React re-render. The previous useState approach caused a re-render
+     of the entire WritingScreen tree on every visualViewport change
+     (including the noisy predictive-bar height adjustments mid-typing)
+     which disturbed the contenteditable's focus and lost keystrokes.
+     CSS-variable-only is invisible to React, so the editor stays put.
+     The root container's height uses this variable on iPad — the flex
+     layout re-centers the paper inside the still-visible area, using
+     the empty top space too. Paper-size agnostic (strip / postcard / A4). */
   useEffect(() => {
     if (typeof window === 'undefined' || !window.visualViewport) return
     const vv = window.visualViewport
-    function update() { setVisibleVpHeight(vv.height) }
+    function update() {
+      document.documentElement.style.setProperty('--vv-height', `${vv.height}px`)
+    }
     vv.addEventListener('resize', update)
     vv.addEventListener('scroll', update)
     update()
     return () => {
       vv.removeEventListener('resize', update)
       vv.removeEventListener('scroll', update)
+      document.documentElement.style.removeProperty('--vv-height')
     }
   }, [])
 
@@ -1143,9 +1145,11 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   return (
     <div
       className={styles.root}
-      /* iPad only — pin the root to visualViewport.height so the layout
-         re-centers above the keyboard instead of being covered by it. */
-      style={isIpad && visibleVpHeight ? { height: `${visibleVpHeight}px`, transition: 'height 0.2s ease' } : undefined}
+      /* iPad only — bind the root to the visualViewport-driven CSS var
+         (--vv-height set on documentElement by the effect above). Using
+         a CSS variable means visualViewport changes don't re-render React.
+         Falls back to the layout default if the var isn't set yet. */
+      style={isIpad ? { height: 'var(--vv-height, 100svh)', transition: 'height 0.18s ease' } : undefined}
     >
 
       <div className={styles.bgImage} aria-hidden />

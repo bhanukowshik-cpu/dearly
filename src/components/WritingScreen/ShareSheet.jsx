@@ -98,6 +98,11 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
   const [emailOpen,      setEmailOpen]      = useState(false)
   const [emailTo,        setEmailTo]        = useState('')
   const [emailNote,      setEmailNote]      = useState('')
+  const [emailSubject,   setEmailSubject]   = useState('')
+  // Whether the user has manually edited the subject — guards against an
+  // arriving LLM suggestion clobbering what they typed.
+  const [subjectTouched, setSubjectTouched] = useState(false)
+  const [subjectLoading, setSubjectLoading] = useState(false)
   const [emailSending,   setEmailSending]   = useState(false)
   const [emailSentTo,    setEmailSentTo]    = useState('')   // shows the success copy
   const [emailErr,       setEmailErr]       = useState('')
@@ -110,6 +115,43 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
     if (downloadTimerRef.current)  clearTimeout(downloadTimerRef.current)
     if (emailSentTimerRef.current) clearTimeout(emailSentTimerRef.current)
   }, [])
+
+  /* When the email form opens, ask /api/suggest-subject to generate a
+     contextual subject from the note. Pre-fills the input so the user
+     starts from a good default but can still edit before sending.
+     Only runs once per open (guarded by subjectLoading + emailSubject).
+     We deliberately don't re-trigger on message change — that would
+     overwrite the user's edits and feel noisy. */
+  useEffect(() => {
+    if (!emailOpen) return
+    if (subjectTouched || emailSubject || subjectLoading) return
+    if (!noteData?.message?.trim()) return
+    let cancelled = false
+    setSubjectLoading(true)
+    fetch('/api/suggest-subject', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fromName:      noteData.senderName || 'Someone',
+        recipientName: noteData.recipientName || noteData.recipient || '',
+        message:       noteData.message || '',
+      }),
+    })
+      .then(r => r.json().catch(() => ({})))
+      .then(data => {
+        if (cancelled) return
+        // Only fill if the user hasn't started typing in the meantime —
+        // protects against the race where they open the form, type fast,
+        // and the suggestion arrives mid-keystroke.
+        if (!subjectTouched && data?.ok && data?.subject) {
+          setEmailSubject(data.subject)
+        }
+      })
+      .catch(() => { /* template fallback returns 200; on hard failure just leave blank */ })
+      .finally(() => { if (!cancelled) setSubjectLoading(false) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emailOpen])
 
   const handleCreateLink = useCallback(async () => {
     if (creatingLink) return
@@ -245,6 +287,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
           recipientName: noteData.recipientName || noteData.recipient || '',
           shareUrl:      url,
           personalNote:  emailNote.trim(),
+          subject:       emailSubject.trim(),  // empty → server uses its template
         }),
       })
       const data = await resp.json().catch(() => ({}))
@@ -258,6 +301,8 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
       setEmailSentTo(to)
       setEmailTo('')
       setEmailNote('')
+      setEmailSubject('')
+      setSubjectTouched(false)
       onToast?.(`Sent to ${to}.`)
       trackEvent('email_sent', { source: 'share_sheet' })
       if (emailSentTimerRef.current) clearTimeout(emailSentTimerRef.current)
@@ -267,7 +312,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
     } finally {
       setEmailSending(false)
     }
-  }, [emailTo, emailNote, emailSending, ensureShareUrl, noteData, onToast])
+  }, [emailTo, emailNote, emailSubject, emailSending, ensureShareUrl, noteData, onToast])
 
   const motionProps = isMobileSheet
     ? { initial: { opacity: 0, y: 40 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: 40 }, transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } }
@@ -414,6 +459,19 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
                   onChange={e => setEmailTo(e.target.value)}
                   disabled={emailSending}
                   required
+                />
+                {/* Subject — auto-suggested from the note via /api/suggest-subject
+                    when the form opens. Pre-filled so the user has a sensible
+                    default, but fully editable. Placeholder reflects current
+                    state: loading hint → editable. */}
+                <input
+                  className={styles.linkInput}
+                  type="text"
+                  placeholder={subjectLoading ? 'Writing a subject for you…' : 'Subject line'}
+                  value={emailSubject}
+                  onChange={e => { setEmailSubject(e.target.value); setSubjectTouched(true) }}
+                  maxLength={160}
+                  disabled={emailSending}
                 />
                 <textarea
                   className={styles.linkInput}
