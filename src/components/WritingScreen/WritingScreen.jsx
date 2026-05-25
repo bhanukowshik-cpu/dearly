@@ -503,8 +503,18 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
 
       // Bump auto-increment refs past the max id from the imported note so
       // any subsequent add doesn't collide with an existing item id.
-      const maxFrameId = incoming.mediaFrames.reduce((m, f) => Math.max(m, f.id ?? 0), 0)
-      const maxVoiceId = incoming.voiceNotes.reduce((m, v) => Math.max(m, v.id ?? 0), 0)
+      // Frame IDs are strings like "mf-7" and voice IDs are strings like
+      // "vn-3"; we extract the numeric tail with a regex. Math.max on a
+      // string returns NaN (which used to silently set the ref to NaN and
+      // make every future add produce the SAME "mf-NaN" id — visible to
+      // the user as "uploading a second image deletes the first" because
+      // React keyed both frames identically and reconciled them into one).
+      const extractIdTail = (s) => {
+        const m = typeof s === 'string' && s.match(/(\d+)$/)
+        return m ? parseInt(m[1], 10) : 0
+      }
+      const maxFrameId = incoming.mediaFrames.reduce((m, f) => Math.max(m, extractIdTail(f.id)), 0)
+      const maxVoiceId = incoming.voiceNotes.reduce((m, v) => Math.max(m, extractIdTail(v.id)), 0)
       nextFrameIdRef.current     = maxFrameId + 1
       nextVoiceNoteIdRef.current = maxVoiceId + 1
 

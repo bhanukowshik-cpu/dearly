@@ -23,10 +23,14 @@ export const PEN_COLORS = [
   '#007200', // ink green
 ]
 
+/* Highlighter swatches — kept in lockstep with the text-selection
+   highlight palette in InputPanel + PaperCanvas (.highlight,
+   .highlightPink, .highlightSage). One palette for both ways of
+   highlighting so the canvas reads as a single system, not two. */
 export const HIGHLIGHTER_COLORS = [
-  '#252525', // soft black
-  '#0077B6', // ink blue
-  '#007200', // ink green
+  '#FFD028', // yellow — matches .highlight     (rgba(255,208,40,…))
+  '#FF82A0', // pink   — matches .highlightPink (rgba(255,130,160,…))
+  '#4BB98C', // sage   — matches .highlightSage (rgba(75,185,140,…))
 ]
 
 export const PEN = {

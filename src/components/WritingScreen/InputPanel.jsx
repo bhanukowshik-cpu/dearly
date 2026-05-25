@@ -342,16 +342,6 @@ function SelectionToolbar({ selRect, selSize = 'md', onApply }) {
 
       <div className={styles.selSep} aria-hidden />
 
-      {/* Bold */}
-      <button
-        className={styles.selBoldBtn}
-        title="Bold"
-        aria-label="Bold"
-        onMouseDown={e => { e.preventDefault(); onApply('bold') }}
-      >
-        B
-      </button>
-
       {/* Strikethrough */}
       <button
         className={styles.selStrikeBtn}
