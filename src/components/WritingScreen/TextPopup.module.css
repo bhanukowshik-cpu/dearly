@@ -1,0 +1,45 @@
+/* TextPopup — small floating text input to the LEFT of the Text FAB.
+   Lives inside the same anchor as EditorFABs (the mobileTabBar) so its
+   bottom math stays in sync with the FAB stack. */
+
+.popup {
+  position: absolute;
+  /* Vertical: align with the Text FAB (bottom of the FAB stack).
+     The FAB stack is at bottom: calc(100% + 156px). Text FAB is the
+     bottom item; popup bottom should match. */
+  bottom: calc(100% + 156px);
+  /* Horizontal: just to the LEFT of the FAB column (FABs are 48px wide
+     with right:16px, gap roughly 12px from their left edge). */
+  right: 76px;
+  width: min(280px, calc(100vw - 120px));
+  z-index: 28;
+  background: rgba(12, 18, 32, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  padding: 10px 12px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.40);
+  pointer-events: auto;
+}
+
+.input {
+  width: 100%;
+  min-height: 64px;
+  max-height: 200px;
+  background: transparent;
+  border: none;
+  resize: none;
+  outline: none;
+  color: rgba(255, 255, 255, 0.96);
+  font-family: 'Caveat', cursive;
+  font-size: 22px;
+  line-height: 1.35;
+  letter-spacing: 0.005em;
+  caret-color: rgba(255, 255, 255, 0.96);
+  -webkit-tap-highlight-color: transparent;
+}
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.38);
+  font-style: italic;
+}

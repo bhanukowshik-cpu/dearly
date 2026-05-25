@@ -14,6 +14,7 @@ import WriteToolbar from './WriteToolbar'
 import ZoomControls, { clampZoom } from './ZoomControls'
 import EditorFABs from './EditorFABs'
 import TextStyleToolbar from './TextStyleToolbar'
+import TextPopup from './TextPopup'
 import styles from './WritingScreen.module.css'
 import { DEFAULT_PAPER } from './stylePresets'
 import { extractName } from './nameUtils'
@@ -911,15 +912,41 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     setEditorActive(false)
   }, [])
 
-  /* Insert the picked emoji at the caret in the paper contenteditable.
-     Consistent with how the InputPanel emoji picker works on phones +
-     desktop — emojis are TEXT at the caret, not separate stickers.
-     If the editor doesn't currently have a selection (eg. the user hasn't
-     tapped it yet this session), focus it and append at the end. */
+  /* Insert the picked emoji at the caret. Two surfaces to consider:
+       - iPad: the TextPopup's <textarea> (when editorActive)
+       - everywhere else: the paper's contenteditable (legacy paths)
+     If neither surface is focused, append the emoji to message state
+     directly as a fallback so the tap always does something visible. */
   const insertEmojiAtCaret = useCallback((char) => {
     if (!char) return
+    // iPad path — textarea inside TextPopup. selectionStart/End give us
+    // the caret offset, which is more reliable than getSelection on
+    // input elements.
+    const textarea = document.querySelector('textarea[aria-label="Letter text"]')
+    if (textarea) {
+      const start = textarea.selectionStart ?? textarea.value.length
+      const end   = textarea.selectionEnd   ?? textarea.value.length
+      const next  = textarea.value.slice(0, start) + char + textarea.value.slice(end)
+      setMessage(next)
+      // Restore focus + caret to right after the inserted emoji on the
+      // next frame (after React commits the new value).
+      requestAnimationFrame(() => {
+        try {
+          textarea.focus()
+          const pos = start + char.length
+          textarea.setSelectionRange(pos, pos)
+        } catch { /* fine */ }
+      })
+      return
+    }
+    // Legacy path — contenteditable on the paper (still used on phones
+    // before iPad mode, and in the InputPanel-rooted flow).
     const editor = paperRef.current?.querySelector('[contenteditable="true"]')
-    if (!editor) return
+    if (!editor) {
+      // Nothing focused — just append to state.
+      setMessage((m) => (m ?? '') + char)
+      return
+    }
     editor.focus()
     const sel = window.getSelection()
     const hasRangeInEditor = sel && sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).commonAncestorContainer)
@@ -933,7 +960,6 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       sel.removeAllRanges()
       sel.addRange(range)
     } else {
-      // No prior selection — append to end and move caret after it.
       const tn = document.createTextNode(char)
       editor.appendChild(tn)
       const range = document.createRange()
@@ -943,8 +969,6 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       newSel.removeAllRanges()
       newSel.addRange(range)
     }
-    // Sync the new text content back to React state via the editor's
-    // onInput handler — easiest way is to dispatch a synthetic input event.
     editor.dispatchEvent(new InputEvent('input', { bubbles: true }))
   }, [])
 
@@ -990,22 +1014,14 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     const st = pinchStateRef.current
     if (!st) return
     if (e.pointerId === st.p1?.id || e.pointerId === st.p2?.id) {
-      const wasSingleFingerGesture = !st.p2
-      const tap = tapStartRef.current
       pinchStateRef.current = null
       tapStartRef.current = null
-      // Single-finger tap on the paper enters edit mode (mounts the
-      // contenteditable + focuses it). Pinches don't trigger this because
-      // the second-pointer branch above already nulled tapStartRef.
-      if (
-        wasSingleFingerGesture && tap && !editorActive && isIpad &&
-        e.pointerType === 'touch' && (Date.now() - tap.t) < 400
-      ) {
-        const moved = Math.hypot((e.clientX ?? tap.x) - tap.x, (e.clientY ?? tap.y) - tap.y)
-        if (moved < 10) setEditorActive(true)
-      }
+      // (Tap-to-enter-edit-mode was deliberately removed — casual taps
+      // on the paper kept summoning the keyboard and getting in the way
+      // of pen drawing. Edit mode is now FAB-only: tap the Text FAB →
+      // small TextPopup opens to its left.)
     }
-  }, [editorActive, isIpad])
+  }, [])
 
   /* ── Shared JSX fragments ───────────────────────────────────────────── */
   const paperCanvas = (
@@ -1377,6 +1393,17 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
                   onAddEmoji={insertEmojiAtCaret}
                   drawFabVisible={editorActive}
                   onRequestDrawMode={handleEditorBlur}
+                />
+              )}
+              {/* Small floating text input that opens to the LEFT of the
+                  Text FAB. Replaces the make-the-paper-contenteditable
+                  model — the paper stays a pure visual + pen surface
+                  and typing happens in this popup instead. */}
+              {isIpad && activeTool === 'text' && editorActive && (
+                <TextPopup
+                  value={message}
+                  onChange={setMessage}
+                  onClose={() => setEditorActive(false)}
                 />
               )}
               {[

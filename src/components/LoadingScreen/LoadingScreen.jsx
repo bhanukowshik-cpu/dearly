@@ -107,10 +107,13 @@ function ScaledPaper({ children, designWidth = DESIGN_WIDTH }) {
     if (!wrapEl || !innerEl) return
 
     const ro = new ResizeObserver(() => {
-      // Outer width drives the scale factor (cap at 1 so we never zoom IN
-      // and pixellate / blur the rendered paper on wide viewports).
+      // Outer width drives the scale factor. Allowed to grow past 1 so
+      // the paper fills wider carousels on desktop/iPad — capped at
+      // MAX_SCALE to prevent extreme upscale-blur. Layout stays exact
+      // either way (text reflow only depends on the INNER rendered
+      // width, which stays at designWidth regardless of scale).
       const w = wrapEl.clientWidth
-      if (w > 0) setScale(Math.min(1, w / designWidth))
+      if (w > 0) setScale(Math.min(MAX_SCALE, w / designWidth))
       // Inner height is the UNSCALED content height. Multiplied by scale
       // below to size the visible wrapper.
       const h = innerEl.offsetHeight

@@ -347,7 +347,11 @@
 .carousel {
   position: relative;
   z-index: 1;
-  width: min(680px, 92vw);
+  /* Sized to give the scaled paper room to grow on wider viewports.
+     DESIGN_WIDTH (480) × MAX_SCALE (1.7) = ~816 px max paper width,
+     so a 720 px carousel cap accommodates most of the upscale without
+     leaving big empty margins. On narrower viewports we use 92 vw. */
+  width: min(720px, 92vw);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -421,15 +425,13 @@
 }
 
 /* ── Slide meta row — reply banner under the letter ──────────────────────
-   Sits beneath the rendered paper, closes the conversational loop with
-   the recipient's reply. Width capped to match the paper's design width
-   so the banner doesn't stretch beyond the paper edges on wide viewports
-   (paper renders at 480 px design width; without the cap the banner would
-   fill the full ~680 px carousel container and look visually disconnected
-   from the letter above it). margin: 0 auto centers it under the paper. */
+   Width tracks the carousel container so it visually pairs with the
+   scaled paper above. Since the paper now upscales to fill the carousel
+   on wider viewports (up to MAX_SCALE), the banner doesn't need its own
+   cap — the carousel's own max-width is the natural ceiling. margin auto
+   keeps it centered when narrower than the carousel for any reason. */
 .slideMeta {
   width: 100%;
-  max-width: 480px;
   margin: 4px auto 0;
   display: flex;
   align-items: center;

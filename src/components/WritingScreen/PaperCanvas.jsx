@@ -1045,11 +1045,11 @@ export default function PaperCanvas({
               className={styles.letterContent}
               style={letterContentStyle}
             >
-              {/* Empty-state hint. iPad shows it whenever the editor isn't
-                  active and there's no message — the paper has no
-                  contenteditable in that state (so Scribble can't engage),
-                  but we still need a "tap to write" affordance. */}
-              {isEmpty && (!isIpad || !editorActive) && (
+              {/* Empty-state hint — shown whenever the paper has no body
+                  content. On iPad the paper is no longer contenteditable,
+                  so this is a pure visual placeholder; the user enters
+                  text via the Text FAB → TextPopup, not by tapping here. */}
+              {isEmpty && (
                 <motion.div
                   className={styles.emptyHint}
                   style={{ color: inkColor }}
@@ -1068,28 +1068,13 @@ export default function PaperCanvas({
                   />
                 </div>
               )}
-              {/* Body render rules:
-                    - non-iPad: existing BodyText (read-only, styled) when message.
-                    - iPad + editorActive: contenteditable (typing mode). Scribble
-                      can't engage because we only mount this when the user
-                      explicitly entered typing mode (via Text FAB or finger tap).
-                    - iPad + !editorActive: BodyText (read-only, styled) so the
-                      message is visible; pen on paper stays in DrawingLayer
-                      territory because there's no contenteditable to hijack. */}
-              {isIpad && editorActive ? (
-                <div ref={bodyRef} data-paper-body className={styles.body} style={bodyFitStyle || undefined}>
-                  <EditablePaperBody
-                    message={message}
-                    onMessageChange={onMessageChange}
-                    onBlur={onEditorBlur}
-                    resyncKey={editorResyncKey}
-                    inkColor={inkColor}
-                    textSize={textSize}
-                    viewportWidth={viewportWidth}
-                    autoFocus
-                  />
-                </div>
-              ) : message ? (
+              {/* The paper is a pure visual / pen-drawing surface — no
+                  contenteditable mounted, ever. Typing happens in the
+                  TextPopup floating next to the Text FAB; this BodyText
+                  renders whatever the user has typed there with full
+                  markup styling. Empty state falls through to the
+                  emptyHint above. */}
+              {message ? (
                 <div ref={bodyRef} data-paper-body className={styles.body} style={bodyFitStyle || undefined}>
                   <BodyText
                     text={message} inkColor={inkColor}
