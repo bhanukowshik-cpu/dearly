@@ -448,17 +448,21 @@ export default function DrawingLayer({
     if (activeTool === 'eraser') setEraserCursor(null)
   }, [activeTool])
 
-  /* penOnly mode (iPad): attach capture-phase pointer listeners on the
-     parent (paper) element. The root itself stays pointer-events:none so
-     finger taps + mouse pass through to the contenteditable underneath.
+  /* penOnly mode (iPad): wire pen capture on the parent (paper) element.
+     The DrawingLayer root stays pointer-events:none so finger taps + mouse
+     pass through to the contenteditable underneath. Pen pointers are
+     intercepted in capture phase, then setPointerCapture on the paper
+     binds the entire stroke (move + up + cancel) to one element — that's
+     what gives smooth, high-fidelity stroke samples + reliable lift
+     detection. Window-level listeners (previous approach) were dropping
+     samples and missing pointerup occasionally, which made strokes look
+     jagged and could leave the in-flight stroke uncommitted.
 
-     Pen pointers get intercepted, routed into the stroke pipeline, AND we
-     synchronously flip the contenteditable attribute to false for the
-     duration of the stroke. preventDefault() alone isn't enough — iOS
-     Scribble's gesture recognizer engages at the system level before web
-     event listeners can cancel it. Removing contenteditable BEFORE the
-     event bubbles to the target denies Scribble a surface to attach to,
-     and we restore it on pointerup so finger / keyboard typing still works. */
+     iOS Scribble's gesture recognizer engages at the system level before
+     web event handlers can cancel it. Synchronously flipping every
+     contenteditable=true → false in the same handler denies Scribble a
+     surface to bind to. Restored on pointerup so finger / keyboard
+     typing keeps working. */
   useEffect(() => {
     if (!penOnly || !activeTool) return
     const el = rootRef.current
@@ -468,11 +472,9 @@ export default function DrawingLayer({
 
     let pointerActive = false
     let suppressedEditable = null
+    let capturedPointerId = null
 
     function disableScribble() {
-      // Find the contenteditable inside the paper and turn it off so iOS
-      // Scribble has nothing to bind the Pencil stroke to. Tracked so we
-      // can restore exactly the elements we touched on pointerup.
       const editables = paper.querySelectorAll('[contenteditable="true"]')
       if (editables.length === 0) return null
       const list = []
@@ -496,28 +498,41 @@ export default function DrawingLayer({
       e.stopPropagation()
       suppressedEditable = disableScribble()
       pointerActive = true
+      capturedPointerId = e.pointerId
+      // Capture on the paper itself so every subsequent move/up/cancel
+      // for this pointer is dispatched to paper as the target — gives
+      // continuous, coalesced sample delivery even if the pen wanders
+      // outside the paper's hit-test region or over an overlay.
+      try { paper.setPointerCapture(e.pointerId) } catch { /* fine */ }
       beginStroke(e)
     }
     function onMove(e) {
       if (!pointerActive || e.pointerType !== 'pen') return
+      if (capturedPointerId !== null && e.pointerId !== capturedPointerId) return
       extendStroke(e)
     }
     function onUp(e) {
       if (!pointerActive) return
+      if (capturedPointerId !== null && e.pointerId !== capturedPointerId) return
       pointerActive = false
+      try { paper.releasePointerCapture(e.pointerId) } catch { /* fine */ }
+      capturedPointerId = null
       endStroke(e)
       restoreScribble()
     }
 
-    paper.addEventListener('pointerdown', onDown, { capture: true })
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onUp)
+    paper.addEventListener('pointerdown',   onDown, { capture: true })
+    paper.addEventListener('pointermove',   onMove)
+    paper.addEventListener('pointerup',     onUp)
+    paper.addEventListener('pointercancel', onUp)
     return () => {
-      paper.removeEventListener('pointerdown', onDown, { capture: true })
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onUp)
+      paper.removeEventListener('pointerdown',   onDown, { capture: true })
+      paper.removeEventListener('pointermove',   onMove)
+      paper.removeEventListener('pointerup',     onUp)
+      paper.removeEventListener('pointercancel', onUp)
+      if (capturedPointerId !== null) {
+        try { paper.releasePointerCapture(capturedPointerId) } catch { /* fine */ }
+      }
       restoreScribble()
     }
   }, [penOnly, activeTool, beginStroke, extendStroke, endStroke])

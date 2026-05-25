@@ -66,28 +66,31 @@ const PACE_HERO = 360   // ≈ 7 chars × 360ms ≈ 2.5s
 const HERO_PX = { mobile: 56, tablet: 70, desktop: 82 }
 
 // ─── ScaledPaper ──────────────────────────────────────────────────────────
-// Renders PaperCanvas at a FIXED "design" pixel width (the size the editor
-// uses on desktop) and uses CSS transform: scale() to shrink it to fit the
-// available carousel container width. Critical for layout fidelity:
+// Renders PaperCanvas at a FIXED "design" pixel width — the EXACT width the
+// editor renders the paper at on desktop — then CSS-scales it to fit the
+// carousel container. Critical for layout fidelity:
 //
 //   • Without this, PaperCanvas's body text reflows based on container
-//     width — narrower viewport = more text lines = text runs into the
-//     fixed-% positioned stickers / mediaFrames / voice notes the user
-//     placed in the editor. Result: photos sitting on top of paragraphs,
-//     highlights misaligned, stickers crowding voice notes.
-//   • With this, the whole paper composition is rendered at the editor's
-//     size THEN scaled down uniformly. Text wraps identically at every
-//     viewport, photos stay in the same relative spot, highlights track
-//     the words they were drawn on. Visually 1:1 with the editor preview,
-//     just at a smaller absolute size.
+//     width — and stickers / mediaFrames / drawn highlights stay at fixed
+//     % positions. The text moves, the elements don't. Highlights end up
+//     under empty space, photos overlap paragraphs.
+//   • With DESIGN_WIDTH matched to the editor's actual width, text wraps
+//     IDENTICALLY to what the user saw when designing. Highlights, photos,
+//     stickers track the words/positions they were drawn against.
 //
-// DESIGN_WIDTH = 720 matches the writing-screen paper's typical desktop
-// rendering width. A ResizeObserver on the OUTER wrapper picks up the
-// available carousel container width and updates --scale, which is applied
-// to the INNER transform. The outer wrapper's height is also computed
-// (innerHeight × scale) so siblings below collapse correctly — without
-// that, the unscaled inner height would reserve too much space below.
-const DESIGN_WIDTH = 720
+// DESIGN_WIDTH = 480 — measured directly from the editor at desktop viewport
+// (1440px wide → paper renders at 480×360 for postcard 3:2). If you ever
+// change the editor's paper sizing logic, re-measure with:
+//   document.querySelector('[data-paper-canvas]').offsetWidth
+// in the editor and update this constant.
+//
+// Scale is capped at 1.0 — we never zoom IN past the design size. Upscaling
+// CSS-transformed content blurs text (the renderer doesn't re-rasterize at
+// the new size, it just stretches pixels). So on wider carousel containers
+// the paper sits at its natural size with empty margin around it; on
+// narrower containers it scales down uniformly. The wrapper centers the
+// scaled inner horizontally so the paper isn't left-anchored.
+const DESIGN_WIDTH = 480
 
 function ScaledPaper({ children, designWidth = DESIGN_WIDTH }) {
   const wrapRef  = useRef(null)
@@ -115,6 +118,12 @@ function ScaledPaper({ children, designWidth = DESIGN_WIDTH }) {
     return () => ro.disconnect()
   }, [designWidth])
 
+  // Visible width of the scaled paper. Used to position the inner so it's
+  // horizontally centered in the wrapper (the wrapper itself is 100% of
+  // the carousel container, but the paper might be narrower when scale=1
+  // on wide viewports). transform-origin: top center matches this so the
+  // scale collapses toward the centered point, not the left edge.
+  const scaledWidth = designWidth * scale
   return (
     <div
       ref={wrapRef}
@@ -130,6 +139,11 @@ function ScaledPaper({ children, designWidth = DESIGN_WIDTH }) {
           width:           `${designWidth}px`,
           transform:       `scale(${scale})`,
           transformOrigin: 'top left',
+          // Center the (post-scale) paper horizontally in the wrapper.
+          // left: 50% then translateX(-50% of scaled width) doesn't work
+          // because we already use transform: scale; instead use margin-left
+          // on the absolute-positioned inner to push it to center.
+          left: `calc(50% - ${scaledWidth / 2}px)`,
         }}
       >
         {children}
