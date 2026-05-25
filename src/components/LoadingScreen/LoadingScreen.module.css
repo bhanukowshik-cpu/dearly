@@ -324,8 +324,16 @@
 .designerCredit {
   position: fixed;
   bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
+  /* Auto-centre via left/right + margin instead of transform — the
+     framer-motion entry animation also writes to `transform`, which
+     was overriding `translateX(-50%)` and pushing the pill off-centre
+     (clipping on the right at narrow widths). */
+  left: 0;
+  right: 0;
+  margin-left: auto;
+  margin-right: auto;
+  width: fit-content;
+  max-width: calc(100vw - 24px);
   z-index: 4;
   display: inline-flex;
   align-items: center;
@@ -343,8 +351,8 @@
   white-space: nowrap;
   user-select: none;
   pointer-events: none;
-  /* Subtle floor-shadow so it lifts off dark backgrounds without feeling heavy */
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  /* No shadow — clean glass look. */
+  box-shadow: none;
 }
 
 .designerCreditLabel {

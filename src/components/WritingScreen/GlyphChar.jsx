@@ -18,7 +18,7 @@ import { getScaledMetrics, typographyMetadata } from '../../lib/typographyMetada
 // sizes outside the sm/md/lg token scale — used by AnimatedGlyphText so
 // hero/display text gets per-glyph advance widths instead of the legacy
 // fixed-0.68em-per-char fallback (which spaces characters way too wide).
-export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = 'inherit', size = null, viewportWidth = null, customMetrics = null }) {
+export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = 'inherit', size = null, viewportWidth = null, customMetrics = null, strokeSpeedMultiplier = 1 }) {
   const containerRef = useRef(null)
   const glyphSvg = hasGlyph(ch) ? getGlyphSvg(ch) : null
   // Metric resolution priority:
@@ -93,13 +93,21 @@ export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = '
       // animation is clearly visible per character. 0.18s draw + 0.09s
       // stagger gives a multi-stroke letter ~0.4–0.6s of animation,
       // visible even when typing at moderate pace.
-      path.style.transition = `stroke-dashoffset 0.18s linear ${i * 0.09}s`
+      //
+      // strokeSpeedMultiplier scales BOTH the per-stroke draw and the
+      // inter-stroke stagger by the same factor — values > 1 make the
+      // letter visibly write more slowly (used for hero/signature text);
+      // 1 = baseline (used everywhere else). Scaling both keeps the
+      // stagger : draw ratio constant so the writing rhythm stays the same.
+      const drawSec = (0.18 / strokeSpeedMultiplier).toFixed(3)
+      const lagSec  = ((i * 0.09) / strokeSpeedMultiplier).toFixed(3)
+      path.style.transition = `stroke-dashoffset ${drawSec}s linear ${lagSec}s`
       path.style.strokeDashoffset = '0'
     })
 
     // Reset on cleanup so StrictMode's double-invoke re-triggers the animation
     return () => { container.innerHTML = '' }
-  }, [svgForRender, size])
+  }, [svgForRender, size, strokeSpeedMultiplier])
 
   // Caveat fallback for punctuation, emoji, unknown chars
   if (!glyphSvg) {

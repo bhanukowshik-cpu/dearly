@@ -8,7 +8,7 @@
 
 .wrap {
   flex-shrink: 0;
-  width: 280px;          /* match the left panel width */
+  width: 280px;          /* match the left panel width on desktop */
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -22,6 +22,23 @@
   position: sticky;
   top: 0;
   align-self: flex-start;
+}
+
+/* Mobile + iPad portrait (matches isMobile in WritingScreen): the sidebar
+   is hosted inside the Style tab panel and should scroll with the page
+   like normal content — not stick to the top. Fills the full width so
+   the controls breathe at small viewports. */
+@media (max-width: 599px),
+       (max-width: 1180px) and (orientation: portrait) {
+  .wrap {
+    width: 100%;
+    align-self: stretch;
+    /* Override the desktop sticky behavior — on mobile the user should
+       be able to scroll past the paper controls to reach the stickers
+       grid, so the panel moves naturally with the page. */
+    position: static;
+    background: rgba(255, 255, 255, 0.045);
+  }
 }
 
 .section {

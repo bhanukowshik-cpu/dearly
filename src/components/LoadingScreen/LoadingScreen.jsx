@@ -1,7 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { TegakiRenderer } from 'tegaki/react'
-import { font } from '../../lib/tegakiFont'
 import AnimatedGlyphText from '../WritingScreen/AnimatedGlyphText'
 import { StarCluster } from '../WritingScreen/handDrawnStickers'
 import VideoBackground from '../VideoBackground/VideoBackground'
@@ -37,7 +35,9 @@ const reducedMotion =
 // the total reveal under ~12s without feeling rushed. The actual SVG-stroke
 // draw animation overlaps with the next character's reveal, so the smaller
 // these numbers, the more "fluid pen" the handwriting feels.
-const PACE_HERO     = 180   // "Dearly," ≈ 7 chars × 180ms ≈ 1.25s
+const PACE_HERO     = 360   // "Dearly," ≈ 7 chars × 360ms ≈ 2.5s
+                            // (slowed 2× from 180ms so the hero signature
+                            //  reads as deliberate, not hurried)
 const PACE_GREETING = 110   // "Hi there," ≈ 9 chars × 110ms ≈ 1s
 const PACE_BODY     = 38    // long paragraphs need to feel briskly written
 
@@ -59,18 +59,6 @@ const BODY_LINE_1 = "My name is Bhanu — I obsess over making experiences more 
 const BODY_LINE_2 = "I built Dearly for moments that deserve more than a text. Send someone who matters a note they'll actually keep."
 const BODY_LINE_3 = "With passion, Bhanu Kowshik"
 
-// Caveat plain-text style — used as the cinematic fallback when Tegaki
-// silently fails (Safari occasionally clears the canvas mid-animation).
-const caveatStyle = (size, color, weight = 700) => ({
-  fontFamily: "'Caveat', cursive",
-  fontSize:   size,
-  color,
-  fontWeight: weight,
-  whiteSpace: 'nowrap',
-  lineHeight: 1,
-  display:    'inline-block',
-})
-
 export default function LoadingScreen({ onCta = () => {} }) {
   // Sequencing — each milestone gates the next so writes never overlap.
   //   writeStarted → kicks off "Dearly," hero
@@ -83,11 +71,6 @@ export default function LoadingScreen({ onCta = () => {} }) {
   const [greetingDone,  setGreetingDone]  = useState(reducedMotion)
   const [bodyStage,     setBodyStage]     = useState(reducedMotion ? 3 : 0) // 0..3 chained reveals
 
-  // Safari quirks for the Tegaki hero — keep the same safety machinery the
-  // original LoadingScreen had so "Dearly," never silently disappears.
-  const [heroFallback, setHeroFallback] = useState(reducedMotion)
-  const heroFinished = useRef(reducedMotion)
-
   // Kick off the Dearly, handwriting after a beat (skip if reduced motion)
   useEffect(() => {
     if (reducedMotion) return
@@ -95,16 +78,14 @@ export default function LoadingScreen({ onCta = () => {} }) {
     return () => clearTimeout(id)
   }, [])
 
-  // Safari fallback timer — Tegaki's onComplete can silently never fire if
-  // the canvas gets cleared by an in-flight layout shift. After 2.5s force
-  // writeDone so the card and CTA still appear, and flip to plain Caveat
-  // text so "Dearly," is visible even if the animation never landed.
+  // Safety floor — if AnimatedGlyphText's onComplete is delayed (e.g. a
+  // missing glyph stalls the per-stroke draw) force writeDone so the card
+  // still appears. Length-aware: 7 chars × PACE_HERO (360ms) ≈ 2.5s, plus
+  // ~1s for the final char's slowed stroke draw + buffer. Bumped to 6s
+  // to give the 2× slowdown its full runtime before forcing the gate.
   useEffect(() => {
     if (reducedMotion || writeDone) return
-    const id = setTimeout(() => {
-      if (!heroFinished.current) setHeroFallback(true)
-      setWriteDone(true)
-    }, 2500)
+    const id = setTimeout(() => setWriteDone(true), 6000)
     return () => clearTimeout(id)
   }, [writeDone])
 
@@ -150,27 +131,17 @@ export default function LoadingScreen({ onCta = () => {} }) {
       >
         <div className={styles.heroTitle}>
           {writeStarted && (
-            heroFallback ? (
-              <span style={caveatStyle('clamp(52px, 7vw, 82px)', '#ffffff')}>
-                Dearly,
-              </span>
-            ) : (
-              <TegakiRenderer
-                font={font}
-                onComplete={() => { heroFinished.current = true; setWriteDone(true) }}
-                time={{ mode: 'uncontrolled', duration: 1.5 }}
-                style={{
-                  fontSize:   'clamp(52px, 7vw, 82px)',
-                  color:      '#ffffff',
-                  fontWeight: 700,
-                  whiteSpace: 'nowrap',
-                  lineHeight: 1,
-                  willChange: 'transform',
-                }}
-              >
-                Dearly,
-              </TegakiRenderer>
-            )
+            <AnimatedGlyphText
+              text="Dearly,"
+              fontSizePx={HERO_PX}
+              lineHeightMultiplier={1.05}
+              fontWeight={700}
+              inkColor="#ffffff"
+              msPerChar={PACE_HERO}
+              strokeSpeedMultiplier={0.5}
+              typewriter={!reducedMotion}
+              onComplete={() => setWriteDone(true)}
+            />
           )}
         </div>
 

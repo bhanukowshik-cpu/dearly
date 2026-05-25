@@ -117,6 +117,9 @@ export default function AnimatedGlyphText({
   onComplete   = null,
   className    = '',
   style        = null,
+  // Scales each glyph's per-stroke draw + stagger. >1 = visibly slower
+  // writing motion (used for hero/signature text); 1 = baseline.
+  strokeSpeedMultiplier = 1,
 }) {
   // Track viewport width so the responsive fontSizePx form updates on resize.
   // Cheap — same pattern PaperCanvas uses for its breakpoint switch.
@@ -187,6 +190,7 @@ export default function AnimatedGlyphText({
     customMetrics,
     viewportWidth,
     wordSpacingPx,
+    strokeSpeedMultiplier,
   })
 
   return (
@@ -220,7 +224,7 @@ export default function AnimatedGlyphText({
 //     between groups as a break-opportunity for the browser to wrap on.
 //   • Each '\n' becomes a <br/>.
 function renderWordGroups(chars, opts) {
-  const { inkColor, fontWeight, fontSize, size, customMetrics, viewportWidth, wordSpacingPx } = opts
+  const { inkColor, fontWeight, fontSize, size, customMetrics, viewportWidth, wordSpacingPx, strokeSpeedMultiplier } = opts
   const out = []
   let word = []
   const flush = () => {
@@ -247,6 +251,7 @@ function renderWordGroups(chars, opts) {
             size={size}
             viewportWidth={viewportWidth}
             customMetrics={customMetrics}
+            strokeSpeedMultiplier={strokeSpeedMultiplier}
           />
         ))}
       </span>

@@ -81,17 +81,16 @@
   gap: 0;
 }
 
-/* Mobile-only attribution row — sits at the very bottom of the mobile
-   stage, just below the tab bar, as a quiet footer credit.
-   10 px of breathing room from the screen edge, plus the iOS safe-area
-   inset so the pill clears the home indicator on notched phones. */
+/* Mobile-only attribution row — sits just ABOVE the bottom tab bar
+   with 10 px of breathing room between the pill and the tabs. The tab
+   bar itself keeps its own home-indicator safe-area inset since it's
+   the bottom-most element again. */
 .designedByRow {
   position: relative;
   z-index: 10;
   display: flex;
   justify-content: center;
-  padding-top: 10px;
-  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  padding: 10px 0;
   flex-shrink: 0;
 }
 
@@ -103,16 +102,22 @@
   align-items: baseline;
   gap: 6px;
   padding: 6px 14px;
-  background: rgba(255, 255, 255, 0.10);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  /* Glassmorphic: frosted backdrop blur, semi-transparent fill, soft
+     white edge highlight, and a subtle drop shadow for depth.
+     -webkit prefix kept for older Safari that hadn't unprefixed yet. */
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 999px;
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 11px;
   line-height: 1;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.78);
   white-space: nowrap;
   user-select: none;
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.25);
+  /* No shadow — clean flat glassmorphic look. */
+  box-shadow: none;
 }
 .designedByPill_label {
   font-weight: 400;
@@ -609,10 +614,9 @@
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-top: 1px solid rgba(255, 255, 255, 0.14);
-  /* Safe-area handling moved to .designedByRow below — the pill sits
-     under the tab bar now, so it's the element that needs to clear
-     the home indicator. Keeping a safe-area pad here too would double
-     the bottom spacing. */
+  /* Safe area for the home indicator — tab bar is the bottom-most
+     element again now that the pill sits above it. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .mobileTabBtn {

@@ -16,7 +16,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { PEN_COLORS, HIGHLIGHTER_COLORS } from '../../lib/drawingPresets'
 import { PenSvg, HighlighterSvg, EraserSvg } from './drawingIcons'
-import { PAPER_TYPES, COLOR_SWATCHES } from './stylePresets'
 import styles from './WriteToolbar.module.css'
 
 function ToolBtn({ tool, label, active, onClick, children }) {
@@ -51,22 +50,6 @@ function Swatch({ color, active, onClick, ariaLabel }) {
   )
 }
 
-/* Zigzag icon kept inline (small + only used here). Mirrors the look from
-   CanvasSidebar so the affordance reads the same across surfaces. */
-function IconZigzag({ size = 18 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M3 17l3-4 3 4 3-4 3 4 3-4 3 4"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
 export default function WriteToolbar({
   drawingTool,                  // 'pen' | 'highlighter' | 'eraser' | null
   onChangeDrawingTool,
@@ -74,8 +57,6 @@ export default function WriteToolbar({
   onChangePenColor,
   highlighterColor,
   onChangeHighlighterColor,
-  paperConfig,
-  onChangePaper,
 }) {
   // The pen is the implicit default on iPad — but we still surface the radio
   // so the user can switch. Treat null as "pen" for active-state UI.
@@ -87,17 +68,6 @@ export default function WriteToolbar({
   const colors = isHighlighter ? HIGHLIGHTER_COLORS : PEN_COLORS
   const activeColor = isHighlighter ? highlighterColor : penColor
   const onPickColor = isHighlighter ? onChangeHighlighterColor : onChangePenColor
-
-  const { type = 'minimal', color, showZigzag = false } = paperConfig ?? {}
-
-  function setPaper(patch) {
-    onChangePaper?.({ ...paperConfig, ...patch })
-  }
-
-  function pickPaperColor(value) {
-    // Switching to a color tint implicitly switches paper type to 'color'.
-    setPaper({ type: 'color', color: value })
-  }
 
   return (
     <motion.div
@@ -148,30 +118,6 @@ export default function WriteToolbar({
         )}
       </AnimatePresence>
 
-      <span className={styles.divider} aria-hidden />
-
-      {/* ── Paper toggles: zigzag + color tint ──────────────────────────── */}
-      <div className={styles.section}>
-        <button
-          type="button"
-          className={`${styles.toggleBtn} ${showZigzag ? styles.toggleBtnActive : ''}`}
-          onClick={() => setPaper({ showZigzag: !showZigzag })}
-          aria-pressed={showZigzag}
-          aria-label="Toggle deckle edge"
-          title="Deckle edge"
-        >
-          <IconZigzag />
-        </button>
-        {COLOR_SWATCHES.map(swatch => (
-          <Swatch
-            key={swatch.id}
-            color={swatch.value}
-            active={type === 'color' && color === swatch.value}
-            onClick={() => pickPaperColor(swatch.value)}
-            ariaLabel={`Paper ${swatch.label}`}
-          />
-        ))}
-      </div>
     </motion.div>
   )
 }

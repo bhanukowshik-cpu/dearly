@@ -2,11 +2,18 @@
    Sits just above the bottom tab nav with inset padding on left/right/bottom.
    Hugged content width — flex inline so the pill is only as wide as needed. */
 
+/* Centering: use left/right 0 + margin auto on a fit-content width so the
+   toolbar is always horizontally centered regardless of its content size
+   (translateX(-50%) approach drifted when the toolbar got wider than half
+   the viewport on narrower iPads). */
 .root {
   position: absolute;
   bottom: calc(100% + 12px); /* sit above the nav with breathing room */
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: fit-content;
+  max-width: calc(100vw - 32px);
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -19,12 +26,8 @@
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
   pointer-events: auto;
   z-index: 30;
-  max-width: calc(100vw - 32px);
-  overflow-x: auto;
-  scrollbar-width: none;
   white-space: nowrap;
 }
-.root::-webkit-scrollbar { display: none; }
 
 /* Each grouped cluster (tool radio / colors / paper toggles) */
 .section {
@@ -41,34 +44,40 @@
   flex-shrink: 0;
 }
 
-/* ── Tool buttons (pen / highlighter / eraser) ─────────────────────────── */
+/* ── Tool buttons (pen / highlighter / eraser) ─────────────────────────────
+   Each tool sits inside a soft white tile so the hand-drawn pen/highlighter
+   illustrations read clearly against the dark toolbar background. Active
+   tool lifts and brightens — matches Procreate's tray affordance. */
 
 .toolBtn {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: none;
-  background: transparent;
-  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 12px;
   cursor: pointer;
   padding: 0;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.14s ease, transform 0.14s ease;
+  transition: background 0.14s ease, transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
   position: relative;
   overflow: visible;
 }
 .toolBtn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: #ffffff;
+  border-color: rgba(255, 255, 255, 0.24);
 }
 .toolBtnActive {
-  background: rgba(255, 255, 255, 0.14);
+  background: #ffffff;
+  border-color: rgba(255, 255, 255, 0.55);
   transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 .toolIcon {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   display: block;
 }
 
@@ -100,29 +109,3 @@
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.10);
 }
 
-/* ── Toggle button (zigzag) ────────────────────────────────────────────── */
-
-.toggleBtn {
-  width: 36px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: transparent;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.72);
-  cursor: pointer;
-  padding: 0;
-  -webkit-tap-highlight-color: transparent;
-  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
-}
-.toggleBtn:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.92);
-}
-.toggleBtnActive {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.32);
-  color: #ffffff;
-}
