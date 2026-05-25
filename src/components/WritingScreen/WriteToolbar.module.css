@@ -137,6 +137,38 @@
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.10);
 }
 
+/* ── Thickness picker — three dots of varying sizes ─────────────────────
+   Active dot uses the live ink color so the user sees a preview of what
+   their next stroke will look like at that thickness. */
+.thickBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.14s ease, border-color 0.14s ease, transform 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.thickBtn:hover {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.36);
+}
+.thickBtnActive,
+.thickBtnActive:hover {
+  background: #ffffff;
+  border-color: #ffffff;
+}
+.thickDot {
+  border-radius: 50%;
+  display: block;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.10);
+}
+
 /* Drop the align-self override I added in the previous round — both
    tiles + swatches are center-aligned via .root and .section's
    align-items: center now. */

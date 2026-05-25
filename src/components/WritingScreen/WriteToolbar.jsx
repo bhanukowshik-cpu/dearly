@@ -50,6 +50,27 @@ function Swatch({ color, active, onClick, ariaLabel }) {
   )
 }
 
+/* Thickness picker — 3 dots of varying sizes mirror what's selected.
+   Active dot uses the current ink color so the user gets a live preview
+   of "what my next stroke looks like at this thickness." */
+function ThicknessBtn({ id, label, active, dotSize, dotColor, onClick }) {
+  return (
+    <button
+      type="button"
+      className={`${styles.thickBtn} ${active ? styles.thickBtnActive : ''}`}
+      onClick={() => onClick(id)}
+      aria-pressed={active}
+      aria-label={label}
+      title={label}
+    >
+      <span
+        className={styles.thickDot}
+        style={{ width: dotSize, height: dotSize, background: dotColor }}
+      />
+    </button>
+  )
+}
+
 export default function WriteToolbar({
   drawingTool,                  // 'pen' | 'highlighter' | 'eraser' | null
   onChangeDrawingTool,
@@ -57,6 +78,8 @@ export default function WriteToolbar({
   onChangePenColor,
   highlighterColor,
   onChangeHighlighterColor,
+  strokeThickness = 'md',
+  onChangeStrokeThickness,
 }) {
   // The pen is the implicit default on iPad — but we still surface the radio
   // so the user can switch. Treat null as "pen" for active-state UI.
@@ -117,6 +140,30 @@ export default function WriteToolbar({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Thickness picker (hidden for eraser) ────────────────────────── */}
+      {!isEraser && (
+        <>
+          <span className={styles.divider} aria-hidden />
+          <div className={styles.section} role="radiogroup" aria-label="Stroke thickness">
+            <ThicknessBtn
+              id="sm" label="Thin" active={strokeThickness === 'sm'}
+              dotSize={6} dotColor={activeColor}
+              onClick={onChangeStrokeThickness}
+            />
+            <ThicknessBtn
+              id="md" label="Medium" active={strokeThickness === 'md'}
+              dotSize={10} dotColor={activeColor}
+              onClick={onChangeStrokeThickness}
+            />
+            <ThicknessBtn
+              id="lg" label="Thick" active={strokeThickness === 'lg'}
+              dotSize={16} dotColor={activeColor}
+              onClick={onChangeStrokeThickness}
+            />
+          </div>
+        </>
+      )}
 
     </motion.div>
   )

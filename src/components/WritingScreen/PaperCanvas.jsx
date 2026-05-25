@@ -722,6 +722,7 @@ export default function PaperCanvas({
      body underneath can still receive focus and text input. */
   drawingPenOnly = false,
   drawingColor = '#1F2024',
+  drawingThickness = 'md',
   onAddStroke = null,
   onEraseStrokes = null,
 }) {
@@ -1147,6 +1148,7 @@ export default function PaperCanvas({
               activeTool={drawingTool}
               penOnly={drawingPenOnly}
               toolColor={drawingColor}
+              thickness={drawingThickness}
               strokes={strokes}
               toolFilter="pen"
               onStrokeComplete={onAddStroke ?? (() => {})}

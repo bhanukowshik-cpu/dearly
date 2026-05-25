@@ -24,6 +24,7 @@ import { exportNoteToJson, copyToClipboard, downloadAsFile, buildExportFilename,
 import {
   DEFAULT_PEN_COLOR,
   DEFAULT_HIGHLIGHTER_COLOR,
+  DEFAULT_STROKE_THICKNESS,
 } from '../../lib/drawingPresets'
 /* Top-bar + mobile-tab icons — sourced from editorIcons.jsx so the whole
    chrome reads as hand-drawn. Mobile bottom nav mirrors the desktop
@@ -162,6 +163,9 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   const [drawingTool,        setDrawingTool]        = useState('pen') // 'pen' | 'highlighter' | 'eraser' | null
   const [penColor,           setPenColor]           = useState(DEFAULT_PEN_COLOR)
   const [highlighterColor,   setHighlighterColor]   = useState(DEFAULT_HIGHLIGHTER_COLOR)
+  /* Stroke thickness — 'sm' | 'md' | 'lg'. Affects new strokes only;
+     persisted strokes carry their own thickness. */
+  const [strokeThickness,    setStrokeThickness]    = useState(DEFAULT_STROKE_THICKNESS)
 
   /* iPad zoom — applies a CSS transform: scale() on the paper container.
      Pinch-to-zoom on the paper container shares this state. */
@@ -1067,6 +1071,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
          so the paper stays writable two ways. */
       drawingPenOnly={isIpad && activeTool !== 'draw'}
       drawingColor={drawingTool === 'highlighter' ? highlighterColor : penColor}
+      drawingThickness={strokeThickness}
       onAddStroke={addStroke}
       onEraseStrokes={eraseStrokes}
     />
@@ -1380,6 +1385,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
                     onChangePenColor={setPenColor}
                     highlighterColor={highlighterColor}
                     onChangeHighlighterColor={setHighlighterColor}
+                    strokeThickness={strokeThickness}
+                    onChangeStrokeThickness={setStrokeThickness}
                   />
                 )}
               </AnimatePresence>

@@ -19,6 +19,7 @@ import { getStroke } from 'perfect-freehand'
 import inkAudio from '../../audio/inkSoundManager'
 import {
   TOOL_CONFIG,
+  STROKE_THICKNESS,
   strokeOutlineToSvgPath,
 } from '../../lib/drawingPresets'
 import styles from './DrawingLayer.module.css'
@@ -40,7 +41,11 @@ function readPressure(e) {
 function renderStrokePath(stroke, paperW, paperH) {
   const cfg = TOOL_CONFIG[stroke.tool]
   if (!cfg || !stroke.points.length) return ''
-  const size = paperW * cfg.sizeRatio
+  // Strokes record their thickness key at creation time (defaulting to
+  // 'md') so historical strokes don't visually change when the user
+  // picks a different thickness for new strokes.
+  const thicknessMul = STROKE_THICKNESS[stroke.thickness] ?? STROKE_THICKNESS.md
+  const size = paperW * cfg.sizeRatio * thicknessMul
   // Denormalise [0..1] → pixel coords for getStroke().
   const inputs = stroke.points.map(p => [p.x * paperW, p.y * paperH, p.pressure])
   const outline = getStroke(inputs, { ...cfg.freehand, size })
@@ -57,6 +62,10 @@ export default function DrawingLayer({
      pointer types are never hit-tested onto the layer. */
   penOnly           = false,
   toolColor         = '#1F2024',
+  /* 'sm' | 'md' | 'lg' — multiplies the tool's base sizeRatio for new
+     strokes. Persisted strokes record their own thickness so the choice
+     only affects future strokes (existing ink keeps its width). */
+  thickness         = 'md',
   strokes           = [],
   onStrokeComplete  = () => {},
   onEraseStrokes    = () => {},      // called with array of stroke ids to remove
@@ -214,10 +223,11 @@ export default function DrawingLayer({
     const t = e.timeStamp
 
     inFlightRef.current = {
-      id:    `stk-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      tool:  activeTool,
-      color: toolColor,
-      points: [{ x, y, pressure, t }],
+      id:        `stk-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      tool:      activeTool,
+      color:     toolColor,
+      thickness: thickness,  // sm | md | lg → frozen onto this stroke
+      points:    [{ x, y, pressure, t }],
     }
     lastSampleRef.current = { x: e.clientX, y: e.clientY, t }
 
@@ -242,7 +252,7 @@ export default function DrawingLayer({
       tool:    activeTool,
       opacity: TOOL_CONFIG[activeTool]?.opacity ?? 1,
     })
-  }, [activeTool, toolColor])
+  }, [activeTool, toolColor, thickness, penOnly])
 
   const extendStroke = useCallback((e) => {
     const el = rootRef.current

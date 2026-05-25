@@ -80,6 +80,19 @@ export const ERASER = {
 
 export const TOOL_CONFIG = { pen: PEN, highlighter: HIGHLIGHTER, eraser: ERASER }
 
+/**
+ * Thickness multipliers applied to TOOL_CONFIG[tool].sizeRatio when
+ * rendering a stroke. 'md' = 1×, 'sm' is thinner, 'lg' is thicker.
+ * Same scale used for pen and highlighter (each tool's natural width
+ * just gets scaled). The eraser radius is not multiplied.
+ */
+export const STROKE_THICKNESS = {
+  sm: 0.65,
+  md: 1.00,
+  lg: 1.55,
+}
+export const DEFAULT_STROKE_THICKNESS = 'md'
+
 export const DEFAULT_PEN_COLOR         = PEN_COLORS[0]
 export const DEFAULT_HIGHLIGHTER_COLOR = HIGHLIGHTER_COLORS[0]
 
