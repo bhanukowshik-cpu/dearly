@@ -117,6 +117,20 @@
   padding: clamp(16px, 5%, 32px) clamp(28px, 9%, 52px);
   overflow: hidden;
   gap: 12px;
+
+  /* ── Ruler alignment contract ─────────────────────────────────────────
+     The repeating-gradient ruler is painted as a background on THIS
+     element. PaperCanvas measures text baselines relative to this
+     element's bounding rect and computes backgroundPositionY assuming:
+       • background-origin = padding-box (so gradient (0,0) = our top)
+       • background-repeat = repeat (so the tile pattern continues across
+         the whole letterContent area)
+     These are the browser defaults, but pinning them explicitly defends
+     against any global reset stylesheet that flips them. Without this
+     guarantee, alignment would drift silently on the affected browsers.
+     ──────────────────────────────────────────────────────────────────── */
+  background-origin: padding-box;
+  background-repeat: repeat;
 }
 
 /* ── Empty hint ──────────────────────────────────────────────────────────── */

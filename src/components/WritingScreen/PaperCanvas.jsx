@@ -630,12 +630,17 @@ function computeRulerColors(hexColor) {
 }
 
 // Builds the repeating-linear-gradient with a single 1px baseline rule.
-// Line sits at the end of the period; the rulerOffset positions it to the text baseline.
+//
+// IMPORTANT (alignment invariant): the rule sits at the TOP of each tile
+// (pixels 0 → 1). That way `backgroundPositionY: P` places the painted line
+// at canvas-y = P exactly — the offset math is just (baseline + lineDrop)
+// mod period, no period-1 / off-by-one bookkeeping. The previous "line at
+// end of period" formulation needed a +1 correction that was easy to forget
+// when tuning lineDrop and could land sub-pixel-off on fractional periods
+// (tablet/mobile font scaling produces 25.5px, 14.4px, etc).
 function buildRulerGradient(color, m) {
   const { computedLineHeight: period } = m
-  const end = period.toFixed(2)
-  const start = (period - 1).toFixed(2)
-  return `repeating-linear-gradient(to bottom, transparent 0px, transparent ${start}px, ${color} ${start}px, ${color} ${end}px)`
+  return `repeating-linear-gradient(to bottom, ${color} 0px, ${color} 1px, transparent 1px, transparent ${period.toFixed(3)}px)`
 }
 
 function computeColorInk(hexColor) {
@@ -765,46 +770,103 @@ export default function PaperCanvas({
     const paper = paperRef.current
     if (!paper || !showRuler) return
 
+    // Cache the last raw float we computed so sub-pixel jitter from layout
+    // recalcs (typical on responsive paper) doesn't flip-flop the rounded
+    // px value back and forth. We only re-set state when the rounded
+    // offset would actually change → avoids a render loop on resize.
+    let lastRounded = -Infinity
+
     function measure() {
-      const pr = paper.getBoundingClientRect()
-      const bd = bodyRef.current
-      if (!bd || pr.height === 0) return
+      const paperEl = paperRef.current
+      const bd      = bodyRef.current
+      if (!paperEl || !bd) return
+      const pr = paperEl.getBoundingClientRect()
+      if (pr.height === 0) return
+
+      // Baseline must be measured in the SAME coordinate space the ruler
+      // background paints in. The gradient lives on `.letterContent` (the
+      // body's parent) with `padding: clamp(16px, 5%, 32px) ...` — a top
+      // padding that can be ~one full ruler period. We pin the CSS to
+      // `background-origin: padding-box` explicitly, so gradient (0,0) =
+      // letterContent's padding-box top = its bounding-rect top (no border).
+      // Measuring against paperRect would bake the padding into the offset
+      // and the rulers would drift by ~one row.
+      const lc = bd.parentElement.getBoundingClientRect()
 
       const { computedLineHeight: period, scaledBaselineY: blY, scaledHeight } = getScaledMetrics(textSize, viewportWidth)
+      if (!isFinite(period) || period <= 0) return
 
       // Prefer direct glyph measurement: find the first rendered glyph span,
-      // measure its top from the paper, add scaledBaselineY → exact baseline.
-      // data-glyph is set on every glyph container in GlyphChar — explicit, browser-independent.
+      // measure its top from letterContent, add scaledBaselineY → exact baseline.
+      // data-glyph is set on every glyph container in GlyphChar — explicit,
+      // browser-independent (works in Safari/Firefox/Chrome the same way).
       const firstGlyph = bd.querySelector('span[data-glyph]')
       let baseline
       if (firstGlyph) {
-        baseline = firstGlyph.getBoundingClientRect().top - pr.top + blY
+        baseline = firstGlyph.getBoundingClientRect().top - lc.top + blY
       } else {
-        // Fallback for empty paper: body top + halfLeading + scaledBaselineY
-        const halfLeading = (period - scaledHeight) / 2
-        baseline = bd.getBoundingClientRect().top - pr.top + blY + halfLeading
+        // Empty-paper fallback. Glyphs use verticalAlign: 'top' (see
+        // GlyphChar) so they sit at the TOP of the line-box, not centered.
+        // halfLeading would have shifted the predicted baseline down by
+        // (period - scaledHeight)/2 — but with vertical-align: top that
+        // distance is 0. Drop the term entirely so empty/non-empty paths
+        // predict the same baseline.
+        baseline = bd.getBoundingClientRect().top - lc.top + blY
       }
 
-      // Gradient line occupies period-1 → period within each tile, so the
-      // painted line ends up at (baseline + lineDrop) in body coords.
-      //
       // We deliberately drop the line a couple px into the upper descender
       // area instead of placing it exactly on the baseline. At larger sizes
-      // the glyph strokes are 2–3px thick on screen, and their anti-aliasing
-      // wipes out a 1px, ~10%-alpha line drawn directly on the baseline (the
-      // reason the ruler appeared to "disappear" under large text). Scaling
+      // the glyph strokes are 2–3 px thick on screen, and their anti-aliasing
+      // wipes out a 1 px, ~10%-alpha line drawn directly on the baseline
+      // (the reason the ruler used to "disappear" under large text). Scaling
       // the drop with font size keeps the line clear of stroke endings at
       // every size while still hugging the baseline visually.
       const descentHeight = scaledHeight - blY
       const lineDrop = Math.max(1, Math.min(descentHeight * 0.35, scaledHeight * 0.085))
-      const raw = ((baseline + lineDrop) % period + period) % period
-      setRulerOffset(Math.round(raw))
+
+      // Gradient line sits at TOP of each tile (0 → 1 px), so the offset
+      // formula is just (baseline + lineDrop) mod period. No off-by-one.
+      const raw     = ((baseline + lineDrop) % period + period) % period
+      const rounded = Math.round(raw)
+      if (rounded === lastRounded) return
+      lastRounded = rounded
+      setRulerOffset(rounded)
     }
 
-    const ro = new ResizeObserver(measure)
+    // Re-measure on layout changes from any of three independent sources:
+    //   1. `paper` resize — viewport changes, paper aspect-ratio shifts
+    //   2. `letterContent` resize — its `clamp(... 5%, ...)` padding
+    //      can change without paper resizing in some flex/grid contexts
+    //   3. `body` resize — message wrap / greeting growth pushes body around
+    // All three feed the same measure() — cheap, idempotent.
+    const lcEl = bodyRef.current?.parentElement
+    const bdEl = bodyRef.current
+    const ro   = new ResizeObserver(measure)
     ro.observe(paper)
+    if (lcEl) ro.observe(lcEl)
+    if (bdEl) ro.observe(bdEl)
+
+    // First measure runs after fonts are ready — Caveat ships via @font-face
+    // and arrives async. If we measure before it loads, the browser lays out
+    // with the fallback metric, then re-lays once Caveat arrives, leaving the
+    // ruler one round behind. document.fonts.ready resolves immediately if
+    // fonts are already loaded, so there's no penalty when cached.
+    let cancelled = false
+    const runWhenReady = () => {
+      if (cancelled) return
+      // rAF after font load → gives layout a frame to settle before we read.
+      requestAnimationFrame(() => { if (!cancelled) measure() })
+    }
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      document.fonts.ready.then(runWhenReady)
+    } else {
+      runWhenReady()
+    }
+    // And a synchronous measure for the immediate case (fonts already cached,
+    // covers the no-FontFaceSet-API path too).
     measure()
-    return () => ro.disconnect()
+
+    return () => { cancelled = true; ro.disconnect() }
   }, [showRuler, liveRecipient, hasMessage, textSize, viewportWidth]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scale letter content to fit within the fixed paper dimensions.

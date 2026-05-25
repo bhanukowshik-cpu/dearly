@@ -81,6 +81,45 @@
   gap: 0;
 }
 
+/* Mobile-only attribution row — a thin band right under the top bar that
+   centers the pill. Doesn't compete with the Preview/Share buttons for
+   horizontal space, so the copy can stay readable. */
+.designedByRow {
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px 4px;
+  flex-shrink: 0;
+}
+
+/* Inter for the type — easier to read at small sizes than Caveat, and
+   the "Designed by … The thoughtful designer" copy is meant to feel
+   like a credit, not the brand wordmark. */
+.designedByPill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.72);
+  white-space: nowrap;
+  user-select: none;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.25);
+}
+.designedByPill_label {
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+.designedByPill_name {
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.01em;
+}
+
 .topBarRight {
   flex: 1;
   display: flex;
@@ -604,11 +643,15 @@
 }
 
 .mobileTabLabel {
-  font-family: 'Inter', sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  /* Caveat in sentence case so the bottom nav matches the desktop rail's
+     hand-drawn feel. Inter uppercase reads more legibly at 10 px, but the
+     trade-off costs the brand vibe — preferring Caveat at a size large
+     enough to be readable. */
+  font-family: 'Caveat', cursive;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .mobileTabBtnActive {

@@ -117,7 +117,14 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   const [isIpad,             setIsIpad]             = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 600px) and (max-width: 1180px) and (orientation: portrait)').matches : false
   )
-  const [activeTool,         setActiveTool]         = useState('people')
+  /* iPad defaults to Write (so the user lands ready to type/scribble on the
+     paper); everything else defaults to To/From so the first thing you see
+     is the recipient picker. */
+  const [activeTool,         setActiveTool]         = useState(() => {
+    if (typeof window === 'undefined') return 'people'
+    const ipadInit = window.matchMedia('(min-width: 600px) and (max-width: 1180px) and (orientation: portrait)').matches
+    return ipadInit ? 'text' : 'people'
+  })
 
   // ── Drawing layer state ────────────────────────────────────────────────
   // Strokes are vector records — the SVG path is derived on the fly so we
@@ -182,12 +189,6 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     }
   }, [])
 
-  /* If the user lands on iPad mode while activeTool is 'text', snap to a
-     valid tool — the Write tab doesn't exist on iPad because the paper itself
-     is the text surface. */
-  useEffect(() => {
-    if (isIpad && activeTool === 'text') setActiveTool('people')
-  }, [isIpad, activeTool])
 
   /* Cleanup toast timer on unmount */
   useEffect(() => () => {
@@ -876,6 +877,19 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
         </div>
       </header>
 
+      {/* Mobile-only attribution row — sits directly under the topBar so
+          the Preview/Share buttons keep their full width. Desktop already
+          carries "dearly | A product by the thoughtful designer." in
+          topBarLeft, so this is the mobile equivalent of that credit. */}
+      {isMobile && (
+        <div className={styles.designedByRow}>
+          <span className={styles.designedByPill} aria-label="Designed by The thoughtful designer">
+            <span className={styles.designedByPill_label}>Designed by</span>
+            <span className={styles.designedByPill_name}>The thoughtful designer</span>
+          </span>
+        </div>
+      )}
+
       {/* Mobile share,at root level so position:fixed anchors to viewport,
           bypassing the topBar's backdrop-filter stacking context */}
       {isMobile && showShare && (
@@ -919,7 +933,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
                   transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 >
                   {activeTool === 'people'   && namePanel}
-                  {activeTool === 'text'     && !isIpad && inputPanel}
+                  {activeTool === 'text'     && inputPanel}
                   {activeTool === 'upload'   && mediaPanel}
                   {activeTool === 'record'   && voicePanel}
                   {activeTool === 'draw'     && drawingPanel}
@@ -929,13 +943,12 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
             </div>
 
             {/* Bottom tab bar — same tool set + order as desktop EditorToolbar.
-                On iPad the Write tab is dropped because the paper itself is
-                contenteditable (Scribble-ready) so a separate text panel is
-                redundant. Phones keep the Write tab. */}
+                On iPad the paper is contenteditable so Write also lets you
+                type via the panel below as a secondary input. */}
             <nav className={styles.mobileTabBar} aria-label="Editor tools">
               {[
                 { tool: 'people',   label: 'To/From',  icon: <IconPlane size={20} /> },
-                ...(isIpad ? [] : [{ tool: 'text', label: 'Write', icon: <IconText size={20} /> }]),
+                { tool: 'text',     label: 'Write',    icon: <IconText size={20} /> },
                 { tool: 'upload',   label: 'Pictures', icon: <IconUpload size={20} /> },
                 { tool: 'record',   label: 'Voice',    icon: <IconMic size={20} /> },
                 { tool: 'draw',     label: 'Draw',     icon: <IconPen size={20} /> },
