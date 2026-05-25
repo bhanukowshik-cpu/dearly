@@ -133,6 +133,22 @@
   background-repeat: repeat;
 }
 
+/* ── Strip — wider vertical padding ─────────────────────────────────────────
+   The default vertical padding (clamp(16px, 5%, 32px)) computes against
+   paper WIDTH because CSS % padding always references the containing block's
+   width — never its height. On a 4:1 strip that's ~16-32px of breathing room
+   at the top and bottom of a paper that's only 100-150px tall total, which
+   visibly crowds anything placed in the strip (voice notes, photos, etc.
+   sat almost flush against the deckled edge).
+   We override with explicit pixel values that read as "decent gutter" at any
+   strip height — same vertical clamp range as horizontal so the strip's
+   internal margins feel proportional to the form.
+   ───────────────────────────────────────────────────────────────────────── */
+.paper[data-paper-size="strip"] .letterContent {
+  padding-top:    clamp(20px, 16%, 36px);
+  padding-bottom: clamp(20px, 16%, 36px);
+}
+
 /* ── Empty hint ──────────────────────────────────────────────────────────── */
 
 .emptyHint {

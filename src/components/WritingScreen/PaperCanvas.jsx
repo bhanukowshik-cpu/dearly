@@ -998,6 +998,7 @@ export default function PaperCanvas({
           <div
             ref={paperRef}
             data-paper-canvas
+            data-paper-size={size}
             className={`${styles.paper} ${showZigzag ? styles.paperZigzag : ''}`}
             style={paperStyle}
             onPointerDown={() => { onSelectSticker?.(null); onSelectFrame?.(null); onSelectVoiceNote?.(null) }}
