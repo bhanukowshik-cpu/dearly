@@ -347,27 +347,28 @@
 .carousel {
   position: relative;
   z-index: 1;
-  /* Matches DESIGN_WIDTH (720) so the unscaled paper fills the carousel
-     exactly on wider viewports. Narrower viewports get the paper scaled
-     DOWN to fit; we never scale up (cap at MAX_SCALE = 1.0) so text
-     stays crisp on desktop. */
   width: min(720px, 92vw);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
+  /* Clip slides during the x-translate swipe transition so an exiting
+     card doesn't bleed past the carousel edges (and trigger a horizontal
+     scrollbar on narrow viewports). overflow-x: clip > hidden — it
+     doesn't establish a new scrolling context, so the carousel doesn't
+     hijack page-level scroll behavior. */
+  overflow-x: clip;
 }
 
 .slide {
-  /* Letter image stacked above the reply banner. Bigger gap (24 px) gives
-     the reply room to breathe — without it the banner crowds the bottom
-     edge of the postcard and they read as one block instead of "letter,
-     pause, response". */
+  /* Letter image stacked above the reply banner. Generous 36 px gap so
+     the reply reads as a clear second beat ("pause… response"), not as
+     a footer attached to the letter. */
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
+  gap: 36px;
 }
 
 .slideEyebrow {
@@ -414,20 +415,25 @@
 /* Glassmorphic reply pill — bigger + more prominent than v1 so the reply
    is legibly readable from anywhere, not squinted at. The reply IS the
    social-proof beat of the slide — closes the conversational loop with
-   the recipient — so it deserves real visual weight. */
+   the recipient — so it deserves real visual weight.
+   position: relative so the progress bar inside can absolute-position
+   to its bottom edge (Instagram-stories style timer indicator).
+   overflow: hidden so the bar's fill respects the banner's border-radius. */
 .replyBanner {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 16px 20px;
+  padding: 16px 20px 22px;   /* extra bottom space for the progress bar */
   background: rgba(255, 255, 255, 0.10);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 18px;
   backdrop-filter: blur(16px) saturate(130%);
   -webkit-backdrop-filter: blur(16px) saturate(130%);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
 }
 
 /* Name + role header — name in Caveat (handwritten, intimate), role in
@@ -466,20 +472,19 @@
   letter-spacing: 0.005em;
 }
 
-/* ── Progress bar — auto-advance timer indicator ──────────────────────────
-   Sits below the carousel, fills left-to-right over each 5 s slide
-   interval, resets the moment the slide changes (React re-mounts the
-   fill element via `key` → keyframe restarts from 0 cleanly).
-   Identical behavior on every device because CSS animations run on the
-   compositor, not main-thread JS. */
+/* ── Progress bar — auto-advance timer, anchored INSIDE the reply banner
+   Sits at the bottom edge of the glassmorphic pill — Instagram-stories
+   style timer. Translucent track, white fill, fills L→R over the
+   SLIDE_INTERVAL_MS duration. Resets cleanly on every slide change
+   because React re-mounts the fill element via `key`. */
 .slideProgress {
-  position: relative;
-  width: 100%;
+  position: absolute;
+  bottom: 0;
+  left:   0;
+  right:  0;
   height: 3px;
-  background: rgba(255, 255, 255, 0.14);
-  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
   overflow: hidden;
-  margin-top: 6px;
 }
 
 @keyframes slideProgressFill {

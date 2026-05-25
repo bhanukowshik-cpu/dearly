@@ -127,7 +127,7 @@ export function buildEmailHtml({
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <title>${esc(senderFirst || 'Someone')} wrote you a note</title>
 <style>
   /* Mobile-first base sizes; @media bumps them on larger viewports.
@@ -203,7 +203,7 @@ export function buildEmailHtml({
            desktop falls back to the solid bg colour. -->
       <div style="position:absolute;inset:0;z-index:0;overflow:hidden;">
         <img src="${esc(bgUrl)}" alt="" width="100%" height="100%"
-             style="display:block;width:110%;height:110%;object-fit:cover;opacity:0.78;filter:blur(48px) saturate(102%);transform:scale(1.10);"/>
+             style="display:block;width:110%;height:110%;object-fit:cover;opacity:0.78;filter:blur(34px) saturate(102%);transform:scale(1.10);"/>
         <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 38%,rgba(8,10,18,0.42) 0%,rgba(4,5,10,0.92) 100%);"></div>
       </div>
       <!--<![endif]-->
@@ -226,7 +226,7 @@ export function buildEmailHtml({
              mask follows the actual text width, not the full column. -->
         <tr><td align="center">
           <p class="em-h2 em-fade"
-             style="margin:0 auto;display:inline-block;font-family:${FF};font-weight:500;color:${INK};text-align:center;">
+             style="margin:0 auto;display:inline-block;font-family:${FF};font-weight:400;color:${INK};text-align:center;">
             ${line2}
           </p>
         </td></tr>

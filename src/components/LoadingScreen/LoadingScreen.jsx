@@ -80,7 +80,7 @@ const SLIDES = [
   },
 ]
 
-const SLIDE_INTERVAL_MS = 5000
+const SLIDE_INTERVAL_MS = 10000
 
 export default function LoadingScreen({ onCta = () => {} }) {
   // Sequencing:
@@ -189,13 +189,19 @@ export default function LoadingScreen({ onCta = () => {} }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
         >
+          {/* Slide-in/out transition: old card slides LEFT (and fades) as
+              new card slides in from the RIGHT. mode="wait" keeps the layout
+              simple — only one slide in flow at a time — but the x-translate
+              gives the visual swipe direction the user asked for. The
+              translation distance (60%) is enough to read as motion without
+              the card flying so far it hits the next viewport's bounds. */}
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={SLIDES[slideIdx].id}
               className={styles.slide}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0, x: '60%' }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: '-60%' }}
               transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             >
               <img
@@ -212,7 +218,10 @@ export default function LoadingScreen({ onCta = () => {} }) {
               />
 
               {/* Reply banner — recipient's response with emoji, beneath
-                  the letter. Closes the conversational loop. */}
+                  the letter. Closes the conversational loop. Now contains
+                  the auto-advance progress bar as a thin strip at its
+                  bottom edge — visually anchors the timing to the banner
+                  itself (Instagram-stories style indicator). */}
               <div className={styles.slideMeta}>
                 <div className={styles.replyBanner}>
                   <div className={styles.replyHeader}>
@@ -220,24 +229,23 @@ export default function LoadingScreen({ onCta = () => {} }) {
                     <span className={styles.replyRole}>({SLIDES[slideIdx].replyRole})</span>
                   </div>
                   <span className={styles.replyText}>{SLIDES[slideIdx].reply}</span>
+
+                  {/* Progress bar inside the banner — fills L→R over the
+                      10 s slide interval. Re-mounts via React key on slide
+                      change → keyframe restarts from 0 cleanly without
+                      JS timer overhead. Same component on every device
+                      because CSS animations run on the compositor. */}
+                  <div className={styles.slideProgress} role="progressbar" aria-label="Auto-advancing slide timer">
+                    <div
+                      key={SLIDES[slideIdx].id}
+                      className={styles.slideProgressFill}
+                      style={{ animationDuration: `${SLIDE_INTERVAL_MS}ms` }}
+                    />
+                  </div>
                 </div>
               </div>
             </motion.div>
           </AnimatePresence>
-
-          {/* Progress bar — fills left-to-right over each 5 s slide interval,
-              then resets when the slide changes. CSS-animation-driven so it's
-              perfectly smooth on every device. The animation `key` is the
-              current slide id, which forces React to re-mount the bar on each
-              transition → restarts the keyframe from 0 cleanly without a JS
-              timer fighting the CSS. */}
-          <div className={styles.slideProgress} role="progressbar" aria-label="Auto-advancing slide timer">
-            <div
-              key={SLIDES[slideIdx].id}
-              className={styles.slideProgressFill}
-              style={{ animationDuration: `${SLIDE_INTERVAL_MS}ms` }}
-            />
-          </div>
         </motion.div>
       )}
 
