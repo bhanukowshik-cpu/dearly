@@ -26,3 +26,16 @@
      of just sitting on top. Falls back gracefully on browsers without it. */
   mix-blend-mode: multiply;
 }
+
+/* Raster live-preview canvas — same mix-blend so highlighter looks
+   identical in-flight vs committed. Pointer-events:none so it never
+   competes with the layer root's pointer capture. */
+.liveCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}

@@ -189,39 +189,33 @@ export default function LoadingScreen({ onCta = () => {} }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Slide-in/out transition: old card slides LEFT (and fades) as
-              new card slides in from the RIGHT. mode="wait" keeps the layout
-              simple — only one slide in flow at a time — but the x-translate
-              gives the visual swipe direction the user asked for. The
-              translation distance (60%) is enough to read as motion without
-              the card flying so far it hits the next viewport's bounds. */}
+          {/* Premium transition — soft cross-fade with subtle scale.
+              Outgoing card scales 1 → 0.96 + fades; incoming card scales
+              0.96 → 1 + fades in. Reads as "letter being placed gently
+              on the table" — matches Dearly's hand-crafted aesthetic
+              without the aggressive swipe motion. mode="wait" sequences
+              the two so the layout never has both slides in flow. */}
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={SLIDES[slideIdx].id}
               className={styles.slide}
-              initial={{ opacity: 0, x: '60%' }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: '-60%' }}
-              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
             >
               <img
                 src={SLIDES[slideIdx].img}
                 alt={SLIDES[slideIdx].alt}
                 className={styles.slideImage}
                 style={{ aspectRatio: SLIDES[slideIdx].aspect }}
-                /* eager: the first slide should be visible the moment the
-                   carousel mounts; the other two are pre-loaded via the
-                   browser's normal img preload as they come up */
                 loading="eager"
                 decoding="async"
                 draggable={false}
               />
 
               {/* Reply banner — recipient's response with emoji, beneath
-                  the letter. Closes the conversational loop. Now contains
-                  the auto-advance progress bar as a thin strip at its
-                  bottom edge — visually anchors the timing to the banner
-                  itself (Instagram-stories style indicator). */}
+                  the letter. Closes the conversational loop. */}
               <div className={styles.slideMeta}>
                 <div className={styles.replyBanner}>
                   <div className={styles.replyHeader}>
@@ -229,23 +223,24 @@ export default function LoadingScreen({ onCta = () => {} }) {
                     <span className={styles.replyRole}>({SLIDES[slideIdx].replyRole})</span>
                   </div>
                   <span className={styles.replyText}>{SLIDES[slideIdx].reply}</span>
-
-                  {/* Progress bar inside the banner — fills L→R over the
-                      10 s slide interval. Re-mounts via React key on slide
-                      change → keyframe restarts from 0 cleanly without
-                      JS timer overhead. Same component on every device
-                      because CSS animations run on the compositor. */}
-                  <div className={styles.slideProgress} role="progressbar" aria-label="Auto-advancing slide timer">
-                    <div
-                      key={SLIDES[slideIdx].id}
-                      className={styles.slideProgressFill}
-                      style={{ animationDuration: `${SLIDE_INTERVAL_MS}ms` }}
-                    />
-                  </div>
                 </div>
               </div>
             </motion.div>
           </AnimatePresence>
+
+          {/* Progress bar — sibling of AnimatePresence so it doesn't get
+              swept up in the slide transition. Pinned to the carousel's
+              bottom edge, full-width, clipped by the carousel container.
+              Resets cleanly on every slide change via React key →
+              keyframe restarts from 0. Same component on every device
+              because CSS animations run on the compositor. */}
+          <div className={styles.slideProgress} role="progressbar" aria-label="Auto-advancing slide timer">
+            <div
+              key={SLIDES[slideIdx].id}
+              className={styles.slideProgressFill}
+              style={{ animationDuration: `${SLIDE_INTERVAL_MS}ms` }}
+            />
+          </div>
         </motion.div>
       )}
 

@@ -80,6 +80,8 @@ export default function DrawingLayer({
 }) {
   const rootRef        = useRef(null)
   const svgRef         = useRef(null)
+  const liveCanvasRef  = useRef(null)   // raster live-preview canvas (bypasses React)
+  const liveCtxRef     = useRef(null)
   const pointerIdRef   = useRef(null)
   const lastSampleRef  = useRef(null)   // { x, y, t } in client coords for velocity
   const inFlightRef    = useRef(null)   // accumulating point buffer for current stroke
@@ -103,7 +105,10 @@ export default function DrawingLayer({
   const smoothedSpeedRef = useRef(0)   // CSS px / ms, EWMA over recent moves
 
   const [size, setSize] = useState({ w: 0, h: 0 })
-  const [livePath, setLivePath] = useState(null)  // { d, color, tool, opacity }
+  // (livePath state retired — live preview now renders directly to a
+  // <canvas> via paintLiveCanvas() to avoid React reconciliation on
+  // every Pencil sample, which was the source of "stroke appears after
+  // I lift" stutter at 120Hz.)
   // When the eraser is active we render a small ring under the cursor so it's
   // obvious what's about to disappear. Null when the cursor isn't over the
   // paper or the eraser isn't selected.
@@ -122,6 +127,63 @@ export default function DrawingLayer({
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
+
+  // Size the live canvas to match the layer rect at devicePixelRatio so
+  // strokes stay sharp on retina. Re-runs whenever the layer size changes.
+  useEffect(() => {
+    const canvas = liveCanvasRef.current
+    if (!canvas || size.w === 0 || size.h === 0) return
+    const dpr = window.devicePixelRatio || 1
+    canvas.width  = Math.round(size.w * dpr)
+    canvas.height = Math.round(size.h * dpr)
+    canvas.style.width  = `${size.w}px`
+    canvas.style.height = `${size.h}px`
+    const ctx = canvas.getContext('2d')
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    liveCtxRef.current = ctx
+  }, [size])
+
+  /* Render the in-flight stroke straight to the canvas — no React state,
+     no re-render. Called from extendStroke on every pointer sample.
+     Clears + repaints because perfect-freehand recomputes the whole
+     stroke outline each time as points are added. */
+  function paintLiveCanvas() {
+    const ctx = liveCtxRef.current
+    const live = inFlightRef.current
+    if (!ctx) return
+    const w = size.w
+    const h = size.h
+    ctx.clearRect(0, 0, w, h)
+    if (!live || live.points.length === 0) return
+    const cfg = TOOL_CONFIG[live.tool]
+    if (!cfg) return
+    const thicknessMul = STROKE_THICKNESS[live.thickness] ?? STROKE_THICKNESS.md
+    const strokeSize = w * cfg.sizeRatio * thicknessMul
+    const inputs = live.points.map(p => [p.x * w, p.y * h, p.pressure])
+    const outline = getStroke(inputs, { ...cfg.freehand, size: strokeSize })
+    if (!outline || outline.length === 0) return
+    ctx.save()
+    ctx.fillStyle = live.color
+    ctx.globalAlpha = cfg.opacity ?? 1
+    ctx.beginPath()
+    ctx.moveTo(outline[0][0], outline[0][1])
+    // perfect-freehand returns a closed polygon — quadratic curves between
+    // midpoints match how strokeOutlineToSvgPath builds the SVG, so the
+    // committed (SVG) and live (canvas) renders are pixel-equivalent.
+    for (let i = 1; i < outline.length; i++) {
+      const [x0, y0] = outline[i - 1]
+      const [x1, y1] = outline[i]
+      ctx.quadraticCurveTo(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2)
+    }
+    ctx.closePath()
+    ctx.fill()
+    ctx.restore()
+  }
+  function clearLiveCanvas() {
+    const ctx = liveCtxRef.current
+    if (!ctx) return
+    ctx.clearRect(0, 0, size.w, size.h)
+  }
 
   // Persisted strokes recompute only when strokes or paper size changes.
   // Vector data is the source of truth; SVG paths are derived/cached.
@@ -245,14 +307,10 @@ export default function DrawingLayer({
     inkAudio.init().then(() => inkAudio.playScratch(activeTool, 0.3))
     inkAudio.playScratch(activeTool, 0.3)
 
-    // Render the first point immediately so the stroke appears under the
-    // cursor before pointermove fires.
-    setLivePath({
-      d:       renderStrokePath(inFlightRef.current, rect.width, rect.height),
-      color:   toolColor,
-      tool:    activeTool,
-      opacity: TOOL_CONFIG[activeTool]?.opacity ?? 1,
-    })
+    // Paint the first point straight to the canvas — no React render,
+    // no waiting for state to flush. Subsequent samples repaint via
+    // extendStroke at hardware (120Hz on Pencil) rate.
+    paintLiveCanvas()
   }, [activeTool, toolColor, thickness, penOnly])
 
   const extendStroke = useCallback((e) => {
@@ -370,12 +428,9 @@ export default function DrawingLayer({
       })
     }
 
-    setLivePath({
-      d:       renderStrokePath(live, rect.width, rect.height),
-      color:   live.color,
-      tool:    live.tool,
-      opacity: TOOL_CONFIG[live.tool]?.opacity ?? 1,
-    })
+    // Repaint the live preview directly to canvas — fires per Pencil
+    // sample (~120Hz) without going through React reconciliation.
+    paintLiveCanvas()
     // Deps include activeTool so the eraser branch above sees the *current*
     // tool. Without this the callback was frozen with whatever activeTool
     // was at first mount (typically null) and the eraser cursor stopped
@@ -414,7 +469,9 @@ export default function DrawingLayer({
       onStrokeComplete(live)
     }
     inFlightRef.current = null
-    setLivePath(null)
+    // Clear the canvas — the committed stroke takes over via the SVG
+    // persistedPaths layer on the next React render of `strokes`.
+    clearLiveCanvas()
   }, [activeTool, onStrokeComplete, penOnly])
 
   // Defensive panic on unmount — kills any in-flight scratch slices
@@ -440,7 +497,7 @@ export default function DrawingLayer({
       if (pointerIdRef.current !== null) {
         pointerIdRef.current = null
         inFlightRef.current  = null
-        setLivePath(null)
+        clearLiveCanvas()
       }
       distAccumRef.current     = 0
       lastScratchAtRef.current = 0
@@ -506,48 +563,49 @@ export default function DrawingLayer({
       onPointerLeave={isEraser && !passive ? handlePointerLeave : undefined}
     >
       {size.w > 0 && size.h > 0 && (
-        <svg
-          ref={svgRef}
-          className={styles.svg}
-          viewBox={`0 0 ${size.w} ${size.h}`}
-          preserveAspectRatio="none"
-          aria-hidden
-        >
-          {persistedPaths.map(p => (
-            <path
-              key={p.id}
-              data-stroke-id={p.id}
-              d={p.d}
-              fill={p.color}
-              fillRule="nonzero"
-              opacity={p.opacity}
-            />
-          ))}
-          {/* Live preview + eraser cursor are owned by the interactive
-              front layer. In passive mode (the back layer) we render
-              only persisted strokes — the in-flight preview keeps
-              showing on top while drawing and "snaps" to its proper
-              z-layer on release, which is fine for the brief moment
-              involved. */}
-          {!passive && livePath && (
-            <path
-              d={livePath.d}
-              fill={livePath.color}
-              fillRule="nonzero"
-              opacity={livePath.opacity}
+        <>
+          {/* Persisted strokes (vector SVG) — only re-renders when the
+              parent's strokes array changes, never during a stroke. */}
+          <svg
+            ref={svgRef}
+            className={styles.svg}
+            viewBox={`0 0 ${size.w} ${size.h}`}
+            preserveAspectRatio="none"
+            aria-hidden
+          >
+            {persistedPaths.map(p => (
+              <path
+                key={p.id}
+                data-stroke-id={p.id}
+                d={p.d}
+                fill={p.color}
+                fillRule="nonzero"
+                opacity={p.opacity}
+              />
+            ))}
+            {!passive && isEraser && eraserCursor && (
+              <circle
+                cx={eraserCursor.x}
+                cy={eraserCursor.y}
+                r={eraserRadiusPx}
+                fill="rgba(255,255,255,0.18)"
+                stroke="rgba(40,40,40,0.55)"
+                strokeWidth={1.25}
+              />
+            )}
+          </svg>
+          {/* In-flight stroke (raster canvas) — paintLiveCanvas writes
+              directly to this 2D context on every pointer sample, no
+              React render. On stroke commit, the canvas clears and the
+              stroke shows up via the SVG persistedPaths layer above. */}
+          {!passive && (
+            <canvas
+              ref={liveCanvasRef}
+              className={styles.liveCanvas}
+              aria-hidden
             />
           )}
-          {!passive && isEraser && eraserCursor && (
-            <circle
-              cx={eraserCursor.x}
-              cy={eraserCursor.y}
-              r={eraserRadiusPx}
-              fill="rgba(255,255,255,0.18)"
-              stroke="rgba(40,40,40,0.55)"
-              strokeWidth={1.25}
-            />
-          )}
-        </svg>
+        </>
       )}
     </div>
   )

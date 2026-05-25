@@ -25,7 +25,11 @@ export default function EmailPreview() {
   const [recipientName, setRecipientName] = useState('Marcus')
   const [shareUrl,      setShareUrl]      = useState('https://bhanu-dearly.vercel.app/api/share?id=demo-1234')
   const [personalNote,  setPersonalNote]  = useState("Hey Marcus — I've been meaning to write this for a while. Thank you for backing me last quarter. It mattered.")
-  const [blurb,         setBlurb]         = useState('the conversation we had at the AI conference last week')
+  // Blurb describes WHAT the note is about, not WHO's involved (the
+  // sender is already named in the preceding sentence). Second-person
+  // when a pronoun is needed — never "we", since Dearly is the third-
+  // party messenger, not a party to the conversation.
+  const [blurb,         setBlurb]         = useState('the AI conference you both attended last week')
   const [assetOrigin,   setAssetOrigin]   = useState(window.location.origin)
   const [viewportId,    setViewportId]    = useState('mobile')
 
@@ -68,11 +72,13 @@ export default function EmailPreview() {
             className={`${styles.input} ${styles.textarea}`}
             value={blurb}
             onChange={e => setBlurb(e.target.value)}
-            placeholder="e.g. the conversation we had at the AI conference last week"
+            placeholder="e.g. the AI conference you both attended last week"
           />
           <span className={styles.hint}>
             Appended as <em>"…for you, about {'{blurb}'}."</em> — leave blank
-            to drop the "about…" clause entirely.
+            to drop the clause. <strong>3rd-person voice</strong>: Dearly
+            is the messenger, not a participant. Use "you both", "your
+            meeting", "the conference you attended" — never "we".
           </span>
         </label>
 
