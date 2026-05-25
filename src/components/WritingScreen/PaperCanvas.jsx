@@ -1005,6 +1005,18 @@ export default function PaperCanvas({
           >
             {/* Stains at paper level so they cover the full paper even when letterContent is scaled */}
             {typeData.hasStains && <div className={styles.stains} data-stains aria-hidden />}
+
+            {/* Highlighter strokes — rendered BEHIND the text so they
+                read like real highlighter ink (text shows on top, ruler
+                shows underneath). Passive: no pointer events, no live
+                preview, no eraser cursor. All input is handled by the
+                interactive DrawingLayer below. */}
+            <DrawingLayer
+              passive
+              toolFilter="highlighter"
+              strokes={strokes}
+            />
+
             <div
               ref={letterRef}
               className={styles.letterContent}
@@ -1107,12 +1119,20 @@ export default function PaperCanvas({
               ))}
             </AnimatePresence>
 
-            {/* Handwritten drawing overlay — vector strokes on top of text/media. */}
+            {/* Interactive drawing layer — renders pen strokes (above text)
+                and handles ALL pointer events for pen, highlighter, and
+                eraser. Highlighter persisted strokes are rendered by the
+                passive layer behind the text above; this layer only paints
+                pen strokes so we don't double-render highlighters. The
+                in-flight preview keeps rendering here for both tools — it
+                briefly sits above text mid-stroke before snapping to its
+                proper z-layer on release. */}
             <DrawingLayer
               activeTool={drawingTool}
               penOnly={drawingPenOnly}
               toolColor={drawingColor}
               strokes={strokes}
+              toolFilter="pen"
               onStrokeComplete={onAddStroke ?? (() => {})}
               onEraseStrokes={onEraseStrokes ?? (() => {})}
             />

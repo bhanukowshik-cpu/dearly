@@ -60,6 +60,14 @@ export default function DrawingLayer({
   strokes           = [],
   onStrokeComplete  = () => {},
   onEraseStrokes    = () => {},      // called with array of stroke ids to remove
+  /* toolFilter: when set ('pen' | 'highlighter'), only render persisted
+     strokes that match that tool. Used by PaperCanvas to split highlighter
+     strokes (behind text) from pen strokes (above text) into two layers. */
+  toolFilter        = null,
+  /* passive: no pointer events, no input refs, no eraser cursor. Used for
+     the back-layer (highlighter) instance — it's purely visual; all input
+     is handled by the interactive front-layer instance. */
+  passive           = false,
 }) {
   const rootRef        = useRef(null)
   const svgRef         = useRef(null)
@@ -108,16 +116,22 @@ export default function DrawingLayer({
 
   // Persisted strokes recompute only when strokes or paper size changes.
   // Vector data is the source of truth; SVG paths are derived/cached.
+  // When `toolFilter` is set, only render strokes whose tool matches —
+  // lets the back layer render highlighter-only and the front layer
+  // render pen-only, so highlighter naturally sits behind text.
   const persistedPaths = useMemo(() => {
     if (size.w === 0 || size.h === 0) return []
-    return strokes.map(s => ({
+    const filtered = toolFilter
+      ? strokes.filter(s => s.tool === toolFilter)
+      : strokes
+    return filtered.map(s => ({
       id:      s.id,
       tool:    s.tool,
       color:   s.color,
       opacity: TOOL_CONFIG[s.tool]?.opacity ?? 1,
       d:       renderStrokePath(s, size.w, size.h),
     }))
-  }, [strokes, size])
+  }, [strokes, size, toolFilter])
 
   /* ── Eraser: hit-test stored stroke points against the cursor disk ──── */
 
@@ -516,18 +530,20 @@ export default function DrawingLayer({
 
   /* In penOnly mode the root must remain pointer-events:none so non-pen
      pointers fall through to the contenteditable below. Pen events are
-     routed via the parent-scoped capture listener in the effect above. */
-  const reactCapture = interactive && !penOnly
+     routed via the parent-scoped capture listener in the effect above.
+     In `passive` mode the layer is purely visual — no React handlers,
+     no rootActive/Eraser classes (kept pointer-events:none via CSS). */
+  const reactCapture = interactive && !penOnly && !passive
   return (
     <div
       ref={rootRef}
-      className={`${styles.root} ${reactCapture ? styles.rootActive : ''} ${isEraser && !penOnly ? styles.rootEraser : ''}`}
+      className={`${styles.root} ${reactCapture ? styles.rootActive : ''} ${isEraser && !penOnly && !passive ? styles.rootEraser : ''}`}
       data-drawing-layer
       onPointerDown={reactCapture ? beginStroke : undefined}
       onPointerMove={reactCapture ? extendStroke : undefined}
       onPointerUp={reactCapture ? endStroke : undefined}
       onPointerCancel={reactCapture ? endStroke : undefined}
-      onPointerLeave={isEraser && !penOnly ? handlePointerLeave : undefined}
+      onPointerLeave={isEraser && !penOnly && !passive ? handlePointerLeave : undefined}
     >
       {size.w > 0 && size.h > 0 && (
         <svg
@@ -547,7 +563,13 @@ export default function DrawingLayer({
               opacity={p.opacity}
             />
           ))}
-          {livePath && (
+          {/* Live preview + eraser cursor are owned by the interactive
+              front layer. In passive mode (the back layer) we render
+              only persisted strokes — the in-flight preview keeps
+              showing on top while drawing and "snaps" to its proper
+              z-layer on release, which is fine for the brief moment
+              involved. */}
+          {!passive && livePath && (
             <path
               d={livePath.d}
               fill={livePath.color}
@@ -555,7 +577,7 @@ export default function DrawingLayer({
               opacity={livePath.opacity}
             />
           )}
-          {isEraser && eraserCursor && (
+          {!passive && isEraser && eraserCursor && (
             <circle
               cx={eraserCursor.x}
               cy={eraserCursor.y}
