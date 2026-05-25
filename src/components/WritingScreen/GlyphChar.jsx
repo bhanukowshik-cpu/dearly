@@ -14,10 +14,18 @@ import { getScaledMetrics, typographyMetadata } from '../../lib/typographyMetada
 //
 // Pass `size` ('sm'|'md'|'lg') for metadata-driven pixel sizing (body text).
 // Pass `fontSize` (CSS string) for legacy em-based sizing (greeting text).
-export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = 'inherit', size = null, viewportWidth = null }) {
+// Pass `customMetrics` (object from getScaledMetricsForPx) for arbitrary px
+// sizes outside the sm/md/lg token scale — used by AnimatedGlyphText so
+// hero/display text gets per-glyph advance widths instead of the legacy
+// fixed-0.68em-per-char fallback (which spaces characters way too wide).
+export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = 'inherit', size = null, viewportWidth = null, customMetrics = null }) {
   const containerRef = useRef(null)
   const glyphSvg = hasGlyph(ch) ? getGlyphSvg(ch) : null
-  const metrics = size ? getScaledMetrics(size, viewportWidth) : null
+  // Metric resolution priority:
+  //   1. customMetrics — caller passed a fully-computed metrics object
+  //   2. size token (sm/md/lg) — viewport-tier-aware
+  //   3. neither → legacy em-based fallback
+  const metrics = customMetrics ?? (size ? getScaledMetrics(size, viewportWidth) : null)
 
   // Measure natural ink bounds per glyph; only when we have both SVG and metadata
   const bounds = (glyphSvg && metrics) ? getGlyphBounds(ch) : null

@@ -10,6 +10,7 @@ import EditorToolbar  from './EditorToolbar'
 import MediaFramePicker from './MediaFramePicker'
 import VoiceRecorderPanel from './VoiceRecorderPanel'
 import DrawingPanel from './DrawingPanel'
+import WriteToolbar from './WriteToolbar'
 import styles from './WritingScreen.module.css'
 import { DEFAULT_PAPER } from './stylePresets'
 import { extractName } from './nameUtils'
@@ -31,6 +32,7 @@ import {
   IconMic,
   IconPen,
   IconSticker,
+  IconPalette,
 } from './editorIcons'
 
 /* ── Hand-drawn action buttons ───────────────────────────────────────────── */
@@ -786,6 +788,21 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     />
   )
 
+  /* Mobile "Style" tab — paper config (size + style + ruler/zig-zag) on top
+     and the sticker picker below in the same panel. On desktop the paper
+     controls live in the right-rail CanvasSidebar, so the desktop Stickers
+     tab keeps just stickers — only mobile uses this combined version. */
+  const stylePanel = (
+    <>
+      <CanvasSidebar
+        paperConfig={paperConfig}
+        onChangePaper={setPaperConfig}
+      />
+      <div className={styles.sidebarDivider} />
+      {stickerPanel}
+    </>
+  )
+
   const selectedFrame = selectedFrameId
     ? mediaFrames.find(f => f.id === selectedFrameId) ?? null
     : null
@@ -887,19 +904,6 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
         </div>
       </header>
 
-      {/* Mobile-only attribution row — sits directly under the topBar so
-          the Preview/Share buttons keep their full width. Desktop already
-          carries "dearly | A product by the thoughtful designer." in
-          topBarLeft, so this is the mobile equivalent of that credit. */}
-      {isMobile && (
-        <div className={styles.designedByRow}>
-          <span className={styles.designedByPill} aria-label="Designed by The thoughtful designer">
-            <span className={styles.designedByPill_label}>Designed by</span>
-            <span className={styles.designedByPill_name}>The thoughtful designer</span>
-          </span>
-        </div>
-      )}
-
       {/* Mobile share,at root level so position:fixed anchors to viewport,
           bypassing the topBar's backdrop-filter stacking context */}
       {isMobile && showShare && (
@@ -947,7 +951,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
                   {activeTool === 'upload'   && mediaPanel}
                   {activeTool === 'record'   && voicePanel}
                   {activeTool === 'draw'     && drawingPanel}
-                  {activeTool === 'stickers' && stickerPanel}
+                  {activeTool === 'stickers' && stylePanel}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -956,13 +960,32 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
                 On iPad the paper is contenteditable so Write also lets you
                 type via the panel below as a secondary input. */}
             <nav className={styles.mobileTabBar} aria-label="Editor tools">
+              {/* Floating Write toolbar (iPad-only) — pen/highlighter/eraser +
+                  colors + paper toggles. Hovers above the nav, hugged width. */}
+              <AnimatePresence>
+                {isIpad && activeTool === 'text' && (
+                  <WriteToolbar
+                    drawingTool={drawingTool}
+                    onChangeDrawingTool={setDrawingTool}
+                    penColor={penColor}
+                    onChangePenColor={setPenColor}
+                    highlighterColor={highlighterColor}
+                    onChangeHighlighterColor={setHighlighterColor}
+                    paperConfig={paperConfig}
+                    onChangePaper={setPaperConfig}
+                  />
+                )}
+              </AnimatePresence>
               {[
                 { tool: 'people',   label: 'To/From',  icon: <IconPlane size={20} /> },
                 { tool: 'text',     label: 'Write',    icon: <IconText size={20} /> },
                 { tool: 'upload',   label: 'Pictures', icon: <IconUpload size={20} /> },
                 { tool: 'record',   label: 'Voice',    icon: <IconMic size={20} /> },
-                { tool: 'draw',     label: 'Draw',     icon: <IconPen size={20} /> },
-                { tool: 'stickers', label: 'Stickers', icon: <IconSticker size={20} /> },
+                /* Draw tab is hidden on iPad — drawing tools live in the
+                   floating WriteToolbar above the bottom nav when Write is
+                   active, so Draw + Write are unified into one experience. */
+                ...(isIpad ? [] : [{ tool: 'draw', label: 'Draw', icon: <IconPen size={20} /> }]),
+                { tool: 'stickers', label: 'Style',    icon: <IconPalette size={20} /> },
               ].map(({ tool, label, icon }) => (
                 <button
                   key={tool}
@@ -982,6 +1005,16 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
                 </button>
               ))}
             </nav>
+
+            {/* Attribution pill — sits at the very bottom of the mobile
+                stage with a small breathing room, below the tab bar.
+                Reads as a quiet footer credit, separated from the chrome. */}
+            <div className={styles.designedByRow}>
+              <span className={styles.designedByPill} aria-label="Designed by The thoughtful designer">
+                <span className={styles.designedByPill_label}>Designed by</span>
+                <span className={styles.designedByPill_name}>The thoughtful designer</span>
+              </span>
+            </div>
 
           </div>
         </>

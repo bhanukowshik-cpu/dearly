@@ -81,15 +81,17 @@
   gap: 0;
 }
 
-/* Mobile-only attribution row — a thin band right under the top bar that
-   centers the pill. Explicit z-index so it stacks above the bgImage /
-   bgTint / bgNoise overlays that sit behind everything in WritingScreen. */
+/* Mobile-only attribution row — sits at the very bottom of the mobile
+   stage, just below the tab bar, as a quiet footer credit.
+   10 px of breathing room from the screen edge, plus the iOS safe-area
+   inset so the pill clears the home indicator on notched phones. */
 .designedByRow {
   position: relative;
   z-index: 10;
   display: flex;
   justify-content: center;
-  padding: 10px 16px 6px;
+  padding-top: 10px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   flex-shrink: 0;
 }
 
@@ -599,6 +601,7 @@
 /* ── Mobile tab bar ──────────────────────────────────────────────────────── */
 
 .mobileTabBar {
+  position: relative; /* anchors the floating WriteToolbar (iPad) above the nav */
   flex-shrink: 0;
   display: flex;
   align-items: stretch;
@@ -606,8 +609,10 @@
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-top: 1px solid rgba(255, 255, 255, 0.14);
-  /* safe area for home indicator on notched phones */
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Safe-area handling moved to .designedByRow below — the pill sits
+     under the tab bar now, so it's the element that needs to clear
+     the home indicator. Keeping a safe-area pad here too would double
+     the bottom spacing. */
 }
 
 .mobileTabBtn {

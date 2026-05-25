@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
+import { TegakiRenderer } from 'tegaki/react'
+import { font } from '../../lib/tegakiFont'
 import AnimatedGlyphText from '../WritingScreen/AnimatedGlyphText'
 import { StarCluster } from '../WritingScreen/handDrawnStickers'
 import VideoBackground from '../VideoBackground/VideoBackground'
@@ -39,6 +41,16 @@ const PACE_HERO     = 180   // "Dearly," ≈ 7 chars × 180ms ≈ 1.25s
 const PACE_GREETING = 110   // "Hi there," ≈ 9 chars × 110ms ≈ 1s
 const PACE_BODY     = 38    // long paragraphs need to feel briskly written
 
+// ─── Responsive pixel sizes ────────────────────────────────────────────────
+// AnimatedGlyphText routes these through getScaledMetricsForPx, which
+// produces real per-glyph advance widths + line-heights from the typography
+// metadata. Using clamp() / CSS-string fontSize would fall back to GlyphChar's
+// legacy em path (fixed 0.68em per char) and the spacing collapses into the
+// gappy "D e a r l y" look. Always prefer fontSizePx for glyph text.
+const HERO_PX     = { mobile: 56, tablet: 70, desktop: 82 }
+const GREETING_PX = { mobile: 26, tablet: 30, desktop: 34 }
+const BODY_PX     = { mobile: 15, tablet: 17, desktop: 19 }
+
 // Body copy lifted from the previous Caveat paragraphs, flattened to plain
 // strings so the glyph animator can stream them char-by-char. Inline rich
 // markup (bold/highlight) is intentionally dropped on the launch screen —
@@ -46,6 +58,18 @@ const PACE_BODY     = 38    // long paragraphs need to feel briskly written
 const BODY_LINE_1 = "My name is Bhanu — I obsess over making experiences more personal and delightful."
 const BODY_LINE_2 = "I built Dearly for moments that deserve more than a text. Send someone who matters a note they'll actually keep."
 const BODY_LINE_3 = "With passion, Bhanu Kowshik"
+
+// Caveat plain-text style — used as the cinematic fallback when Tegaki
+// silently fails (Safari occasionally clears the canvas mid-animation).
+const caveatStyle = (size, color, weight = 700) => ({
+  fontFamily: "'Caveat', cursive",
+  fontSize:   size,
+  color,
+  fontWeight: weight,
+  whiteSpace: 'nowrap',
+  lineHeight: 1,
+  display:    'inline-block',
+})
 
 export default function LoadingScreen({ onCta = () => {} }) {
   // Sequencing — each milestone gates the next so writes never overlap.
@@ -59,12 +83,30 @@ export default function LoadingScreen({ onCta = () => {} }) {
   const [greetingDone,  setGreetingDone]  = useState(reducedMotion)
   const [bodyStage,     setBodyStage]     = useState(reducedMotion ? 3 : 0) // 0..3 chained reveals
 
+  // Safari quirks for the Tegaki hero — keep the same safety machinery the
+  // original LoadingScreen had so "Dearly," never silently disappears.
+  const [heroFallback, setHeroFallback] = useState(reducedMotion)
+  const heroFinished = useRef(reducedMotion)
+
   // Kick off the Dearly, handwriting after a beat (skip if reduced motion)
   useEffect(() => {
     if (reducedMotion) return
     const id = setTimeout(() => setWriteStarted(true), 350)
     return () => clearTimeout(id)
   }, [])
+
+  // Safari fallback timer — Tegaki's onComplete can silently never fire if
+  // the canvas gets cleared by an in-flight layout shift. After 2.5s force
+  // writeDone so the card and CTA still appear, and flip to plain Caveat
+  // text so "Dearly," is visible even if the animation never landed.
+  useEffect(() => {
+    if (reducedMotion || writeDone) return
+    const id = setTimeout(() => {
+      if (!heroFinished.current) setHeroFallback(true)
+      setWriteDone(true)
+    }, 2500)
+    return () => clearTimeout(id)
+  }, [writeDone])
 
   // After writeDone → reveal the card
   useEffect(() => {
@@ -108,15 +150,27 @@ export default function LoadingScreen({ onCta = () => {} }) {
       >
         <div className={styles.heroTitle}>
           {writeStarted && (
-            <AnimatedGlyphText
-              text="Dearly,"
-              fontSize="clamp(52px, 7vw, 82px)"
-              fontWeight={700}
-              inkColor="#ffffff"
-              msPerChar={PACE_HERO}
-              typewriter={!reducedMotion}
-              onComplete={() => setWriteDone(true)}
-            />
+            heroFallback ? (
+              <span style={caveatStyle('clamp(52px, 7vw, 82px)', '#ffffff')}>
+                Dearly,
+              </span>
+            ) : (
+              <TegakiRenderer
+                font={font}
+                onComplete={() => { heroFinished.current = true; setWriteDone(true) }}
+                time={{ mode: 'uncontrolled', duration: 1.5 }}
+                style={{
+                  fontSize:   'clamp(52px, 7vw, 82px)',
+                  color:      '#ffffff',
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                  lineHeight: 1,
+                  willChange: 'transform',
+                }}
+              >
+                Dearly,
+              </TegakiRenderer>
+            )
           )}
         </div>
 
@@ -152,7 +206,8 @@ export default function LoadingScreen({ onCta = () => {} }) {
                 <div className={styles.greeting}>
                   <AnimatedGlyphText
                     text="Hi there,"
-                    fontSize="clamp(24px, 3.2vw, 34px)"
+                    fontSizePx={GREETING_PX}
+                    lineHeightMultiplier={1.1}
                     fontWeight={700}
                     inkColor="#1A2A3A"
                     msPerChar={PACE_GREETING}
@@ -166,7 +221,8 @@ export default function LoadingScreen({ onCta = () => {} }) {
                   <p className={styles.para}>
                     <AnimatedGlyphText
                       text={BODY_LINE_1}
-                      fontSize="clamp(15px, 1.55vw, 19px)"
+                      fontSizePx={BODY_PX}
+                      lineHeightMultiplier={1.5}
                       fontWeight={700}
                       inkColor="#1A2A3A"
                       msPerChar={PACE_BODY}
@@ -180,7 +236,8 @@ export default function LoadingScreen({ onCta = () => {} }) {
                   <p className={styles.para}>
                     <AnimatedGlyphText
                       text={BODY_LINE_2}
-                      fontSize="clamp(15px, 1.55vw, 19px)"
+                      fontSizePx={BODY_PX}
+                      lineHeightMultiplier={1.5}
                       fontWeight={700}
                       inkColor="#1A2A3A"
                       msPerChar={PACE_BODY}
@@ -194,7 +251,8 @@ export default function LoadingScreen({ onCta = () => {} }) {
                   <p className={styles.closing}>
                     <AnimatedGlyphText
                       text={BODY_LINE_3}
-                      fontSize="clamp(15px, 1.55vw, 19px)"
+                      fontSizePx={BODY_PX}
+                      lineHeightMultiplier={1.5}
                       fontWeight={700}
                       inkColor="#1A2A3A"
                       msPerChar={PACE_BODY}
@@ -238,6 +296,23 @@ export default function LoadingScreen({ onCta = () => {} }) {
           </motion.p>
         </>
       )}
+
+      {/* ── Designer credit — fixed pill at bottom-center ────────────────────
+         Sits inside .root (not portaled) so it inherits the screen's stacking
+         context — guaranteed below any modals/toasts the parent app mounts,
+         but above the background layers. Fixed positioning keeps it pinned
+         to the viewport bottom regardless of card length, so it stays put
+         even on tall content / scrolled views. */}
+      <motion.div
+        className={styles.designerCredit}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: 'easeOut', delay: reducedMotion ? 0 : 0.8 }}
+        aria-label="A product by The thoughtful designer"
+      >
+        <span className={styles.designerCreditLabel}>A product by</span>
+        <span className={styles.designerCreditName}>The thoughtful designer</span>
+      </motion.div>
 
     </div>
   )

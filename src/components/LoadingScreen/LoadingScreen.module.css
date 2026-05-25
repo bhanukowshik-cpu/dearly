@@ -314,6 +314,50 @@
   margin: 0;
 }
 
+/* ── Designer credit pill ───────────────────────────────────────────────────
+   Fixed at the bottom-center of the viewport so it stays in place across
+   resize/scroll. Translucent dark fill + subtle 1px border + soft blur to
+   read as "chrome" rather than content — same visual language as the editor
+   toolbar panels (white/0.045 fill, white/0.08 border, backdrop-blur). The
+   16px bottom inset leaves room above any future bottom-nav bar.
+   ─────────────────────────────────────────────────────────────────────────── */
+.designerCredit {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: rgba(15, 22, 36, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+  /* Subtle floor-shadow so it lifts off dark backgrounds without feeling heavy */
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+}
+
+.designerCreditLabel {
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 400;
+}
+
+.designerCreditName {
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 600;
+  letter-spacing: 0.005em;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    RESPONSIVE OVERRIDES — must live after all base rules so same-specificity
    media-query selectors actually win the cascade.
@@ -340,6 +384,14 @@
   /* Ensure hero title doesn't clip on narrow screens */
   .heroTitle {
     min-height: 64px;
+  }
+
+  /* Designer credit — tighter padding on narrow screens so the pill fits
+     comfortably above the safe-area inset without crowding the meta line */
+  .designerCredit {
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    padding: 6px 14px;
+    font-size: 11.5px;
   }
 }
 

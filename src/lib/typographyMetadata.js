@@ -106,28 +106,43 @@ export function getScaledMetrics(size, viewportWidth = null) {
   const fontSize = responsiveTypography[tier]?.sizes[key]
     ?? responsiveTypography.desktop.sizes[key]
     ?? responsiveTypography.desktop.sizes.medium
-  const computedLineHeight = fontSize * token.lineHeightMultiplier
-  const { width: fw, height: fh, capHeightY, xHeightY, baselineY, descenderBoundaryY, baselineFromBottom } = typographyMetadata.glyphFrame
+  const spacingMult = token.spacingMultiplier ?? 1.0
+  return getScaledMetricsForPx(fontSize, {
+    lineHeightMultiplier: token.lineHeightMultiplier,
+    spacingMultiplier:    spacingMult,
+  })
+}
+
+// Returns metrics for an arbitrary pixel font-size — used for hero / display
+// text that lives outside the sm/md/lg scale (LoadingScreen, LaunchFilm, etc).
+// Same math as getScaledMetrics, but driven by a raw px input instead of a
+// size token. This is the unified source for per-glyph advance widths,
+// baselines, line-height — so spacing stays tight at any size.
+//
+// Without this, custom-sized callers had to use GlyphChar's legacy em-based
+// fallback which reserved a fixed 0.68em wide slot per character — making
+// every glyph take the same width regardless of its actual ink, producing
+// the "D e a r l y" gappy look that was the bug we're fixing here.
+export function getScaledMetricsForPx(fontSize, { lineHeightMultiplier = 1.5, spacingMultiplier = 1.0 } = {}) {
+  const { width: fw, capHeightY, xHeightY, baselineY, descenderBoundaryY } = typographyMetadata.glyphFrame
   const { letterSpacingRatio, wordSpacingRatio, minLetterGapRatio } = typographyMetadata.spacing
-  const scale         = computeScale(fontSize)
-  const scaledWidth   = fw * scale
-  const spacingMult   = token.spacingMultiplier ?? 1.0
+  const scale       = computeScale(fontSize)
+  const scaledWidth = fw * scale
   return {
     scale,
     fontSize,
     scaledWidth,
-    spacingMultiplier:   spacingMult,
+    spacingMultiplier,
     scaledHeight:        (descenderBoundaryY - capHeightY) * scale,
     scaledBaselineY:     (baselineY - capHeightY) * scale,
     descentHeight:       (descenderBoundaryY - baselineY) * scale,
-    // Ruler vertical anchors — all in px, relative to top of each glyph container row
     rulerCapHeightPx:    capHeightY         * scale,
     rulerXHeightPx:      xHeightY           * scale,
     rulerDescBoundaryPx: descenderBoundaryY * scale,
     letterSpacingRatio,
-    letterSpacing:       scaledWidth * letterSpacingRatio * spacingMult,
-    wordSpacingPx:       fontSize * wordSpacingRatio      * spacingMult,
-    minLetterGapPx:      fontSize * minLetterGapRatio     * spacingMult,
-    computedLineHeight,
+    letterSpacing:       scaledWidth * letterSpacingRatio * spacingMultiplier,
+    wordSpacingPx:       fontSize * wordSpacingRatio      * spacingMultiplier,
+    minLetterGapPx:      fontSize * minLetterGapRatio     * spacingMultiplier,
+    computedLineHeight:  fontSize * lineHeightMultiplier,
   }
 }
