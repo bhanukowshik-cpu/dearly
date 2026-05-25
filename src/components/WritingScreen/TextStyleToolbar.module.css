@@ -1,0 +1,63 @@
+/* TextStyleToolbar — small floating pill for text-size while typing on iPad.
+   Lives just under the zoom controls (top-right of the writing surface). */
+
+.root {
+  position: absolute;
+  top: 60px;                      /* sits below the ZoomControls pill */
+  right: 12px;
+  z-index: 28;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 6px 12px;
+  background: rgba(12, 18, 32, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 999px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.30);
+  pointer-events: auto;
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.sizeSelector {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Match the InputPanel S/M/L pills so the affordance reads the same. */
+.sizeBtn {
+  min-width: 32px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.78);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+.sizeBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.95);
+}
+.sizeBtnActive,
+.sizeBtnActive:hover {
+  background: rgba(255, 255, 255, 0.96);
+  color: #0c1220;
+  border-color: rgba(255, 255, 255, 0.96);
+}

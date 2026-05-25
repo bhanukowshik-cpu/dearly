@@ -13,6 +13,7 @@ import DrawingPanel from './DrawingPanel'
 import WriteToolbar from './WriteToolbar'
 import ZoomControls, { clampZoom } from './ZoomControls'
 import EditorFABs from './EditorFABs'
+import TextStyleToolbar from './TextStyleToolbar'
 import styles from './WritingScreen.module.css'
 import { DEFAULT_PAPER } from './stylePresets'
 import { extractName } from './nameUtils'
@@ -1288,6 +1289,16 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
             {/* Zoom controls — iPad-only, top-right of the writing surface */}
             {isIpad && activeTool === 'text' && (
               <ZoomControls zoomLevel={zoomLevel} onChangeZoom={setZoomLevel} />
+            )}
+
+            {/* Text-style picker — iPad-only, only while the user is in
+                typing mode. Sits just under ZoomControls (top-right) so
+                they can change the text size without breaking flow. */}
+            {isIpad && activeTool === 'text' && editorActive && (
+              <TextStyleToolbar
+                textSize={textSize}
+                onChangeTextSize={setTextSize}
+              />
             )}
 
             {/* Paper preview. On iPad in Write mode the paper grows to fill
