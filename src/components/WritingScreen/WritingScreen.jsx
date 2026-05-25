@@ -13,14 +13,13 @@ import DrawingPanel from './DrawingPanel'
 import WriteToolbar from './WriteToolbar'
 import ZoomControls, { clampZoom } from './ZoomControls'
 import EditorFABs from './EditorFABs'
-import TextStyleToolbar from './TextStyleToolbar'
 import TextPopup from './TextPopup'
 import styles from './WritingScreen.module.css'
 import { DEFAULT_PAPER } from './stylePresets'
 import { extractName } from './nameUtils'
 import { DEFAULT_FRAME } from '../../lib/mediaFrameConfig'
 import { computeFrameHeight } from '../../lib/mediaFrameHelpers'
-import { exportNoteToJson, copyToClipboard, downloadAsFile, buildExportFilename, importNoteFromFile, pickJsonFile } from '../../lib/exportNoteJson'
+import { exportNoteToJson, copyToClipboard, downloadAsFile, buildExportFilename, importNoteFromFile, pickJsonFile, exportPaperAsPng } from '../../lib/exportNoteJson'
 import {
   DEFAULT_PEN_COLOR,
   DEFAULT_HIGHLIGHTER_COLOR,
@@ -98,7 +97,14 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   // Recipient name is metadata only — never rendered onto the paper canvas.
   const [showRecipient,      setShowRecipient]      = useState(false)
   const [paperConfig,        setPaperConfig]        = useState(DEFAULT_PAPER)
-  const [textSize,           setTextSize]           = useState('md')
+  /* Default text size: 'lg' on iPad so the ruler lines are spaced
+     comfortably for a finger / Pencil; 'md' everywhere else. */
+  const [textSize,           setTextSize]           = useState(() => {
+    if (typeof navigator === 'undefined') return 'md'
+    const ua = navigator.userAgent
+    const isIpadInit = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)
+    return isIpadInit ? 'lg' : 'md'
+  })
   const [stickers,           setStickers]           = useState([])
   const [selectedStickerId,  setSelectedStickerId]  = useState(null)
   const [mediaFrames,        setMediaFrames]        = useState([])
@@ -493,6 +499,48 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       setExporting(false)
     }
   }, [exporting, getNoteData, showToast])
+
+  // ─── Dev: export the current paper as a high-DPI PNG ──────────────────
+  // Captures the live [data-paper-canvas] element including every floating
+  // child (stickers, mediaFrames, voice notes, drawings) at 2× pixel ratio
+  // — so the PNG is sharp on retina screens. Used to bake designed letters
+  // into static images for the LoadingScreen carousel: rendering live
+  // PaperCanvas inside a smaller slot causes layout drift between editor
+  // and carousel; a static image is the design FROZEN at desktop-native
+  // resolution and just scales via CSS like any normal image.
+  const [exportingPng, setExportingPng] = useState(false)
+  const handleExportPng = useCallback(async () => {
+    if (exportingPng) return
+    setExportingPng(true)
+    try {
+      // Briefly deselect any selected sticker/frame/voice so the screenshot
+      // doesn't capture the dashed selection rings. (UX nicety — without
+      // this you'd see drag handles in the exported image.)
+      setSelectedStickerId(null)
+      setSelectedFrameId(null)
+      setSelectedVoiceNoteId(null)
+      // Two animation frames so the de-select unmounts the selection
+      // chrome before we capture. One rAF flushes React; the second lets
+      // the resulting paint settle.
+      await new Promise(r => requestAnimationFrame(r))
+      await new Promise(r => requestAnimationFrame(r))
+
+      const note = getNoteData()
+      const baseName = buildExportFilename(note).replace(/\.json$/, '')
+      const result = await exportPaperAsPng({
+        pixelRatio: 2,
+        filename: `${baseName}.png`,
+      })
+      const kb = Math.max(1, Math.round((result.width * result.height * 4) / 1024 / 8))   // rough
+      showToast(`Paper exported as PNG — downloaded ${result.filename} (~${result.width * 2}×${result.height * 2}).`)
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[exportPng] failed', err)
+      showToast(`PNG export failed — ${err?.message || 'see console'}`)
+    } finally {
+      setExportingPng(false)
+    }
+  }, [exportingPng, getNoteData, showToast])
 
   // ─── Dev: import a previously exported note from a .json file ─────────
   // Inverse of Export. Hydrates every editor state field from the file so
@@ -1167,11 +1215,11 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   return (
     <div
       className={styles.root}
-      /* iPad only — bind the root to the visualViewport-driven CSS var
-         (--vv-height set on documentElement by the effect above). Using
-         a CSS variable means visualViewport changes don't re-render React.
-         Falls back to the layout default if the var isn't set yet. */
-      style={isIpad ? { height: 'var(--vv-height, 100svh)', transition: 'height 0.18s ease' } : undefined}
+      // iPad only — height pinned to visualViewport via the --vv-height
+      // CSS var set on documentElement (see effect above). No transition:
+      // the iOS keyboard slides in ~250ms and a CSS transition was racing
+      // with it, which read as "snapping".
+      style={isIpad ? { height: 'var(--vv-height, 100svh)' } : undefined}
     >
 
       <div className={styles.bgImage} aria-hidden />
@@ -1249,6 +1297,25 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               <span>{importing ? 'Importing…' : 'Import'}</span>
             </motion.button>
           )}
+          {/* Dev: export the live paper as a high-DPI PNG for use as a
+             frozen "showcase" image (LoadingScreen carousel, marketing,
+             etc). Bypasses the layout-drift problems of rendering live
+             PaperCanvas in a smaller container. Same dashed-border style
+             family as Export/Import so it reads as one tool group. */}
+          {!isMobile && (
+            <motion.button
+              className={styles.exportNavBtn}
+              onClick={handleExportPng}
+              disabled={exportingPng}
+              title="Export this paper as a 2× DPI PNG (showcase image)"
+              whileHover={exportingPng ? {} : { scale: 1.04 }}
+              whileTap={exportingPng ? {} : { scale: 0.96 }}
+              transition={{ duration: 0.1 }}
+            >
+              <span className={styles.exportNavBtnGlyph} aria-hidden>{'🖼'}</span>
+              <span>{exportingPng ? 'Capturing…' : 'PNG'}</span>
+            </motion.button>
+          )}
           <div className={styles.shareWrap} ref={shareWrapRef}>
             <motion.button
               className={`${styles.shareNavBtn} ${isEmpty ? styles.shareNavBtnDisabled : ''}`}
@@ -1312,15 +1379,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               <ZoomControls zoomLevel={zoomLevel} onChangeZoom={setZoomLevel} />
             )}
 
-            {/* Text-style picker — iPad-only, only while the user is in
-                typing mode. Sits just under ZoomControls (top-right) so
-                they can change the text size without breaking flow. */}
-            {isIpad && activeTool === 'text' && editorActive && (
-              <TextStyleToolbar
-                textSize={textSize}
-                onChangeTextSize={setTextSize}
-              />
-            )}
+            {/* (Text-size picker moved INSIDE the TextPopup so the controls
+                live together — matches the desktop InputPanel pattern.) */}
 
             {/* Paper preview. On iPad in Write mode the paper grows to fill
                 the stage (no panel area below) and scales via zoomLevel. */}
@@ -1405,12 +1465,16 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               {/* Small floating text input that opens to the LEFT of the
                   Text FAB. Replaces the make-the-paper-contenteditable
                   model — the paper stays a pure visual + pen surface
-                  and typing happens in this popup instead. */}
+                  and typing happens in this popup instead. The S/M/L
+                  size selector lives INSIDE the popup so the controls
+                  travel together (matches the desktop InputPanel). */}
               {isIpad && activeTool === 'text' && editorActive && (
                 <TextPopup
                   value={message}
                   onChange={setMessage}
                   onClose={() => setEditorActive(false)}
+                  textSize={textSize}
+                  onChangeTextSize={setTextSize}
                 />
               )}
               {[

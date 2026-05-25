@@ -733,7 +733,10 @@ export default function PaperCanvas({
   const inkColor = type === 'color' ? computeColorInk(color) : typeData.inkColor
 
   const liveRecipient = showRecipient ? recipient : ''
-  const isEmpty       = !liveRecipient && !message
+  /* "Empty" now also accounts for strokes — once the user has drawn
+     anything, the "Write your heart out…" hint should disappear so it
+     doesn't show through the ink. */
+  const isEmpty       = !liveRecipient && !message && (strokes?.length ?? 0) === 0
 
   // readingConfig just carries the threshold — no shared mutable counter.
   // Each text component gets an explicit wordIndexStart computed below.

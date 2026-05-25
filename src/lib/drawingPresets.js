@@ -40,8 +40,12 @@ export const PEN = {
   opacity:   1,
   freehand: {
     thinning:           0.55,
-    smoothing:          0.5,
-    streamline:         0.45,
+    // smoothing tames the *outline* between sample points; streamline
+    // damps the input itself. Lowered both — high streamline made the
+    // rendered line lag/cut corners vs the actual pen movement, which
+    // read as "snapping" to a smoother curve than the user drew.
+    smoothing:          0.35,
+    streamline:         0.18,
     simulatePressure:   true,
     easing:             (t) => Math.sin((t * Math.PI) / 2),
     last:               true,

@@ -140,12 +140,15 @@
 /* ── Thickness picker — three dots of varying sizes ─────────────────────
    Active dot uses the live ink color so the user sees a preview of what
    their next stroke will look like at that thickness. */
+/* Inactive button: translucent white bg (visible against dark toolbar) +
+   dark dot. Active button: solid white + same dark dot. The contrast on
+   inactive used to be too faint (4% white) so the dots disappeared. */
 .thickBtn {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.30);
+  background: rgba(255, 255, 255, 0.28);
   cursor: pointer;
   padding: 0;
   display: inline-flex;
@@ -155,8 +158,8 @@
   -webkit-tap-highlight-color: transparent;
 }
 .thickBtn:hover {
-  background: rgba(255, 255, 255, 0.10);
-  border-color: rgba(255, 255, 255, 0.36);
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.65);
 }
 .thickBtnActive,
 .thickBtnActive:hover {
