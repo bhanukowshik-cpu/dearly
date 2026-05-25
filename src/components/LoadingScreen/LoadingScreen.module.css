@@ -368,17 +368,49 @@
 }
 
 /* Container for the PaperCanvas. PaperCanvas's own .paper element applies
-   aspect-ratio from paperConfig.size (postcard 3:2, strip 4:1, A4 1:1.414),
-   so we just give it a max-width and let the height fall out naturally.
-   Centering keeps short / wide papers (strip) from looking left-anchored
-   inside a wide carousel container.
+   aspect-ratio from paperConfig.size (postcard 3:2, strip 4:1, A4 1:1.414).
+   We hand sizing off to <ScaledPaper /> which renders the paper at a fixed
+   editor "design width" then CSS-scales the whole thing to fit. That keeps
+   text wrapping + content positioning identical to the editor at every
+   viewport (no reflow → no stickers/photos colliding with text).
    ─────────────────────────────────────────────────────────────────────── */
 .slidePaperWrap {
   width: 100%;
   max-width: 100%;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
+}
+
+/* ── Uniform-scale wrappers (used by <ScaledPaper />) ─────────────────────
+   Outer (.scaledPaperWrap) is the visible footprint — its width is the
+   container's available width, its height is computed in JS to match the
+   inner's SCALED height (so sibling content below collapses correctly).
+   overflow:hidden clips any sub-pixel transform bleed at the edges.
+
+   Inner (.scaledPaperInner) is the DESIGN size (720 px wide). Children —
+   PaperCanvas — render at that width with their own aspect-ratio rules
+   resolving against it. The transform: scale() applied inline shrinks
+   everything inside (text, photos, stickers, voice notes) by the same
+   ratio, so the relative layout is preserved pixel-perfect. */
+.scaledPaperWrap {
+  position: relative;
+  width: 100%;
+  /* Height is set inline by ScaledPaper (innerHeight * scale). Default to
+     0 so the wrapper doesn't reserve unscaled space before the observer
+     fires on the first paint. */
+  height: 0;
+  overflow: hidden;
+}
+
+.scaledPaperInner {
+  /* width + transform applied inline by ScaledPaper. transform-origin
+     defaults to top left there so the scaled paper anchors at (0, 0)
+     of the wrapper — no awkward floating in the middle of empty space. */
+  position: absolute;
+  top:  0;
+  left: 0;
+  will-change: transform;   /* GPU promotion — scale stays crisp on resize */
 }
 
 /* ── Slide meta row — reply banner LEFT + per-slide CTA RIGHT ──────────────

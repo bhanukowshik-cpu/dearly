@@ -9,7 +9,8 @@
 .root {
   position: absolute;
   /* Clear the bottom nav AND the "Designed by" attribution pill that
-     sits between the toolbar and the tab bar (~30px tall + gap). */
+     sits between the toolbar and the tab bar (~30px tall + gap). Also
+     leave headroom for tool illustrations that stick UP above their tiles. */
   bottom: calc(100% + 56px);
   left: 0;
   right: 0;
@@ -17,9 +18,9 @@
   width: fit-content;
   max-width: calc(100vw - 32px);
   display: inline-flex;
-  align-items: center;
+  align-items: flex-end;          /* anchor tiles to bottom — tools stick up */
   gap: 14px;
-  padding: 12px 20px;
+  padding: 14px 22px;
   background: rgba(12, 18, 32, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 999px;
@@ -29,58 +30,82 @@
   pointer-events: auto;
   z-index: 30;
   white-space: nowrap;
+  overflow: visible;              /* let pen illustrations rise out of the pill */
 }
 
 /* Each grouped cluster (tool radio / colors / paper toggles) */
 .section {
   display: inline-flex;
-  align-items: center;
-  gap: 9px;
+  align-items: flex-end;          /* tiles + swatches share a baseline at bottom */
+  gap: 10px;
   flex-shrink: 0;
 }
 
 .divider {
   width: 1px;
-  height: 32px;
-  background: rgba(255, 255, 255, 0.12);
+  height: 36px;
+  background: rgba(255, 255, 255, 0.14);
   flex-shrink: 0;
+  align-self: center;
 }
 
 /* ── Tool buttons (pen / highlighter / eraser) ─────────────────────────────
-   Each tool sits inside a soft white tile so the hand-drawn pen/highlighter
-   illustrations read clearly against the dark toolbar background. Active
-   tool lifts and brightens — matches Procreate's tray affordance. */
+   Each tile is a "holder". The hand-drawn illustration sits absolutely
+   inside, anchored to the holder's bottom edge, oversized so the top of
+   the pen / marker / eraser pokes up ABOVE the tile — like real tools
+   parked in a tray. Non-selected tiles are transparent with a soft white
+   outline so users can clearly tell which tool is active (solid white). */
 
 .toolBtn {
-  width: 64px;
+  position: relative;
+  width: 76px;
   height: 64px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.88);
-  border-radius: 16px;
+  display: inline-block;
+  border: 1.5px solid rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
   cursor: pointer;
   padding: 0;
+  overflow: visible;              /* allow icon to extend above tile */
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.14s ease, transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
-  position: relative;
-  overflow: visible;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
 }
 .toolBtn:hover {
-  background: #ffffff;
-  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.50);
 }
-.toolBtnActive {
+.toolBtnActive,
+.toolBtnActive:hover {
+  /* Selected: solid white tile, clearly distinct from outlined unselected. */
   background: #ffffff;
-  border-color: rgba(255, 255, 255, 0.55);
+  border-color: #ffffff;
   transform: translateY(-2px);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.40);
 }
+
+/* The hand-drawn illustration anchors to the bottom-centre of the tile
+   and is intentionally taller than its container so the top portion sits
+   ABOVE the tile (Procreate-style tool tray). Active state lifts further. */
 .toolIcon {
-  width: 44px;
-  height: 44px;
-  display: block;
+  position: absolute;
+  left: 50%;
+  bottom: 4px;                    /* small inset so the base nestles in the tile */
+  width: 66px;
+  height: 88px;                   /* taller than tile (64) → top extends ~24px above */
+  transform: translateX(-50%);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+.toolBtn:hover .toolIcon {
+  transform: translateX(-50%) translateY(-4px);
+}
+.toolBtnActive .toolIcon,
+.toolBtnActive:hover .toolIcon {
+  transform: translateX(-50%) translateY(-8px);
 }
 
 /* ── Color swatches (shared between pen colors + paper colors) ─────────── */
@@ -98,6 +123,7 @@
   justify-content: center;
   transition: transform 0.12s ease, border-color 0.14s ease;
   -webkit-tap-highlight-color: transparent;
+  align-self: center;             /* swatches centre-aligned vs the taller tiles */
 }
 .swatch:hover { transform: scale(1.08); }
 .swatchActive {
@@ -110,4 +136,3 @@
   background: var(--swatch, currentColor);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.10);
 }
-

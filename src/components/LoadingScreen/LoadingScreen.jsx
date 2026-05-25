@@ -65,6 +65,79 @@ const PACE_HERO = 360   // ≈ 7 chars × 360ms ≈ 2.5s
 // legacy em-based fallback that produces the gappy "D e a r l y" look).
 const HERO_PX = { mobile: 56, tablet: 70, desktop: 82 }
 
+// ─── ScaledPaper ──────────────────────────────────────────────────────────
+// Renders PaperCanvas at a FIXED "design" pixel width (the size the editor
+// uses on desktop) and uses CSS transform: scale() to shrink it to fit the
+// available carousel container width. Critical for layout fidelity:
+//
+//   • Without this, PaperCanvas's body text reflows based on container
+//     width — narrower viewport = more text lines = text runs into the
+//     fixed-% positioned stickers / mediaFrames / voice notes the user
+//     placed in the editor. Result: photos sitting on top of paragraphs,
+//     highlights misaligned, stickers crowding voice notes.
+//   • With this, the whole paper composition is rendered at the editor's
+//     size THEN scaled down uniformly. Text wraps identically at every
+//     viewport, photos stay in the same relative spot, highlights track
+//     the words they were drawn on. Visually 1:1 with the editor preview,
+//     just at a smaller absolute size.
+//
+// DESIGN_WIDTH = 720 matches the writing-screen paper's typical desktop
+// rendering width. A ResizeObserver on the OUTER wrapper picks up the
+// available carousel container width and updates --scale, which is applied
+// to the INNER transform. The outer wrapper's height is also computed
+// (innerHeight × scale) so siblings below collapse correctly — without
+// that, the unscaled inner height would reserve too much space below.
+const DESIGN_WIDTH = 720
+
+function ScaledPaper({ children, designWidth = DESIGN_WIDTH }) {
+  const wrapRef  = useRef(null)
+  const innerRef = useRef(null)
+  const [scale,       setScale]       = useState(1)
+  const [innerHeight, setInnerHeight] = useState(0)
+
+  useLayoutEffect(() => {
+    const wrapEl  = wrapRef.current
+    const innerEl = innerRef.current
+    if (!wrapEl || !innerEl) return
+
+    const ro = new ResizeObserver(() => {
+      // Outer width drives the scale factor (cap at 1 so we never zoom IN
+      // and pixellate / blur the rendered paper on wide viewports).
+      const w = wrapEl.clientWidth
+      if (w > 0) setScale(Math.min(1, w / designWidth))
+      // Inner height is the UNSCALED content height. Multiplied by scale
+      // below to size the visible wrapper.
+      const h = innerEl.offsetHeight
+      if (h > 0) setInnerHeight(h)
+    })
+    ro.observe(wrapEl)
+    ro.observe(innerEl)
+    return () => ro.disconnect()
+  }, [designWidth])
+
+  return (
+    <div
+      ref={wrapRef}
+      className={styles.scaledPaperWrap}
+      // Reserve exactly the scaled-down height so the meta row sits
+      // immediately below the paper without a phantom gap.
+      style={{ height: innerHeight * scale }}
+    >
+      <div
+        ref={innerRef}
+        className={styles.scaledPaperInner}
+        style={{
+          width:           `${designWidth}px`,
+          transform:       `scale(${scale})`,
+          transformOrigin: 'top left',
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
 // ─── Carousel slides ──────────────────────────────────────────────────────
 // Each slide bundles the rendered letter + a recipient's-reply banner that
 // sits beneath it as a glassmorphic strip. The reply is what makes each
@@ -222,18 +295,24 @@ export default function LoadingScreen({ onCta = () => {} }) {
             >
               <div className={styles.slideEyebrow}>{SLIDES[slideIdx].eyebrow}</div>
               <div className={styles.slidePaperWrap}>
-                <PaperCanvas
-                  recipient={SLIDES[slideIdx].data.recipient ?? ''}
-                  message={swapSignOff(SLIDES[slideIdx].data.message ?? '', senderNames[slideIdx])}
-                  senderName={senderNames[slideIdx]}
-                  showRecipient={SLIDES[slideIdx].data.showRecipient ?? false}
-                  paperConfig={SLIDES[slideIdx].data.paperConfig}
-                  stickers={SLIDES[slideIdx].data.stickers ?? []}
-                  mediaFrames={SLIDES[slideIdx].data.mediaFrames ?? []}
-                  voiceNotes={SLIDES[slideIdx].data.voiceNotes ?? []}
-                  strokes={SLIDES[slideIdx].data.strokes ?? []}
-                  textSize={SLIDES[slideIdx].data.textSize ?? 'md'}
-                />
+                {/* ScaledPaper renders PaperCanvas at the editor's design
+                   width (720 px) then CSS-scales it to fit. Keeps text
+                   wrapping + sticker/photo positions identical to what
+                   the user saw when designing — no content drift. */}
+                <ScaledPaper>
+                  <PaperCanvas
+                    recipient={SLIDES[slideIdx].data.recipient ?? ''}
+                    message={swapSignOff(SLIDES[slideIdx].data.message ?? '', senderNames[slideIdx])}
+                    senderName={senderNames[slideIdx]}
+                    showRecipient={SLIDES[slideIdx].data.showRecipient ?? false}
+                    paperConfig={SLIDES[slideIdx].data.paperConfig}
+                    stickers={SLIDES[slideIdx].data.stickers ?? []}
+                    mediaFrames={SLIDES[slideIdx].data.mediaFrames ?? []}
+                    voiceNotes={SLIDES[slideIdx].data.voiceNotes ?? []}
+                    strokes={SLIDES[slideIdx].data.strokes ?? []}
+                    textSize={SLIDES[slideIdx].data.textSize ?? 'md'}
+                  />
+                </ScaledPaper>
               </div>
 
               {/* Reply banner LEFT + per-slide CTA RIGHT.
