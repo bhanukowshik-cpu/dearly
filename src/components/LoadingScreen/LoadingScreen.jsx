@@ -149,6 +149,7 @@ const SLIDES = [
     eyebrow:   'A note to someone you just met',
     data:      priyaLetter,
     replyFrom: 'Priya',
+    replyRole: 'contact you met at a conference',
     reply:     "Great catching up! Coffee next time you're in town. ✨",
   },
   {
@@ -156,6 +157,7 @@ const SLIDES = [
     eyebrow:   'A thank-you to your manager',
     data:      marcusLetter,
     replyFrom: 'Marcus',
+    replyRole: 'manager',
     reply:     "Made my day. You're one of the kindest folks I've worked with. 💛",
   },
   {
@@ -163,6 +165,7 @@ const SLIDES = [
     eyebrow:   'A voice memo for your best friend',
     data:      maiLetter,
     replyFrom: 'Mai',
+    replyRole: 'best friend',
     reply:     "Crying. Calling you in five. 💌",
   },
 ]
@@ -315,41 +318,22 @@ export default function LoadingScreen({ onCta = () => {} }) {
                 </ScaledPaper>
               </div>
 
-              {/* Reply banner LEFT + per-slide CTA RIGHT.
-                  The banner is the recipient's response with emoji — closes
-                  the conversational loop so each slide reads as one
-                  exchange, not a one-sided note. The CTA mirrors the
-                  Share-note button's hand-drawn crooked SVG so it visually
-                  belongs to the brand chrome. Both stack on mobile. */}
+              {/* Reply banner — the recipient's response with emoji, beneath
+                  the letter. Closes the conversational loop so each slide
+                  reads as one exchange (note + reply), not a one-sided note.
+                  Role is shown in brackets next to the name to anchor who
+                  this person is in the user's life — "Marcus (manager)",
+                  "Mai (best friend)", "Priya (contact you met at a
+                  conference)". The page-level CTA below handles the
+                  call-to-action — no per-slide button. */}
               <div className={styles.slideMeta}>
                 <div className={styles.replyBanner}>
-                  <span className={styles.replyFrom}>{SLIDES[slideIdx].replyFrom}</span>
+                  <div className={styles.replyHeader}>
+                    <span className={styles.replyName}>{SLIDES[slideIdx].replyFrom}</span>
+                    <span className={styles.replyRole}>({SLIDES[slideIdx].replyRole})</span>
+                  </div>
                   <span className={styles.replyText}>{SLIDES[slideIdx].reply}</span>
                 </div>
-                <motion.button
-                  type="button"
-                  className={styles.slideCta}
-                  onClick={onCta}
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.96 }}
-                  transition={{ duration: 0.1 }}
-                >
-                  <svg
-                    className={styles.slideCtaBg}
-                    viewBox="0 0 220 44"
-                    preserveAspectRatio="none"
-                    fill="none"
-                    aria-hidden
-                  >
-                    <path
-                      d="M 12,6 C 70,3 150,4 208,6 C 211,16 212,28 208,38 C 150,41 70,40 12,38 C 9,28 9,16 12,6 Z"
-                      fill="white"
-                    />
-                  </svg>
-                  <span className={styles.slideCtaLabel}>
-                    Write a similar note
-                  </span>
-                </motion.button>
               </div>
             </motion.div>
           </AnimatePresence>
@@ -383,6 +367,21 @@ export default function LoadingScreen({ onCta = () => {} }) {
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
           >
+            {/* Hand-drawn crooked SVG fill, mirroring the writing-screen
+                Share-note button so the landing CTA visually belongs to
+                the same brand chrome family. Caveat label on top. */}
+            <svg
+              className={styles.ctaBg}
+              viewBox="0 0 340 62"
+              preserveAspectRatio="none"
+              fill="none"
+              aria-hidden
+            >
+              <path
+                d="M 14,8 C 95,4 245,5 326,8 C 330,22 331,40 326,54 C 245,58 95,57 14,54 C 10,40 10,22 14,8 Z"
+                fill="white"
+              />
+            </svg>
             <span className={styles.ctaLabel}>
               Write a Memorable Note <IconArrow />
             </span>

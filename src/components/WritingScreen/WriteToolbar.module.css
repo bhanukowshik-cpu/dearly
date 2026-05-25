@@ -9,8 +9,7 @@
 .root {
   position: absolute;
   /* Clear the bottom nav AND the "Designed by" attribution pill that
-     sits between the toolbar and the tab bar (~30px tall + gap). Also
-     leave headroom for tool illustrations that stick UP above their tiles. */
+     sits between the toolbar and the tab bar (~30px tall + gap). */
   bottom: calc(100% + 56px);
   left: 0;
   right: 0;
@@ -18,9 +17,9 @@
   width: fit-content;
   max-width: calc(100vw - 32px);
   display: inline-flex;
-  align-items: flex-end;          /* anchor tiles to bottom — tools stick up */
+  align-items: center;
   gap: 14px;
-  padding: 14px 22px;
+  padding: 12px 20px;
   background: rgba(12, 18, 32, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 999px;
@@ -30,13 +29,12 @@
   pointer-events: auto;
   z-index: 30;
   white-space: nowrap;
-  overflow: visible;              /* let pen illustrations rise out of the pill */
 }
 
 /* Each grouped cluster (tool radio / colors / paper toggles) */
 .section {
   display: inline-flex;
-  align-items: flex-end;          /* tiles + swatches share a baseline at bottom */
+  align-items: center;
   gap: 10px;
   flex-shrink: 0;
 }
@@ -46,27 +44,27 @@
   height: 36px;
   background: rgba(255, 255, 255, 0.14);
   flex-shrink: 0;
-  align-self: center;
 }
 
 /* ── Tool buttons (pen / highlighter / eraser) ─────────────────────────────
    Each tile is a "holder". The hand-drawn illustration sits absolutely
-   inside, anchored to the holder's bottom edge, oversized so the top of
-   the pen / marker / eraser pokes up ABOVE the tile — like real tools
-   parked in a tray. Non-selected tiles are transparent with a soft white
-   outline so users can clearly tell which tool is active (solid white). */
+   inside, anchored to the holder's bottom edge, and is intentionally
+   taller than the tile — the bottom ~40% extends past the tile and is
+   CLIPPED by overflow:hidden, so only the top ~60% (pen tip, marker
+   nose) is visible. Reads like the tool is parked nose-up in the
+   holder with its grip hidden inside. Mirrors DrawingPanel's tray. */
 
 .toolBtn {
   position: relative;
   width: 76px;
-  height: 64px;
+  height: 72px;
   display: inline-block;
   border: 1.5px solid rgba(255, 255, 255, 0.32);
   background: rgba(255, 255, 255, 0.06);
   border-radius: 18px;
   cursor: pointer;
   padding: 0;
-  overflow: visible;              /* allow icon to extend above tile */
+  overflow: hidden;               /* clip the bottom 40% of the illustration */
   -webkit-tap-highlight-color: transparent;
   transition:
     background 0.18s ease,
@@ -87,25 +85,28 @@
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.40);
 }
 
-/* The hand-drawn illustration anchors to the bottom-centre of the tile
-   and is intentionally taller than its container so the top portion sits
-   ABOVE the tile (Procreate-style tool tray). Active state lifts further. */
+/* Illustration sized at ~167% of the tile height so a translateY(40%)
+   pushes the bottom 40% past the tile bottom (where overflow:hidden
+   clips it). The visible top 60% = pen tip / marker nose — what the
+   user needs to recognize the tool. Active tool lifts a few px so the
+   tip rises just slightly. */
 .toolIcon {
   position: absolute;
   left: 50%;
-  bottom: 4px;                    /* small inset so the base nestles in the tile */
-  width: 66px;
-  height: 88px;                   /* taller than tile (64) → top extends ~24px above */
-  transform: translateX(-50%);
+  bottom: 0;
+  width: 72px;
+  height: 120px;                  /* 1.67× tile height (72) → 40% extends below */
+  transform: translateX(-50%) translateY(40%);
+  transform-origin: 50% 100%;
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: none;
 }
 .toolBtn:hover .toolIcon {
-  transform: translateX(-50%) translateY(-4px);
+  transform: translateX(-50%) translateY(36%);
 }
 .toolBtnActive .toolIcon,
 .toolBtnActive:hover .toolIcon {
-  transform: translateX(-50%) translateY(-8px);
+  transform: translateX(-50%) translateY(32%);
 }
 
 /* ── Color swatches (shared between pen colors + paper colors) ─────────── */
@@ -123,7 +124,6 @@
   justify-content: center;
   transition: transform 0.12s ease, border-color 0.14s ease;
   -webkit-tap-highlight-color: transparent;
-  align-self: center;             /* swatches centre-aligned vs the taller tiles */
 }
 .swatch:hover { transform: scale(1.08); }
 .swatchActive {
@@ -136,3 +136,7 @@
   background: var(--swatch, currentColor);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.10);
 }
+
+/* Drop the align-self override I added in the previous round — both
+   tiles + swatches are center-aligned via .root and .section's
+   align-items: center now. */
