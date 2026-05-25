@@ -347,10 +347,10 @@
 .carousel {
   position: relative;
   z-index: 1;
-  /* Sized to give the scaled paper room to grow on wider viewports.
-     DESIGN_WIDTH (480) × MAX_SCALE (1.7) = ~816 px max paper width,
-     so a 720 px carousel cap accommodates most of the upscale without
-     leaving big empty margins. On narrower viewports we use 92 vw. */
+  /* Matches DESIGN_WIDTH (720) so the unscaled paper fills the carousel
+     exactly on wider viewports. Narrower viewports get the paper scaled
+     DOWN to fit; we never scale up (cap at MAX_SCALE = 1.0) so text
+     stays crisp on desktop. */
   width: min(720px, 92vw);
   display: flex;
   flex-direction: column;

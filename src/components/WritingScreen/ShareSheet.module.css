@@ -5,10 +5,12 @@
   top: calc(100% + 10px);
   right: 0;
   z-index: 300;
-  width: 320px;
+  /* Wider than the old 320 because the new email form has 4 inputs +
+     a CTA that all benefit from breathing room. */
+  width: 380px;
   background: rgba(10, 16, 30, 0.97);
   border-radius: 16px;
-  padding: 10px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 56px rgba(0, 0, 0, 0.55), 0 6px 18px rgba(0, 0, 0, 0.35);
@@ -32,7 +34,212 @@
 .options {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NEW SHARE-SHEET HIERARCHY (Primary → Secondary → Tertiary)
+   The classes below replace the older `.option / .optionBorder / .optionGroup`
+   pattern (which used hand-drawn SVG borders that the user removed). Those
+   older rules are still in this file but now dead code — safe to delete later.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── PRIMARY: email block (always expanded, top) ──────────────────────── */
+
+.primaryBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.primaryHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.primaryHeaderIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.78);
+  flex-shrink: 0;
+}
+
+.primaryHeaderLabel {
+  font-family: 'Caveat', cursive;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1;
+}
+
+/* Bigger, properly-readable input. 16 px is the magic number to stop iOS
+   Safari auto-zooming on focus. White-ish text on a faint translucent fill. */
+.primaryInput {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.14s, background 0.14s;
+}
+.primaryInput::placeholder {
+  color: rgba(255, 255, 255, 0.40);
+}
+.primaryInput:focus {
+  border-color: rgba(255, 255, 255, 0.30);
+  background: rgba(0, 0, 0, 0.32);
+}
+.primaryInput:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.primaryTextarea {
+  min-height: 64px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+/* The white primary CTA — matches "Share this note" in the top bar:
+   warm cream pill, dark text, Caveat. Full-width so it's the obvious
+   commit step for the form above it. */
+.primaryCTA {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 24px;
+  background: #ffffff;
+  color: #1c1c1e;
+  border: none;
+  border-radius: 999px;
+  font-family: 'Caveat', cursive;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.14s, transform 0.06s;
+  margin-top: 4px;
+}
+.primaryCTA:hover:not(:disabled) {
+  opacity: 0.92;
+}
+.primaryCTA:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.primaryCTA:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── SECONDARY: share link (compact row) ──────────────────────────────── */
+
+.secondaryBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.secondaryRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.78);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.14s, border-color 0.14s;
+  -webkit-tap-highlight-color: transparent;
+}
+.secondaryRow:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.secondaryRow:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+/* When the link has been minted, the row contains an input + Copy
+   button; loosen the gap so they breathe. */
+.secondaryRow:has(input) {
+  padding: 6px 6px 6px 12px;
+}
+.secondaryRow > svg {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ── TERTIARY: PNG download (icon only) ───────────────────────────────── */
+
+.tertiaryRow {
+  display: flex;
+  justify-content: center;
+  padding-top: 2px;
+}
+
+.tertiaryIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+  -webkit-tap-highlight-color: transparent;
+}
+.tertiaryIconBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.20);
+  color: rgba(255, 255, 255, 0.85);
+}
+.tertiaryIconBtn:disabled {
+  opacity: 0.40;
+  cursor: not-allowed;
+}
+
+/* ── Shared error text ─────────────────────────────────────────────────── */
+
+.errorText {
+  margin: 6px 4px 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(255, 140, 130, 0.92);
+  letter-spacing: 0.01em;
 }
 
 .optionGroup {

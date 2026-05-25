@@ -214,7 +214,23 @@ export default async function handler(req, res) {
   try { payload = JSON.parse(body) }
   catch { return badRequest(res, 'Invalid JSON body') }
 
-  const to            = (payload.to            ?? '').trim()
+  // Recipients: accept either a single string or an array of strings.
+  // Dedupe + validate each. Hard-cap at 5 to match the client; protects
+  // the Resend free tier from a runaway client bug.
+  const MAX_RECIPIENTS = 5
+  const rawTo = payload.to
+  let recipients = []
+  if (typeof rawTo === 'string') {
+    recipients = rawTo.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean)
+  } else if (Array.isArray(rawTo)) {
+    recipients = rawTo.map(s => String(s ?? '').trim()).filter(Boolean)
+  }
+  recipients = Array.from(new Set(recipients.map(r => r.toLowerCase())))
+  if (recipients.length === 0)                return badRequest(res, 'At least one recipient email is required.')
+  if (recipients.length > MAX_RECIPIENTS)     return badRequest(res, `Too many recipients — keep it to ${MAX_RECIPIENTS} or fewer.`)
+  const invalid = recipients.find(r => !EMAIL_RE.test(r))
+  if (invalid)                                 return badRequest(res, `"${invalid}" is not a valid email.`)
+
   const fromName      = (payload.fromName      ?? '').trim().slice(0, 60) || 'Someone'
   const recipientName = (payload.recipientName ?? '').trim().slice(0, 60)
   const shareUrl      = (payload.shareUrl      ?? '').trim()
@@ -225,7 +241,6 @@ export default async function handler(req, res) {
   const subject = (payload.subject ?? '').trim().slice(0, 160)
                 || templateSubject({ fromName, recipientName })
 
-  if (!to || !EMAIL_RE.test(to))   return badRequest(res, 'A valid recipient email is required.')
   if (!shareUrl)                   return badRequest(res, 'shareUrl is required.')
   if (!/^https?:\/\//i.test(shareUrl)) return badRequest(res, 'shareUrl must be a http(s) URL.')
 
@@ -241,32 +256,51 @@ export default async function handler(req, res) {
   // the canonical URL; can be overridden per-deploy via PUBLIC_ORIGIN.
   const assetOrigin = (process.env.PUBLIC_ORIGIN || 'https://bhanu-dearly.vercel.app').replace(/\/$/, '')
 
+  // Build the bodies once (identical content per recipient — only the
+  // `to` field changes). Pre-building avoids re-doing the HTML/text work
+  // five times in the loop.
+  const html = buildHtmlBody({ fromName, recipientName, shareUrl, personalNote, assetOrigin })
+  const text = buildPlainBody({ fromName, recipientName, shareUrl, personalNote })
+
+  // Send one PRIVATE email per recipient (not a single email with all
+  // addresses in the TO header). Recipients don't see each other's
+  // addresses — important for personal notes. Promise.allSettled so a
+  // single bounce doesn't sink the others.
   try {
-    const upstream = await fetch('https://api.resend.com/emails', {
-      method:  'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type':  'application/json',
-      },
-      body: JSON.stringify({
-        from:     fromAddress,
-        to,
-        subject,
-        html:     buildHtmlBody({ fromName, recipientName, shareUrl, personalNote, assetOrigin }),
-        text:     buildPlainBody({ fromName, recipientName, shareUrl, personalNote }),
-        reply_to: undefined,  // sender's email isn't collected here; leave default
-      }),
-    })
+    const results = await Promise.allSettled(recipients.map(to =>
+      fetch('https://api.resend.com/emails', {
+        method:  'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type':  'application/json',
+        },
+        body: JSON.stringify({ from: fromAddress, to, subject, html, text }),
+      }).then(async r => {
+        if (!r.ok) {
+          const errText = await r.text()
+          throw new Error(`${r.status}: ${errText.slice(0, 160)}`)
+        }
+        return r.json()
+      })
+    ))
 
-    if (!upstream.ok) {
-      const errText = await upstream.text()
-      return serverError(res, `Resend rejected the email: ${errText.slice(0, 300)}`)
-    }
+    const sent     = results.filter(r => r.status === 'fulfilled').map((r, i) => recipients[i])
+    const failures = results
+      .map((r, i) => ({ r, addr: recipients[i] }))
+      .filter(({ r }) => r.status === 'rejected')
+      .map(({ r, addr }) => ({ addr, reason: r.reason?.message || 'send failed' }))
 
-    const data = await upstream.json()
-    res.statusCode = 200
+    res.statusCode = sent.length > 0 ? 200 : 500
     res.setHeader('Content-Type', 'application/json')
-    res.end(JSON.stringify({ ok: true, id: data.id }))
+    res.end(JSON.stringify({
+      ok:       sent.length > 0,
+      sent:     sent.length,
+      failed:   failures.length,
+      failures, // [{ addr, reason }, ...] — empty array on full success
+      error:    sent.length === 0
+        ? `All ${failures.length} sends failed. First reason: ${failures[0]?.reason}`
+        : undefined,
+    }))
   } catch (e) {
     return serverError(res, e.message || 'Failed to send email.')
   }

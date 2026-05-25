@@ -257,16 +257,36 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
     }
   }, [linkUrl, noteData])
 
-  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const EMAIL_RE       = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const MAX_RECIPIENTS = 5
 
   const handleSendEmail = useCallback(async (e) => {
     e?.preventDefault?.()
     if (emailSending) return
-    const to = emailTo.trim()
-    if (!EMAIL_RE.test(to)) {
-      setEmailErr('Please enter a valid email address.')
+
+    // Split on comma / newline / whitespace so the user can paste a list
+    // however they want. Dedupe + validate each. Cap at MAX_RECIPIENTS so
+    // a stray paste of a giant contact list can't blast the API.
+    const recipients = Array.from(new Set(
+      emailTo
+        .split(/[\s,;]+/)
+        .map(s => s.trim().toLowerCase())
+        .filter(Boolean)
+    ))
+    if (recipients.length === 0) {
+      setEmailErr('Please enter at least one email address.')
       return
     }
+    if (recipients.length > MAX_RECIPIENTS) {
+      setEmailErr(`That's ${recipients.length} addresses — please keep it to ${MAX_RECIPIENTS} or fewer.`)
+      return
+    }
+    const invalid = recipients.find(r => !EMAIL_RE.test(r))
+    if (invalid) {
+      setEmailErr(`"${invalid}" doesn't look like a valid email.`)
+      return
+    }
+
     setEmailErr('')
     setEmailSending(true)
 
@@ -282,7 +302,9 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to,
+          // Backend now accepts an array — sends one private email per
+          // recipient so they don't see each other's addresses.
+          to:            recipients,
           fromName:      noteData.senderName || 'Someone',
           recipientName: noteData.recipientName || noteData.recipient || '',
           shareUrl:      url,
@@ -294,17 +316,20 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
       if (!resp.ok || data.ok === false) {
         const msg = data?.error || `Email send failed (${resp.status})`
         setEmailErr(msg.length > 120 ? msg.slice(0, 117) + '…' : msg)
-        trackEvent('email_send_failed', { reason: msg.slice(0, 60) })
+        trackEvent('email_send_failed', { reason: msg.slice(0, 60), count: recipients.length })
         return
       }
       // Success — clear the form, show confirmation chip for ~5s.
-      setEmailSentTo(to)
+      const sentLabel = recipients.length === 1
+        ? recipients[0]
+        : `${recipients.length} people`
+      setEmailSentTo(sentLabel)
       setEmailTo('')
       setEmailNote('')
       setEmailSubject('')
       setSubjectTouched(false)
-      onToast?.(`Sent to ${to}.`)
-      trackEvent('email_sent', { source: 'share_sheet' })
+      onToast?.(`Sent to ${sentLabel}.`)
+      trackEvent('email_sent', { source: 'share_sheet', count: recipients.length })
       if (emailSentTimerRef.current) clearTimeout(emailSentTimerRef.current)
       emailSentTimerRef.current = setTimeout(() => setEmailSentTo(''), 5000)
     } catch (err) {
@@ -324,67 +349,113 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
       className={styles.dropdown}
       {...motionProps}
     >
-      {/* Options */}
+      {/* Options — rebuilt hierarchy:
+           Primary   → Send via email (always expanded, white CTA, top)
+           Secondary → Share link (compact row, copy on demand)
+           Tertiary  → Download PNG (icon-only at the foot) */}
       <div className={styles.options}>
 
-        {/* ── Create link ── */}
-        <div className={styles.optionGroup}>
-          <button className={styles.option} onClick={handleCreateLink} disabled={creatingLink}>
-            <svg className={styles.optionBorder} viewBox="0 0 290 54" preserveAspectRatio="none" fill="none" aria-hidden>
-              <path d="M 9,4  C 97,2  193,2  281,4"   stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
-              <path d="M 281,4 C 284,20 284,34 281,50" stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
-              <path d="M 281,50 C 193,53 97,53 9,50"  stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
-              <path d="M 9,50  C 6,34  6,20  9,4"    stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
-            </svg>
-            <span className={styles.optionIcon}><IconLink /></span>
-            <span className={styles.optionText}>
-              <span className={styles.optionLabel}>
-                {creatingLink ? 'Creating link…' : 'Create a shareable link'}
-              </span>
+        {/* ── PRIMARY: Send via email ── */}
+        <form className={styles.primaryBlock} onSubmit={handleSendEmail}>
+          <div className={styles.primaryHeader}>
+            <span className={styles.primaryHeaderIcon}><IconEmail /></span>
+            <span className={styles.primaryHeaderLabel}>
+              {emailSentTo ? `Sent to ${emailSentTo} ✓` : 'Send via email'}
             </span>
+          </div>
+
+          <input
+            className={styles.primaryInput}
+            type="text"
+            inputMode="email"
+            autoComplete="off"
+            placeholder="Up to 5 emails, separated by commas"
+            value={emailTo}
+            onChange={e => setEmailTo(e.target.value)}
+            disabled={emailSending}
+            required
+          />
+
+          <input
+            className={styles.primaryInput}
+            type="text"
+            placeholder={subjectLoading ? 'Writing a subject for you…' : 'Subject line'}
+            value={emailSubject}
+            onChange={e => { setEmailSubject(e.target.value); setSubjectTouched(true) }}
+            maxLength={160}
+            disabled={emailSending}
+          />
+
+          <textarea
+            className={`${styles.primaryInput} ${styles.primaryTextarea}`}
+            placeholder="Add a short note (optional)"
+            value={emailNote}
+            onChange={e => setEmailNote(e.target.value)}
+            maxLength={500}
+            disabled={emailSending}
+          />
+
+          <button type="submit" className={styles.primaryCTA} disabled={emailSending}>
+            {emailSending ? 'Sending…' : 'Send'}
           </button>
 
           <AnimatePresence>
-            {linkUrl && (
-              <motion.div
-                className={styles.linkRow}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <input
-                  className={styles.linkInput}
-                  value={linkUrl}
-                  readOnly
-                  inputMode="none"
-                  onFocus={e => e.target.blur()}
-                />
-                <button
-                  className={`${styles.copyBtn} ${copied ? styles.copyBtnDone : ''}`}
-                  onClick={handleCopy}
-                  aria-label="Copy link"
-                >
-                  {copied ? <IconCheck /> : <IconCopy />}
-                  <span>{copied ? 'Copied!' : 'Copy'}</span>
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {linkErr && (
+            {emailErr && (
               <motion.p
+                className={styles.errorText}
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                style={{
-                  margin: '4px 16px 0',
-                  fontSize: 12,
-                  color: 'rgba(255, 120, 100, 0.90)',
-                  fontFamily: 'Inter, sans-serif',
-                }}
+              >
+                {emailErr}
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </form>
+
+        {/* ── SECONDARY: Share link ── */}
+        <div className={styles.secondaryBlock}>
+          {!linkUrl ? (
+            <button
+              type="button"
+              className={styles.secondaryRow}
+              onClick={handleCreateLink}
+              disabled={creatingLink}
+            >
+              <IconLink />
+              <span>{creatingLink ? 'Creating link…' : 'Share link'}</span>
+            </button>
+          ) : (
+            <div className={styles.secondaryRow}>
+              <IconLink />
+              <input
+                className={styles.linkInput}
+                value={linkUrl}
+                readOnly
+                inputMode="none"
+                onFocus={e => e.target.blur()}
+              />
+              <button
+                type="button"
+                className={`${styles.copyBtn} ${copied ? styles.copyBtnDone : ''}`}
+                onClick={handleCopy}
+                aria-label="Copy link"
+              >
+                {copied ? <IconCheck /> : <IconCopy />}
+                <span>{copied ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
+          )}
+
+          <AnimatePresence>
+            {linkErr && (
+              <motion.p
+                className={styles.errorText}
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
               >
                 {linkErr}
               </motion.p>
@@ -392,126 +463,23 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
           </AnimatePresence>
         </div>
 
-        {/* ── Download PNG ── */}
-        <button className={styles.option} onClick={handlePng} disabled={loadingPng}>
-          <svg className={styles.optionBorder} viewBox="0 0 290 54" preserveAspectRatio="none" fill="none" aria-hidden>
-            <path d="M 9,4  C 97,2  193,2  281,4"   stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
-            <path d="M 281,4 C 284,20 284,34 281,50" stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
-            <path d="M 281,50 C 193,53 97,53 9,50"  stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
-            <path d="M 9,50  C 6,34  6,20  9,4"    stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
-          </svg>
-          <span className={styles.optionIcon}><IconPNG /></span>
-          <span className={styles.optionText}>
-            <span className={styles.optionLabel}>
-              {loadingPng
-                ? 'Generating…'
-                : downloadDone === 'ios'
-                  ? 'Long press the image to save 📸'
-                  : downloadDone === 'done'
-                    ? 'Check your downloads ✓'
-                    : 'Download as PNG'}
-            </span>
-            {downloadDone === 'ios' && (
-              <span className={styles.optionSub}>Long press the image to save</span>
-            )}
-          </span>
-        </button>
-
-        {/* ── Send via email ── */}
-        <div className={styles.optionGroup}>
+        {/* ── TERTIARY: Download as PNG (icon-only) ── */}
+        <div className={styles.tertiaryRow}>
           <button
-            className={styles.option}
-            onClick={() => { setEmailOpen(v => !v); setEmailErr('') }}
-            aria-expanded={emailOpen}
+            type="button"
+            className={styles.tertiaryIconBtn}
+            onClick={handlePng}
+            disabled={loadingPng}
+            title={
+              loadingPng                ? 'Generating…' :
+              downloadDone === 'done'   ? 'Saved ✓' :
+              downloadDone === 'ios'    ? 'Long press the image to save' :
+                                          'Download as image'
+            }
+            aria-label="Download as image"
           >
-            <svg className={styles.optionBorder} viewBox="0 0 290 54" preserveAspectRatio="none" fill="none" aria-hidden>
-              <path d="M 9,4  C 97,2  193,2  281,4"   stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
-              <path d="M 281,4 C 284,20 284,34 281,50" stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
-              <path d="M 281,50 C 193,53 97,53 9,50"  stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
-              <path d="M 9,50  C 6,34  6,20  9,4"    stroke="rgba(255,255,255,0.38)" strokeWidth="1.3" strokeLinecap="round"/>
-            </svg>
-            <span className={styles.optionIcon}><IconEmail /></span>
-            <span className={styles.optionText}>
-              <span className={styles.optionLabel}>
-                {emailSentTo ? `Sent to ${emailSentTo} ✓` : 'Send via email'}
-              </span>
-            </span>
+            <IconPNG />
           </button>
-
-          <AnimatePresence>
-            {emailOpen && (
-              <motion.form
-                className={styles.linkRow}
-                style={{ flexDirection: 'column', gap: 8, alignItems: 'stretch' }}
-                onSubmit={handleSendEmail}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <input
-                  className={styles.linkInput}
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  placeholder="recipient@example.com"
-                  value={emailTo}
-                  onChange={e => setEmailTo(e.target.value)}
-                  disabled={emailSending}
-                  required
-                />
-                {/* Subject — auto-suggested from the note via /api/suggest-subject
-                    when the form opens. Pre-filled so the user has a sensible
-                    default, but fully editable. Placeholder reflects current
-                    state: loading hint → editable. */}
-                <input
-                  className={styles.linkInput}
-                  type="text"
-                  placeholder={subjectLoading ? 'Writing a subject for you…' : 'Subject line'}
-                  value={emailSubject}
-                  onChange={e => { setEmailSubject(e.target.value); setSubjectTouched(true) }}
-                  maxLength={160}
-                  disabled={emailSending}
-                />
-                <textarea
-                  className={styles.linkInput}
-                  style={{ minHeight: 60, resize: 'vertical', fontFamily: 'inherit', padding: '8px 12px' }}
-                  placeholder="Add a short note (optional)"
-                  value={emailNote}
-                  onChange={e => setEmailNote(e.target.value)}
-                  maxLength={500}
-                  disabled={emailSending}
-                />
-                <button
-                  type="submit"
-                  className={styles.copyBtn}
-                  disabled={emailSending}
-                  style={{ alignSelf: 'flex-end' }}
-                >
-                  <span>{emailSending ? 'Sending…' : 'Send'}</span>
-                </button>
-              </motion.form>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {emailErr && (
-              <motion.p
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                style={{
-                  margin: '4px 16px 0',
-                  fontSize: 12,
-                  color: 'rgba(255, 120, 100, 0.90)',
-                  fontFamily: 'Inter, sans-serif',
-                }}
-              >
-                {emailErr}
-              </motion.p>
-            )}
-          </AnimatePresence>
         </div>
 
       </div>

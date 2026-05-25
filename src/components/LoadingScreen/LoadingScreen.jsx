@@ -78,22 +78,22 @@ const HERO_PX = { mobile: 56, tablet: 70, desktop: 82 }
 //     IDENTICALLY to what the user saw when designing. Highlights, photos,
 //     stickers track the words/positions they were drawn against.
 //
-// DESIGN_WIDTH = 480 — measured directly from the editor at desktop viewport
-// (1440px wide → paper renders at 480×360 for postcard 3:2). If you ever
-// change the editor's paper sizing logic, re-measure with:
+// DESIGN_WIDTH = 720 — measured DIRECTLY on the editor's writing screen at
+// desktop viewport (1440 px window → postcard paper renders at 720×480).
+// To verify in dev, run on the writing screen:
 //   document.querySelector('[data-paper-canvas]').offsetWidth
-// in the editor and update this constant.
+// This is the EXACT width the user designed their letters at. Any other
+// value here makes the carousel reflow text at a different width than the
+// editor used — and since stickers / mediaFrames / drawn highlights are
+// stored as fixed % of paper, they end up landing on different words than
+// the user placed them under.
 //
-// Scale is allowed to grow ABOVE 1 (up to MAX_SCALE) so the paper fills
-// wider carousel containers on desktop/iPad — capping at 1 made the paper
-// look tiny in a big browser window. CSS transform scale-up doesn't
-// re-rasterize text (so it gets slightly softer at scale > 1) but the
-// layout stays pixel-perfect: text wraps identically, photos stay where
-// they were placed, highlights track the words they were drawn on. Keep
-// MAX_SCALE under 2 so text doesn't go visibly blurry; 1.7 fills a 680px+
-// carousel comfortably from a 480px design width.
-const DESIGN_WIDTH = 480
-const MAX_SCALE    = 1.7
+// MAX_SCALE = 1.0 — we never zoom IN past the design size on desktop, so
+// text stays crisp. Mobile/tablet scale DOWN to fit narrower carousels;
+// the trade-off is mobile text gets smaller (0.48× at 375 px viewport),
+// but the alternative is broken layouts which is worse than small text.
+const DESIGN_WIDTH = 720
+const MAX_SCALE    = 1.0
 
 function ScaledPaper({ children, designWidth = DESIGN_WIDTH }) {
   const wrapRef  = useRef(null)
