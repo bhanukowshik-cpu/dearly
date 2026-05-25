@@ -956,15 +956,6 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               </AnimatePresence>
             </div>
 
-            {/* Attribution pill — sits just above the bottom tab bar with
-                a small breathing gap. Reads as a quiet footer credit. */}
-            <div className={styles.designedByRow}>
-              <span className={styles.designedByPill} aria-label="Designed by The thoughtful designer">
-                <span className={styles.designedByPill_label}>Designed by</span>
-                <span className={styles.designedByPill_name}>The thoughtful designer</span>
-              </span>
-            </div>
-
             {/* Bottom tab bar — same tool set + order as desktop EditorToolbar.
                 On iPad the paper is contenteditable so Write also lets you
                 type via the panel below as a secondary input. */}

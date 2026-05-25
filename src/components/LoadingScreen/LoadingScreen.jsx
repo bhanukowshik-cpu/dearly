@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import AnimatedGlyphText from '../WritingScreen/AnimatedGlyphText'
 import { StarCluster } from '../WritingScreen/handDrawnStickers'
 import VideoBackground from '../VideoBackground/VideoBackground'
@@ -51,13 +51,49 @@ const HERO_PX     = { mobile: 56, tablet: 70, desktop: 82 }
 const GREETING_PX = { mobile: 26, tablet: 30, desktop: 34 }
 const BODY_PX     = { mobile: 15, tablet: 17, desktop: 19 }
 
-// Body copy lifted from the previous Caveat paragraphs, flattened to plain
-// strings so the glyph animator can stream them char-by-char. Inline rich
-// markup (bold/highlight) is intentionally dropped on the launch screen —
-// the handwriting itself is the emphasis here.
-const BODY_LINE_1 = "My name is Bhanu — I obsess over making experiences more personal and delightful."
-const BODY_LINE_2 = "I built Dearly for moments that deserve more than a text. Send someone who matters a note they'll actually keep."
-const BODY_LINE_3 = "With passion, Bhanu Kowshik"
+// ─── Use-case carousel slides ──────────────────────────────────────────────
+// Each slide pitches a single recipient persona — Dearly handles all of them.
+// Rotating one persona at a time keeps the value prop concrete instead of a
+// generic "send notes to people" abstraction.
+//
+// Images are loaded from Unsplash's CDN with format/size/quality params so
+// they ship tight (~30–60 KB each) and decode fast. No API key required —
+// `images.unsplash.com/photo-{id}` is a public CDN path.
+//
+// Replace any photo by swapping just the URL. The `eyebrow` reads like a
+// labelled scenario ("To my partner") and the `note` is the brand-voice
+// handwritten one-liner that follows.
+const SLIDES = [
+  {
+    id:      'partner',
+    image:   'https://images.unsplash.com/photo-1522098635833-216c403d3cbe?auto=format&fit=crop&w=720&q=80',
+    alt:     'A couple walking together at golden hour',
+    eyebrow: 'To my partner',
+    note:    "I love the way you laugh at your own jokes before the punchline lands. ♡",
+  },
+  {
+    id:      'friend',
+    image:   'https://images.unsplash.com/photo-1529068755536-a5ade0dcb4e8?auto=format&fit=crop&w=720&q=80',
+    alt:     'Two friends laughing on a sunny street',
+    eyebrow: 'To my oldest friend',
+    note:    "Eighteen years of being weird together and counting. Happy birthday, legend.",
+  },
+  {
+    id:      'manager',
+    image:   'https://images.unsplash.com/photo-1573164713988-8665fc963095?auto=format&fit=crop&w=720&q=80',
+    alt:     'A mentor and mentee in a thoughtful conversation',
+    eyebrow: 'To my manager',
+    note:    "Thank you for taking a chance on me last spring. It changed everything.",
+  },
+  {
+    id:      'client',
+    image:   'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=720&q=80',
+    alt:     'A handshake at a design conference',
+    eyebrow: 'To Priya, from Lisbon',
+    note:    "Loved our chat at the design summit. Don't be a stranger — coffee soon?",
+  },
+]
+const SLIDE_INTERVAL_MS = 5000
 
 export default function LoadingScreen({ onCta = () => {} }) {
   // Sequencing — each milestone gates the next so writes never overlap.
@@ -279,10 +315,10 @@ export default function LoadingScreen({ onCta = () => {} }) {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: 'easeOut', delay: reducedMotion ? 0 : 0.8 }}
-        aria-label="A product by The thoughtful designer"
+        aria-label="A product by The Thoughtful Designer"
       >
         <span className={styles.designerCreditLabel}>A product by</span>
-        <span className={styles.designerCreditName}>The thoughtful designer</span>
+        <span className={styles.designerCreditName}>The Thoughtful Designer</span>
       </motion.div>
 
     </div>

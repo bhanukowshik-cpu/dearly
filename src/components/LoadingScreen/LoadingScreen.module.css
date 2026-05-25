@@ -344,10 +344,13 @@
   border: 1px solid rgba(255, 255, 255, 0.10);
   backdrop-filter: blur(12px) saturate(120%);
   -webkit-backdrop-filter: blur(12px) saturate(120%);
-  font-family: 'Inter', sans-serif;
-  font-size: 12.5px;
+  /* Caveat for the hand-drawn brand feel — sits comfortably at 18 px
+     since Caveat reads small. Letter-spacing trimmed because Caveat
+     already has natural air around each glyph. */
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
   line-height: 1;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   white-space: nowrap;
   user-select: none;
   pointer-events: none;
@@ -356,14 +359,13 @@
 }
 
 .designerCreditLabel {
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.62);
   font-weight: 400;
 }
 
 .designerCreditName {
-  color: rgba(255, 255, 255, 0.95);
-  font-weight: 600;
-  letter-spacing: 0.005em;
+  color: rgba(255, 255, 255, 0.96);
+  font-weight: 700;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -395,11 +397,13 @@
   }
 
   /* Designer credit — tighter padding on narrow screens so the pill fits
-     comfortably above the safe-area inset without crowding the meta line */
+     comfortably above the safe-area inset without crowding the meta line.
+     Caveat at 17 px on mobile reads about the same visual size as the
+     desktop 18 px once you account for the slimmer mobile viewport. */
   .designerCredit {
     bottom: max(12px, env(safe-area-inset-bottom, 0px));
     padding: 6px 14px;
-    font-size: 11.5px;
+    font-size: 17px;
   }
 }
 

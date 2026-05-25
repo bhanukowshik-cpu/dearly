@@ -81,53 +81,9 @@
   gap: 0;
 }
 
-/* Mobile-only attribution row — sits just ABOVE the bottom tab bar
-   with 10 px of breathing room between the pill and the tabs. The tab
-   bar itself keeps its own home-indicator safe-area inset since it's
-   the bottom-most element again. */
-.designedByRow {
-  position: relative;
-  z-index: 10;
-  display: flex;
-  justify-content: center;
-  padding: 10px 0;
-  flex-shrink: 0;
-}
-
-/* Inter for the type — easier to read at small sizes than Caveat, and
-   the "Designed by … The thoughtful designer" copy is meant to feel
-   like a credit, not the brand wordmark. */
-.designedByPill {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 6px 14px;
-  /* Glassmorphic: frosted backdrop blur, semi-transparent fill, soft
-     white edge highlight, and a subtle drop shadow for depth.
-     -webkit prefix kept for older Safari that hadn't unprefixed yet. */
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 999px;
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 11px;
-  line-height: 1;
-  color: rgba(255, 255, 255, 0.78);
-  white-space: nowrap;
-  user-select: none;
-  /* No shadow — clean flat glassmorphic look. */
-  box-shadow: none;
-}
-.designedByPill_label {
-  font-weight: 400;
-  letter-spacing: 0.01em;
-}
-.designedByPill_name {
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: 0.01em;
-}
+/* (The Designed-by pill that used to live here has been removed from
+   the writing screen entirely — the brand credit now only appears on
+   the landing screen, where it belongs.) */
 
 .topBarRight {
   flex: 1;

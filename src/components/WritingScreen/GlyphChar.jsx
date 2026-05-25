@@ -88,6 +88,11 @@ export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = '
       const len = path.getTotalLength()
       path.style.strokeDasharray = `${len}`
       path.style.strokeDashoffset = `${len}`
+      // GPU promotion so the stroke draw doesn't repaint on the main
+      // thread per frame. Without this hint, long SVG paths visibly
+      // stutter at slower draw speeds because the rasterizer re-tiles
+      // the path on every frame.
+      path.style.willChange = 'stroke-dashoffset'
       void path.getBoundingClientRect() // force reflow before transition
       // Per-path draw duration + stagger — bumped so the pen-stroke
       // animation is clearly visible per character. 0.18s draw + 0.09s
@@ -99,10 +104,25 @@ export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = '
       // letter visibly write more slowly (used for hero/signature text);
       // 1 = baseline (used everywhere else). Scaling both keeps the
       // stagger : draw ratio constant so the writing rhythm stays the same.
+      //
+      // Timing function: cubic-bezier(0.25, 0.46, 0.45, 0.94) — a gentle
+      // ease-out that approximates how a pen naturally decelerates as
+      // each stroke ends. `linear` was the source of the perceived
+      // "stutter" — uniform progress on a stroke draw reads as choppy
+      // because the eye expects acceleration/deceleration on natural
+      // pen motion. Easing kills the stutter without changing duration.
       const drawSec = (0.18 / strokeSpeedMultiplier).toFixed(3)
       const lagSec  = ((i * 0.09) / strokeSpeedMultiplier).toFixed(3)
-      path.style.transition = `stroke-dashoffset ${drawSec}s linear ${lagSec}s`
-      path.style.strokeDashoffset = '0'
+      path.style.transition = `stroke-dashoffset ${drawSec}s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${lagSec}s`
+
+      // Kick the transition on the NEXT frame (not immediately after the
+      // reflow read) so the browser has a clean paint commit before we
+      // start animating. Without this rAF, the transition occasionally
+      // starts mid-paint and the first ~30ms drops frames — visible as
+      // a jump at the start of each stroke.
+      requestAnimationFrame(() => {
+        path.style.strokeDashoffset = '0'
+      })
     })
 
     // Reset on cleanup so StrictMode's double-invoke re-triggers the animation
