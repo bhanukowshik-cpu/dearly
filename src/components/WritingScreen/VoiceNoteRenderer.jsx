@@ -237,14 +237,26 @@ export default function VoiceNoteRenderer({
     const startY = e.clientY
     let dragging = false
 
+    // Read paper size from the data-paper-size attribute on the paper root
+    // (set by PaperCanvas). Voice notes have a fixed minimum CONTENT height
+    // (~50px for the play button + waveform row) that doesn't shrink with
+    // the paper. On a strip (~150px tall), that 50px is a third of the
+    // total height, so the default 2-98% clamp lets the user drag a voice
+    // note such that its actual rendered card overflows the paper edge.
+    // Tighten the vertical safe zone on strips so the card stays inside
+    // the paper with visible breathing room at top + bottom.
+    const paperSize = paper.getAttribute('data-paper-size') || 'postcard'
+    const yMin = paperSize === 'strip' ? 25 : 2
+    const yMax = paperSize === 'strip' ? 75 : 98
+
     function onPM(me) {
       if (!dragging && Math.hypot(me.clientX - startX, me.clientY - startY) > 4) {
         dragging = true
       }
       if (dragging) {
         const rect = paper.getBoundingClientRect()
-        const xPct = Math.max(2, Math.min(98, ((me.clientX - rect.left) / rect.width)  * 100))
-        const yPct = Math.max(2, Math.min(98, ((me.clientY - rect.top)  / rect.height) * 100))
+        const xPct = Math.max(2,    Math.min(98,   ((me.clientX - rect.left) / rect.width)  * 100))
+        const yPct = Math.max(yMin, Math.min(yMax, ((me.clientY - rect.top)  / rect.height) * 100))
         onMove(note.id, xPct, yPct)
       }
     }

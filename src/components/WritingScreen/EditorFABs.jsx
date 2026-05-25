@@ -53,6 +53,11 @@ export default function EditorFABs({ onRequestFocusEditor, onAddEmoji }) {
     setPickerOpen(false)
   }
 
+  /* preventDefault on pointerdown stops the FAB from stealing focus from
+     the contenteditable paper — so when the user picks an emoji,
+     getSelection() still points at their actual caret in the paper. */
+  const preserveFocus = (e) => { e.preventDefault() }
+
   return (
     <>
       <div className={styles.root}>
@@ -60,6 +65,7 @@ export default function EditorFABs({ onRequestFocusEditor, onAddEmoji }) {
           ref={emojiBtnRef}
           type="button"
           className={styles.fab}
+          onPointerDown={preserveFocus}
           onClick={() => setPickerOpen(p => !p)}
           aria-label="Add an emoji"
           title="Add an emoji"
@@ -69,6 +75,9 @@ export default function EditorFABs({ onRequestFocusEditor, onAddEmoji }) {
         <button
           type="button"
           className={styles.fab}
+          /* Text FAB intentionally does NOT preserveFocus — clicking it is
+             the explicit "summon keyboard" action which requires focusing
+             the editor anyway. */
           onClick={() => onRequestFocusEditor?.()}
           aria-label="Type on the paper"
           title="Type"

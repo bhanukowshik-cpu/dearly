@@ -794,11 +794,26 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     }
     const id = `vn-${nextVoiceNoteIdRef.current++}`
     const jitter = voiceNotes.length * 4
+
+    // Default y is paper-size aware. Voice notes have a fixed minimum
+    // CONTENT height (~50px play+waveform row) that doesn't shrink with
+    // paper height — on a strip (~150px tall) the old default y=55%
+    // pushed the card's actual bottom flush against the paper edge,
+    // with no visible padding. Drop strips at y=50% (dead center, since
+    // VoiceNoteRenderer uses translate(-50%, -50%)) with reduced jitter
+    // so even multiple notes stay inside the safe vertical zone. The
+    // drag clamp in VoiceNoteRenderer enforces the same zone (25-75%
+    // center y on strips).
+    const isStrip = paperConfig?.size === 'strip'
+    const defaultY = isStrip
+      ? Math.min(60, 50 + jitter * 0.5)
+      : Math.min(78, 55 + jitter)
+
     const newNote = {
       id,
       type: 'voice-note',
       x: Math.min(70, 30 + jitter),
-      y: Math.min(78, 55 + jitter),
+      y: defaultY,
       width:  25,   // % of paper width — ~30% bigger than the prior 19, comfortable default
       height: 12,   // % of paper height
       rotation: (Math.random() - 0.5) * 6,
@@ -845,24 +860,42 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     if (editor) editor.focus()
   }, [])
 
-  const addEmojiSticker = useCallback((char) => {
+  /* Insert the picked emoji at the caret in the paper contenteditable.
+     Consistent with how the InputPanel emoji picker works on phones +
+     desktop — emojis are TEXT at the caret, not separate stickers.
+     If the editor doesn't currently have a selection (eg. the user hasn't
+     tapped it yet this session), focus it and append at the end. */
+  const insertEmojiAtCaret = useCallback((char) => {
     if (!char) return
-    function EmojiSticker() {
-      return (
-        <span style={{
-          fontSize: '64px',
-          lineHeight: 1,
-          display: 'block',
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-        }}>{char}</span>
-      )
+    const editor = paperRef.current?.querySelector('[contenteditable="true"]')
+    if (!editor) return
+    editor.focus()
+    const sel = window.getSelection()
+    const hasRangeInEditor = sel && sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).commonAncestorContainer)
+    if (hasRangeInEditor) {
+      const range = sel.getRangeAt(0)
+      range.deleteContents()
+      const tn = document.createTextNode(char)
+      range.insertNode(tn)
+      range.setStartAfter(tn)
+      range.collapse(true)
+      sel.removeAllRanges()
+      sel.addRange(range)
+    } else {
+      // No prior selection — append to end and move caret after it.
+      const tn = document.createTextNode(char)
+      editor.appendChild(tn)
+      const range = document.createRange()
+      range.setStartAfter(tn)
+      range.collapse(true)
+      const newSel = window.getSelection()
+      newSel.removeAllRanges()
+      newSel.addRange(range)
     }
-    addSticker({
-      id: `emoji-${char}`,
-      Component: EmojiSticker,
-    })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    // Sync the new text content back to React state via the editor's
+    // onInput handler — easiest way is to dispatch a synthetic input event.
+    editor.dispatchEvent(new InputEvent('input', { bubbles: true }))
+  }, [])
 
   /* Pinch-to-zoom: track two simultaneous finger (touch) pointers on the
      paper container. Pen pointers are ignored — they belong to DrawingLayer.
@@ -1247,7 +1280,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               {isIpad && activeTool === 'text' && (
                 <EditorFABs
                   onRequestFocusEditor={focusPaperEditor}
-                  onAddEmoji={addEmojiSticker}
+                  onAddEmoji={insertEmojiAtCaret}
                 />
               )}
               {[

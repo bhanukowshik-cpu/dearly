@@ -241,7 +241,12 @@ const EmojiTrigger = forwardRef(function EmojiTrigger({ onClick, active }, ref) 
       type="button"
       className={`${styles.emojiTrigger} ${active ? styles.emojiTriggerActive : ''}`}
       onClick={onClick}
-      onPointerDown={e => e.stopPropagation()}
+      /* preventDefault keeps focus + selection in the contenteditable so
+         insertEmoji's getSelection() returns the user's actual caret
+         position. Without this the browser shifts focus to the button on
+         pointerdown, the contenteditable selection collapses to position
+         0, and emojis land at the start of the line instead of the caret. */
+      onPointerDown={e => { e.preventDefault(); e.stopPropagation() }}
       aria-label="Add emoji"
       tabIndex={-1}
       whileHover={{ scale: 1.06 }}
