@@ -359,13 +359,15 @@
 }
 
 .slide {
-  /* Eyebrow stacked above the rendered paper. Width fills the carousel;
-     PaperCanvas inside .slidePaperWrap auto-sizes via its own aspect-ratio. */
+  /* Letter image stacked above the reply banner. Bigger gap (24 px) gives
+     the reply room to breathe — without it the banner crowds the bottom
+     edge of the postcard and they read as one block instead of "letter,
+     pause, response". */
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 24px;
 }
 
 .slideEyebrow {
@@ -464,41 +466,42 @@
   letter-spacing: 0.005em;
 }
 
-/* ── Dot indicators — bottom-center under the carousel ─────────────────── */
-
-.slideDots {
+/* ── Progress bar — auto-advance timer indicator ──────────────────────────
+   Sits below the carousel, fills left-to-right over each 5 s slide
+   interval, resets the moment the slide changes (React re-mounts the
+   fill element via `key` → keyframe restarts from 0 cleanly).
+   Identical behavior on every device because CSS animations run on the
+   compositor, not main-thread JS. */
+.slideProgress {
   position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 0 0;
-}
-
-.slideDot {
-  width: 7px;
-  height: 7px;
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 999px;
-  /* Dots sit on the dark page background (not on cream paper), so use a
-     translucent-white scale to read at any background tint. */
-  background: rgba(255, 255, 255, 0.28);
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  transition: background 0.18s ease, transform 0.18s ease, width 0.22s ease;
-  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+  margin-top: 6px;
 }
 
-.slideDot:hover {
-  background: rgba(255, 255, 255, 0.52);
+@keyframes slideProgressFill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
 }
 
-.slideDotActive {
-  background: rgba(255, 255, 255, 0.92);
-  /* Active dot stretches to a pill — common pattern (App Store, etc) that
-     reads as "you are here" without being a different shape from the others */
-  width: 18px;
+.slideProgressFill {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 999px;
+  transform-origin: left center;
+  transform: scaleX(0);
+  /* animation-duration set inline from SLIDE_INTERVAL_MS so the bar
+     always matches the actual timer; if we tune SLIDE_INTERVAL_MS in
+     JS, the bar follows automatically. */
+  animation-name: slideProgressFill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  animation-iteration-count: 1;
+  will-change: transform;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

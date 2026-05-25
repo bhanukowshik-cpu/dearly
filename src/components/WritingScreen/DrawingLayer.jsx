@@ -197,20 +197,12 @@ export default function DrawingLayer({
   const beginStroke = useCallback((e) => {
     if (!activeTool) return
     if (pointerIdRef.current !== null) return
-    /* penOnly mode (iPad write surface): when a drawing tool is selected,
-       the canvas accepts ONLY Apple Pencil input. Any finger / palm /
-       mouse pointer that lands on the canvas is swallowed here —
-       preventDefault + stopPropagation block:
-         • iOS Safari's palm-rest text selection (handles + magnifier)
-         • pinch zoom inside the canvas (the +/- buttons still work)
-         • accidental finger strokes
-       Off-canvas (toolbar, FABs, nav) is untouched — fingers behave
-       normally everywhere except on the paper itself. */
-    if (penOnly && e.pointerType !== 'pen') {
-      e.preventDefault()
-      e.stopPropagation()
-      return
-    }
+    /* penOnly mode (iPad write surface): only Apple Pencil starts a
+       stroke. Finger / palm / mouse pointers are ignored here but we
+       deliberately do NOT preventDefault so they bubble up to the
+       parent paper element's pinch-zoom handler. Palm-rest selection
+       is killed via user-select:none + touch-action:none CSS instead. */
+    if (penOnly && e.pointerType !== 'pen') return
     const el = rootRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
@@ -266,14 +258,9 @@ export default function DrawingLayer({
   const extendStroke = useCallback((e) => {
     const el = rootRef.current
     if (!el) return
-    // penOnly: swallow non-pen moves too so a finger drag during a stroke
-    // can't trigger browser gestures (text selection, scroll) on the
-    // canvas. Same guarantee as beginStroke above.
-    if (penOnly && e.pointerType !== 'pen') {
-      e.preventDefault()
-      e.stopPropagation()
-      return
-    }
+    // penOnly: ignore non-pen moves but let them bubble (so pinch zoom
+    // on the parent can read them). Selection is killed via CSS.
+    if (penOnly && e.pointerType !== 'pen') return
 
     // Eraser branch — runs whether or not a pointer is captured, so just
     // hovering with the mouse moves the indicator ring around.
@@ -397,12 +384,9 @@ export default function DrawingLayer({
 
   const endStroke = useCallback((e) => {
     const el = rootRef.current
-    // penOnly: swallow non-pen lifts so nothing slips through.
-    if (penOnly && e.pointerType !== 'pen') {
-      e.preventDefault()
-      e.stopPropagation()
-      return
-    }
+    // penOnly: ignore non-pen lifts but let them bubble so the pinch
+    // handler can complete its tracking.
+    if (penOnly && e.pointerType !== 'pen') return
 
     if (activeTool === 'eraser') {
       if (e.pointerId === pointerIdRef.current) {

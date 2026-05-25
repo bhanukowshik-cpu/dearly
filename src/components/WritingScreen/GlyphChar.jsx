@@ -18,7 +18,7 @@ import { getScaledMetrics, typographyMetadata } from '../../lib/typographyMetada
 // sizes outside the sm/md/lg token scale — used by AnimatedGlyphText so
 // hero/display text gets per-glyph advance widths instead of the legacy
 // fixed-0.68em-per-char fallback (which spaces characters way too wide).
-export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = 'inherit', size = null, viewportWidth = null, customMetrics = null, strokeSpeedMultiplier = 1 }) {
+export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = 'inherit', size = null, viewportWidth = null, customMetrics = null, strokeSpeedMultiplier = 1, extraDelaySec = 0 }) {
   const containerRef = useRef(null)
   const glyphSvg = hasGlyph(ch) ? getGlyphSvg(ch) : null
   // Metric resolution priority:
@@ -111,8 +111,13 @@ export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = '
       // "stutter" — uniform progress on a stroke draw reads as choppy
       // because the eye expects acceleration/deceleration on natural
       // pen motion. Easing kills the stutter without changing duration.
+      // extraDelaySec is added on top of the per-path stagger — used by
+      // AnimatedGlyphText to sequence characters when the wrapper has all
+      // chars rendered from frame 1 (so the layout doesn't shift as each
+      // char appears). Without extraDelaySec, every char in the wrapper
+      // starts drawing simultaneously on mount.
       const drawSec = (0.18 / strokeSpeedMultiplier).toFixed(3)
-      const lagSec  = ((i * 0.09) / strokeSpeedMultiplier).toFixed(3)
+      const lagSec  = (((i * 0.09) / strokeSpeedMultiplier) + extraDelaySec).toFixed(3)
       path.style.transition = `stroke-dashoffset ${drawSec}s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${lagSec}s`
 
       // Kick the transition on the NEXT frame (not immediately after the
@@ -127,7 +132,7 @@ export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = '
 
     // Reset on cleanup so StrictMode's double-invoke re-triggers the animation
     return () => { container.innerHTML = '' }
-  }, [svgForRender, size, strokeSpeedMultiplier])
+  }, [svgForRender, size, strokeSpeedMultiplier, extraDelaySec])
 
   // Caveat fallback for punctuation, emoji, unknown chars
   if (!glyphSvg) {

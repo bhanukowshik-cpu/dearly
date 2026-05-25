@@ -621,21 +621,30 @@
 .mobilePaperFull {
   flex: 1;                /* Take all available vertical space */
   max-height: none;       /* Remove the 46vh clamp */
-  /* The container is flex-direction: row by default, so:
-       justify-content = horizontal (main axis) → center horizontally
-       align-items     = vertical (cross axis) → pin to top so the gap
-                         below the paper isn't wasted when the keyboard
-                         shrinks the available height. */
+  /* Default row direction → justify-content is horizontal, align-items
+     is vertical. Center on both axes so the paper sits in the middle of
+     its allotted space. When the keyboard opens the root's height
+     shrinks via --vv-height, so the available space gets smaller and
+     the paper naturally moves up while staying centered in what's left. */
   justify-content: center;
-  align-items: flex-start;
-  padding: 16px 24px 8px;
-  /* No browser-default touch behavior (scroll/zoom) on the paper area —
-     finger input is blocked entirely; only Pencil draws. */
+  align-items: center;
+  padding: 16px 24px;
+  /* Disable browser touch defaults on the paper area (scroll, pinch,
+     long-press menu, palm-rest text-selection handles). Pinch zoom is
+     reintroduced via our own JS handler in WritingScreen. */
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
   overflow: hidden;
+}
+/* Cascade the same selection guards onto every child so nothing
+   inside the paper can be selected by a palm rest or long-press. */
+.mobilePaperFull * {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 .mobilePaperFull .mobilePaperInner {
   max-width: 640px;       /* Larger paper on iPad */

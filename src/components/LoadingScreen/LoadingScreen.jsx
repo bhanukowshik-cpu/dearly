@@ -53,33 +53,30 @@ const HERO_PX = { mobile: 56, tablet: 70, desktop: 82 }
 const SLIDES = [
   {
     id:        'priya',
-    eyebrow:   'A note to someone you just met',
     img:       priyaLetterPng,
     aspect:    '1520 / 1014',        // postcard 3:2
     alt:       'A handwritten postcard to Priya, met at a design conference',
     replyFrom: 'Priya',
     replyRole: 'contact you met at a conference',
-    reply:     "Great catching up! Coffee next time you're in town. ✨",
+    reply:     "Great catching up! Coffee next time you're in town. ✨🌟",
   },
   {
     id:        'marcus',
-    eyebrow:   'A thank-you to your manager',
     img:       marcusLetterPng,
     aspect:    '1520 / 1014',        // postcard 3:2
     alt:       'A handwritten postcard thanking Marcus for his mentorship',
     replyFrom: 'Marcus',
     replyRole: 'manager',
-    reply:     "Made my day. You're one of the kindest folks I've worked with. 💛",
+    reply:     "Made my day. You're one of the kindest folks I've worked with. 💛🙏",
   },
   {
     id:        'mai',
-    eyebrow:   'A voice memo for your best friend',
     img:       maiLetterPng,
     aspect:    '1520 / 380',         // strip 4:1
     alt:       'A paper strip with a voice note for Mai, an old friend',
     replyFrom: 'Mai',
     replyRole: 'best friend',
-    reply:     "Crying. Calling you in five. 💌",
+    reply:     "😭 Crying. Calling you in five. 💌🥹",
   },
 ]
 
@@ -194,7 +191,6 @@ export default function LoadingScreen({ onCta = () => {} }) {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             >
-              <div className={styles.slideEyebrow}>{SLIDES[slideIdx].eyebrow}</div>
               <img
                 src={SLIDES[slideIdx].img}
                 alt={SLIDES[slideIdx].alt}
@@ -222,19 +218,18 @@ export default function LoadingScreen({ onCta = () => {} }) {
             </motion.div>
           </AnimatePresence>
 
-          {/* Dot indicators — click to jump, also reflect auto-rotation */}
-          <div className={styles.slideDots} role="tablist" aria-label="Choose a scenario">
-            {SLIDES.map((s, i) => (
-              <button
-                key={s.id}
-                type="button"
-                role="tab"
-                aria-selected={i === slideIdx}
-                aria-label={s.eyebrow}
-                className={`${styles.slideDot} ${i === slideIdx ? styles.slideDotActive : ''}`}
-                onClick={() => setSlideIdx(i)}
-              />
-            ))}
+          {/* Progress bar — fills left-to-right over each 5 s slide interval,
+              then resets when the slide changes. CSS-animation-driven so it's
+              perfectly smooth on every device. The animation `key` is the
+              current slide id, which forces React to re-mount the bar on each
+              transition → restarts the keyframe from 0 cleanly without a JS
+              timer fighting the CSS. */}
+          <div className={styles.slideProgress} role="progressbar" aria-label="Auto-advancing slide timer">
+            <div
+              key={SLIDES[slideIdx].id}
+              className={styles.slideProgressFill}
+              style={{ animationDuration: `${SLIDE_INTERVAL_MS}ms` }}
+            />
           </div>
         </motion.div>
       )}

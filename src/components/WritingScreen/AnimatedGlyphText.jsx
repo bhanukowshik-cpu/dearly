@@ -106,6 +106,11 @@ export default function AnimatedGlyphText({
   // Optional line-height multiplier when fontSizePx is used (default 1.5
   // matches the medium body recipe — comfortable for handwritten reading).
   lineHeightMultiplier = 1.5,
+  // Tightens or loosens inter-character spacing. Multiplies both the
+  // letterSpacing (between glyphs) and the side bearings. <1 = tighter
+  // (used on hero text where the default 1.0 spreads big letters too far
+  // apart visually); 1 = baseline (matches the editor body text).
+  spacingMultiplier = 1.0,
   // CSS string fontSize for callers that don't want metric-driven sizing
   // (kept for backwards compat; uses GlyphChar's legacy em path → wider gaps).
   fontSize     = 'inherit',
@@ -141,27 +146,38 @@ export default function AnimatedGlyphText({
     [fontSizePx, viewportWidth]
   )
   const customMetrics = useMemo(
-    () => resolvedPx ? getScaledMetricsForPx(resolvedPx, { lineHeightMultiplier }) : null,
-    [resolvedPx, lineHeightMultiplier]
+    () => resolvedPx ? getScaledMetricsForPx(resolvedPx, { lineHeightMultiplier, spacingMultiplier }) : null,
+    [resolvedPx, lineHeightMultiplier, spacingMultiplier]
   )
 
-  // Always call both hooks unconditionally (rules-of-hooks). When typewriter
-  // mode is off we still call useTypewriter but ignore its output and feed
-  // the full text into the renderer directly. The hook's setState is cheap
-  // and its onComplete callback also stays useful in non-typewriter mode.
-  const revealed    = useTypewriter(text, { msPerChar, startDelayMs, onComplete: typewriter ? onComplete : null })
-  const visibleText = typewriter ? revealed : text
+  // FULL text rendered from frame 1 — even in typewriter mode. This locks
+  // the wrapper width so the layout doesn't shift as each char appears.
+  // (The OLD model appended chars as they were "revealed" → wrapper grew
+  // wider on every reveal → centered parents pushed the existing chars
+  // leftward, making it look like the word was expanding outward from the
+  // center instead of writing left-to-right in a fixed position.)
+  //
+  // Sequencing instead happens via per-char extraDelaySec passed to each
+  // GlyphChar — its stroke-dashoffset transition delay-starts so the glyph
+  // appears blank until its turn, then draws. The wrapper layout never
+  // moves; chars just "ink in" left-to-right one by one.
+  const chars = useCharList(text)
 
-  // Stable IDs so existing chars don't remount when new ones append.
-  const chars = useCharList(visibleText)
-
-  // Fire onComplete immediately in non-typewriter mode (single tick after mount).
+  // Fire onComplete once the last char's stroke draw would have finished:
+  // chars.length × msPerChar + a buffer for the final stroke duration.
+  // Skipped in non-typewriter mode (just fire immediately).
   useEffect(() => {
-    if (!typewriter && onComplete) {
+    if (!onComplete) return
+    if (!typewriter) {
       const id = setTimeout(() => onComplete(), startDelayMs + 200)
       return () => clearTimeout(id)
     }
-  }, [typewriter, text]) // eslint-disable-line react-hooks/exhaustive-deps
+    // Stroke draws are ~0.36s per character at strokeSpeedMultiplier=0.5,
+    // ~0.18s at 1×; use 600ms as a generous floor for the final flourish.
+    const totalMs = startDelayMs + chars.length * msPerChar + 600
+    const id = setTimeout(() => onComplete(), totalMs)
+    return () => clearTimeout(id)
+  }, [typewriter, text, msPerChar, startDelayMs]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Wrapper line-height comes from the metrics' computedLineHeight (px) when
   // available, so multi-line paragraphs space correctly. Falls back to 1 for
@@ -191,6 +207,11 @@ export default function AnimatedGlyphText({
     viewportWidth,
     wordSpacingPx,
     strokeSpeedMultiplier,
+    // Per-char stroke delay sequencer — only active in typewriter mode.
+    // Each char gets extraDelaySec = (charIndex × msPerChar)/1000 + startDelayMs/1000
+    // so the wrapper width is fixed but strokes draw in left-to-right order.
+    perCharDelaySec:  typewriter ? msPerChar / 1000 : 0,
+    startDelaySec:    typewriter ? startDelayMs / 1000 : 0,
   })
 
   return (
