@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import AnimatedGlyphText from '../WritingScreen/AnimatedGlyphText'
-import { StarCluster } from '../WritingScreen/handDrawnStickers'
 import VideoBackground from '../VideoBackground/VideoBackground'
 import styles from './LoadingScreen.module.css'
 
@@ -13,14 +12,6 @@ function IconArrow() {
         fill="currentColor"
       />
     </svg>
-  )
-}
-
-function CardSticker({ children, style }) {
-  return (
-    <div aria-hidden style={{ position: 'absolute', pointerEvents: 'none', userSelect: 'none', ...style }}>
-      {children}
-    </div>
   )
 }
 
@@ -42,59 +33,25 @@ const PACE_HERO = 360   // ≈ 7 chars × 360ms ≈ 2.5s
 // legacy em-based fallback that produces the gappy "D e a r l y" look).
 const HERO_PX = { mobile: 56, tablet: 70, desktop: 82 }
 
-// ─── Use-case carousel slides ──────────────────────────────────────────────
-// Each slide pitches a single recipient persona — Dearly handles all of them.
-// Rotating one persona at a time keeps the value prop concrete instead of a
-// generic "send notes to people" abstraction.
-//
-// Images are loaded from Unsplash's CDN with format/size/quality params so
-// they ship tight (~30–60 KB each) and decode fast. No API key required —
-// `images.unsplash.com/photo-{id}` is a public CDN path.
-//
-// Replace any photo by swapping just the URL. The `eyebrow` reads like a
-// labelled scenario ("To my partner") and the `note` is the brand-voice
-// handwritten one-liner that follows.
-const SLIDES = [
-  {
-    id:      'partner',
-    image:   'https://images.unsplash.com/photo-1522098635833-216c403d3cbe?auto=format&fit=crop&w=720&q=80',
-    alt:     'A couple walking together at golden hour',
-    eyebrow: 'To my partner',
-    note:    "I love the way you laugh at your own jokes before the punchline lands. ♡",
-  },
-  {
-    id:      'friend',
-    image:   'https://images.unsplash.com/photo-1529068755536-a5ade0dcb4e8?auto=format&fit=crop&w=720&q=80',
-    alt:     'Two friends laughing on a sunny street',
-    eyebrow: 'To my oldest friend',
-    note:    "Eighteen years of being weird together and counting. Happy birthday, legend.",
-  },
-  {
-    id:      'manager',
-    image:   'https://images.unsplash.com/photo-1573164713988-8665fc963095?auto=format&fit=crop&w=720&q=80',
-    alt:     'A mentor and mentee in a thoughtful conversation',
-    eyebrow: 'To my manager',
-    note:    "Thank you for taking a chance on me last spring. It changed everything.",
-  },
-  {
-    id:      'client',
-    image:   'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=720&q=80',
-    alt:     'A handshake at a design conference',
-    eyebrow: 'To Priya, from Lisbon',
-    note:    "Loved our chat at the design summit. Don't be a stranger — coffee soon?",
-  },
-]
-const SLIDE_INTERVAL_MS = 5000
+// ─── Carousel slides ──────────────────────────────────────────────────────
+// Placeholder for the use-case carousel — the user is designing the four
+// reference letters (Partner / Friend / Manager / Client) in the writing
+// editor and will send screenshots. Once those arrive, this constant + the
+// rendering JSX below will be rebuilt to match each design 1:1.
+// Until then the postcard area is intentionally omitted from the layout
+// so the loading screen reads as clean (hero → CTA → meta) instead of
+// half-finished. The carousel CSS classes are kept in the stylesheet so
+// the rebuild is purely a JSX/data swap, not a styling exercise.
 
 export default function LoadingScreen({ onCta = () => {} }) {
   // Sequencing:
   //   writeStarted → kicks off "Dearly," hero
-  //   writeDone    → card + CTA mount
-  //   slideIdx     → which carousel slide is showing right now
+  //   writeDone    → CTA + meta mount
+  // (The postcard carousel will land between heroSub and CTA once the
+  //  designed references are ready; gated by its own state when added.)
   const [writeStarted, setWriteStarted] = useState(reducedMotion)
   const [writeDone,    setWriteDone]    = useState(reducedMotion)
-  const [cardVisible,  setCardVisible]  = useState(false)
-  const [slideIdx,     setSlideIdx]     = useState(0)
+  const [ctaVisible,   setCtaVisible]   = useState(false)
 
   // Kick off the Dearly, handwriting after a beat (skip if reduced motion)
   useEffect(() => {
@@ -114,25 +71,16 @@ export default function LoadingScreen({ onCta = () => {} }) {
     return () => clearTimeout(id)
   }, [writeDone])
 
-  // After writeDone → reveal the card
+  // After writeDone → reveal the CTA + meta (and, eventually, the carousel)
   useEffect(() => {
     if (!writeDone) return
     const delay = reducedMotion ? 80 : 480
-    const id = setTimeout(() => setCardVisible(true), delay)
+    const id = setTimeout(() => setCtaVisible(true), delay)
     return () => clearTimeout(id)
   }, [writeDone])
 
-  // Carousel auto-rotation. Pauses entirely under reduced-motion (the user
-  // explicitly opted out of decorative motion). Pauses while the tab is
-  // backgrounded so we don't burn the queue silently. Manually clicking a
-  // dot just sets slideIdx — the interval restarts from the new position.
-  useEffect(() => {
-    if (reducedMotion || !cardVisible) return
-    const id = setInterval(() => {
-      setSlideIdx(i => (i + 1) % SLIDES.length)
-    }, SLIDE_INTERVAL_MS)
-    return () => clearInterval(id)
-  }, [cardVisible, slideIdx])
+  // (Carousel auto-rotation effect removed alongside the placeholder
+  // carousel JSX. Will return when the real designed letters land.)
 
   return (
     <div className={styles.root}>

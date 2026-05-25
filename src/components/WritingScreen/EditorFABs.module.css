@@ -3,9 +3,10 @@
 
 .root {
   position: absolute;
-  /* WriteToolbar is ~58px tall, sits ~12px above the tab bar. Put FABs
-     above that with 12px more breathing room. */
-  bottom: calc(100% + 84px);
+  /* Clearance stack from the nav bottom:
+       attribution pill row (~44px) + WriteToolbar (~88px tall) + 12px gap
+     ≈ 156px so the FABs sit above the toolbar with breathing room. */
+  bottom: calc(100% + 156px);
   right: 16px;
   z-index: 28;
   display: flex;
