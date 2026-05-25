@@ -245,12 +245,19 @@ export default function AnimatedGlyphText({
 //     between groups as a break-opportunity for the browser to wrap on.
 //   • Each '\n' becomes a <br/>.
 function renderWordGroups(chars, opts) {
-  const { inkColor, fontWeight, fontSize, size, customMetrics, viewportWidth, wordSpacingPx, strokeSpeedMultiplier } = opts
+  const { inkColor, fontWeight, fontSize, size, customMetrics, viewportWidth, wordSpacingPx, strokeSpeedMultiplier, perCharDelaySec = 0, startDelaySec = 0 } = opts
   const out = []
   let word = []
+  // Global index across ALL chars in the text (incl. spaces) — drives the
+  // per-char extraDelaySec so each char draws on its own beat without the
+  // wrapper width shifting. Tracked outside the word array because spaces
+  // and newlines need to count toward the cadence too (otherwise gaps in
+  // the text would have characters drawing too early).
+  let globalCharIndex = 0
   const flush = () => {
     if (word.length === 0) return
     const firstId = word[0].id
+    const wordChars = word.slice()
     out.push(
       <span
         key={`w-${firstId}`}
@@ -262,7 +269,7 @@ function renderWordGroups(chars, opts) {
           lineHeight:    1,
         }}
       >
-        {word.map(({ id, ch }) => (
+        {wordChars.map(({ id, ch, charIndex }) => (
           <GlyphChar
             key={id}
             ch={ch}
@@ -273,6 +280,7 @@ function renderWordGroups(chars, opts) {
             viewportWidth={viewportWidth}
             customMetrics={customMetrics}
             strokeSpeedMultiplier={strokeSpeedMultiplier}
+            extraDelaySec={startDelaySec + charIndex * perCharDelaySec}
           />
         ))}
       </span>
@@ -280,7 +288,12 @@ function renderWordGroups(chars, opts) {
     word = []
   }
   for (const item of chars) {
-    if (item.ch === '\n') { flush(); out.push(<br key={`br-${item.id}`} />); continue }
+    if (item.ch === '\n') {
+      flush()
+      out.push(<br key={`br-${item.id}`} />)
+      globalCharIndex++
+      continue
+    }
     if (item.ch === ' ')  {
       flush()
       out.push(
@@ -296,9 +309,15 @@ function renderWordGroups(chars, opts) {
           }}
         />
       )
+      globalCharIndex++
       continue
     }
-    word.push(item)
+    // Tag char with its position so the per-char delay can be computed
+    // by the GlyphChar inside flush(). Tracked here (in iteration order)
+    // not on `chars` itself so the typewriter sequencing matches the
+    // actual visual left-to-right reading order, accounting for spaces.
+    word.push({ ...item, charIndex: globalCharIndex })
+    globalCharIndex++
   }
   flush()
   return out

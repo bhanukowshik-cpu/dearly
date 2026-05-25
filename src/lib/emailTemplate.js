@@ -141,10 +141,10 @@ export function buildEmailHtml({
   .em-cta-lbl  { font-size: 18px; gap: 10px; }
   .em-cta-arr  { width: 18px; height: 9px; }
   .em-cta-wrap { padding: 0 24px 72px; }
-  .em-divider  { width: 56px; }
-  .em-brand    { font-size: 30px; }
-  .em-tagline  { font-size: 15px; }
-  .em-credit   { font-size: 13px; }
+  .em-divider  { width: 44px; }
+  .em-brand    { font-size: 20px; }
+  .em-tagline  { font-size: 12px; }
+  .em-credit   { font-size: 11px; }
 
   /* iPad / wide tablet / Gmail web reading-pane at moderate width */
   @media only screen and (min-width: 520px) {
@@ -156,10 +156,10 @@ export function buildEmailHtml({
     .em-cta-lbl  { font-size: 22px; gap: 12px; }
     .em-cta-arr  { width: 22px; height: 11px; }
     .em-cta-wrap { padding: 0 24px 88px; }
-    .em-divider  { width: 72px; }
-    .em-brand    { font-size: 38px; }
-    .em-tagline  { font-size: 18px; }
-    .em-credit   { font-size: 15px; }
+    .em-divider  { width: 56px; }
+    .em-brand    { font-size: 24px; }
+    .em-tagline  { font-size: 13px; }
+    .em-credit   { font-size: 12px; }
   }
 
   /* Desktop Gmail, full-width preview */
@@ -172,10 +172,10 @@ export function buildEmailHtml({
     .em-cta-lbl  { font-size: 26px; gap: 14px; }
     .em-cta-arr  { width: 26px; height: 13px; }
     .em-cta-wrap { padding: 0 24px 104px; }
-    .em-divider  { width: 88px; }
-    .em-brand    { font-size: 46px; }
-    .em-tagline  { font-size: 20px; }
-    .em-credit   { font-size: 16px; }
+    .em-divider  { width: 64px; }
+    .em-brand    { font-size: 28px; }
+    .em-tagline  { font-size: 14px; }
+    .em-credit   { font-size: 13px; }
   }
 
   /* Ink-dissolve fade on the trailing edge of the context line.
@@ -266,31 +266,33 @@ export function buildEmailHtml({
         </td></tr>
 
         <!-- Hairline divider -->
-        <tr><td align="center" style="padding:0 24px 24px;">
+        <tr><td align="center" style="padding:0 24px 18px;">
           <hr class="em-divider"
               style="margin:0 auto;border:0;border-top:1px solid ${RULE};"/>
         </td></tr>
 
-        <!-- Brand wordmark — "Dearly" -->
-        <tr><td align="center" style="padding:0 24px 4px;">
+        <!-- Brand wordmark — "Dearly". Dropped off the bright ink onto
+             the soft ink so it sits at the same loudness as the rest of
+             the footer — recognisable, not a second headline. -->
+        <tr><td align="center" style="padding:0 24px 2px;">
           <p class="em-brand"
-             style="margin:0;font-family:${FF};font-weight:700;line-height:1;color:${INK_HI};letter-spacing:0.01em;">
+             style="margin:0;font-family:${FF};font-weight:700;line-height:1;color:${INK};letter-spacing:0.01em;">
             Dearly
           </p>
         </td></tr>
 
         <!-- Tagline -->
-        <tr><td align="center" style="padding:4px 24px 12px;">
+        <tr><td align="center" style="padding:2px 24px 6px;">
           <p class="em-tagline"
-             style="margin:0;font-family:${FF};font-weight:500;line-height:1.2;color:${INK_SOFT};">
+             style="margin:0;font-family:${FF};font-weight:500;line-height:1.25;color:${INK_SOFT};">
             Letters people actually keep
           </p>
         </td></tr>
 
         <!-- Designer credit -->
-        <tr><td align="center" style="padding:0 24px 24px;">
+        <tr><td align="center" style="padding:0 24px 20px;">
           <p class="em-credit"
-             style="margin:0;font-family:${FF};font-weight:500;line-height:1.5;color:${INK_SOFT};">
+             style="margin:0;font-family:${FF};font-weight:500;line-height:1.5;color:${INK_SOFT};opacity:0.78;">
             Designed by Bhanu Kowshik &middot; The Thoughtful Designer
           </p>
         </td></tr>

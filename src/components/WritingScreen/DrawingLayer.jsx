@@ -470,13 +470,61 @@ export default function DrawingLayer({
     if (activeTool === 'eraser') setEraserCursor(null)
   }, [activeTool])
 
-  /* penOnly mode (iPad) is just a filter in the existing handlers above
-     — same desktop pipeline (React onPointerDown/Move/Up on the layer
-     root + setPointerCapture), but non-pen pointers fall through so
-     finger pinch / tap can be handled by parent elements. No parent-
-     element listeners, no contenteditable suppression — the paper has
-     no contenteditable to defend against. Smooth strokes via the
-     vanilla perfect-freehand pipeline that desktop uses. */
+  /* penOnly mode (iPad): the layer root keeps pointer-events:none so
+     stickers / media frames / voice notes underneath stay interactive
+     for drag/tap/delete. Pen capture happens via a capture-phase
+     pointerdown listener on the parent (paper) element + setPointerCapture
+     on the paper so subsequent move/up/cancel reliably target it. Uses
+     the same beginStroke/extendStroke/endStroke pipeline as desktop,
+     so smoothness is identical (perfect-freehand with streamline 0.18,
+     getCoalescedEvents for sub-frame sample density). */
+  useEffect(() => {
+    if (!penOnly || !activeTool) return
+    const el = rootRef.current
+    if (!el) return
+    const paper = el.parentElement
+    if (!paper) return
+
+    let pointerActive = false
+    let capturedPointerId = null
+
+    function onDown(e) {
+      if (e.pointerType !== 'pen') return
+      // Don't preventDefault on the down — let other gestures (if any
+      // legitimately overlap) still see the event. We just route ours.
+      pointerActive = true
+      capturedPointerId = e.pointerId
+      try { paper.setPointerCapture(e.pointerId) } catch { /* fine */ }
+      beginStroke(e)
+    }
+    function onMove(e) {
+      if (!pointerActive || e.pointerType !== 'pen') return
+      if (capturedPointerId !== null && e.pointerId !== capturedPointerId) return
+      extendStroke(e)
+    }
+    function onUp(e) {
+      if (!pointerActive) return
+      if (capturedPointerId !== null && e.pointerId !== capturedPointerId) return
+      pointerActive = false
+      try { paper.releasePointerCapture(e.pointerId) } catch { /* fine */ }
+      capturedPointerId = null
+      endStroke(e)
+    }
+
+    paper.addEventListener('pointerdown',   onDown, { capture: true })
+    paper.addEventListener('pointermove',   onMove)
+    paper.addEventListener('pointerup',     onUp)
+    paper.addEventListener('pointercancel', onUp)
+    return () => {
+      paper.removeEventListener('pointerdown',   onDown, { capture: true })
+      paper.removeEventListener('pointermove',   onMove)
+      paper.removeEventListener('pointerup',     onUp)
+      paper.removeEventListener('pointercancel', onUp)
+      if (capturedPointerId !== null) {
+        try { paper.releasePointerCapture(capturedPointerId) } catch { /* fine */ }
+      }
+    }
+  }, [penOnly, activeTool, beginStroke, extendStroke, endStroke])
 
   const interactive = !!activeTool
   const isEraser    = activeTool === 'eraser'
@@ -486,21 +534,20 @@ export default function DrawingLayer({
 
   /* In penOnly mode the root must remain pointer-events:none so non-pen
      pointers fall through to the contenteditable below. Pen events are
-     penOnly is just a per-event filter inside beginStroke now — same
-     pointer pipeline as desktop, finger / mouse events fall through to
-     parent gestures without preventDefault. In `passive` mode the
-     layer is purely visual (no React handlers, no rootActive class). */
-  const reactCapture = interactive && !passive
+     In penOnly mode the root stays pointer-events:none so stickers /
+     media / voice notes underneath stay interactive — pen capture is
+     handled by the parent-element listener effect above. */
+  const reactCapture = interactive && !penOnly && !passive
   return (
     <div
       ref={rootRef}
-      className={`${styles.root} ${reactCapture ? styles.rootActive : ''} ${isEraser && !passive ? styles.rootEraser : ''}`}
+      className={`${styles.root} ${reactCapture ? styles.rootActive : ''} ${isEraser && !penOnly && !passive ? styles.rootEraser : ''}`}
       data-drawing-layer
       onPointerDown={reactCapture ? beginStroke : undefined}
       onPointerMove={reactCapture ? extendStroke : undefined}
       onPointerUp={reactCapture ? endStroke : undefined}
       onPointerCancel={reactCapture ? endStroke : undefined}
-      onPointerLeave={isEraser && !passive ? handlePointerLeave : undefined}
+      onPointerLeave={isEraser && !penOnly && !passive ? handlePointerLeave : undefined}
     >
       {size.w > 0 && size.h > 0 && (
         <svg

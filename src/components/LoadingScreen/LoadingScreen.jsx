@@ -149,6 +149,13 @@ export default function LoadingScreen({ onCta = () => {} }) {
               text="Dearly,"
               fontSizePx={HERO_PX}
               lineHeightMultiplier={1.05}
+              /* Hero text reads cramped when the body's 1.0 spacing
+                 multiplier is applied at this size — what's an airy
+                 letter-gap at 20 px font is a wide chasm at 82 px.
+                 0.72 tightens both letterSpacing + side bearings so
+                 "Dearly," lands as a confident signature, not a
+                 spaced-out D-E-A-R-L-Y. */
+              spacingMultiplier={0.55}
               fontWeight={700}
               inkColor="#ffffff"
               msPerChar={PACE_HERO}
