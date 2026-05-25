@@ -1350,10 +1350,13 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
                 On iPad the paper is contenteditable so Write also lets you
                 type via the panel below as a secondary input. */}
             <nav className={styles.mobileTabBar} aria-label="Editor tools">
-              {/* Floating Write toolbar (iPad-only) — pen/highlighter/eraser +
-                  colors + paper toggles. Hovers above the nav, hugged width. */}
+              {/* Floating Write toolbar (iPad-only). Hidden while the user
+                  is actively typing — the drawing tools have no use mid-
+                  text-entry and the toolbar took up canvas room next to
+                  the keyboard. A small "Draw" FAB takes its place; tapping
+                  it blurs the editor and the toolbar comes back. */}
               <AnimatePresence>
-                {isIpad && activeTool === 'text' && (
+                {isIpad && activeTool === 'text' && !editorActive && (
                   <WriteToolbar
                     drawingTool={drawingTool}
                     onChangeDrawingTool={setDrawingTool}
@@ -1365,11 +1368,15 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
                 )}
               </AnimatePresence>
               {/* Text + Emoji FABs — iPad Write mode only, anchored above
-                  the nav so calc() math stays in sync with WriteToolbar. */}
+                  the nav so calc() math stays in sync with WriteToolbar.
+                  drawFabVisible flips on while typing so the user has a
+                  one-tap way back to the drawing tools. */}
               {isIpad && activeTool === 'text' && (
                 <EditorFABs
                   onRequestFocusEditor={focusPaperEditor}
                   onAddEmoji={insertEmojiAtCaret}
+                  drawFabVisible={editorActive}
+                  onRequestDrawMode={handleEditorBlur}
                 />
               )}
               {[

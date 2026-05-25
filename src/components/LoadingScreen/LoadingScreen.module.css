@@ -420,17 +420,20 @@
   will-change: transform;   /* GPU promotion — scale stays crisp on resize */
 }
 
-/* ── Slide meta row — reply banner LEFT + per-slide CTA RIGHT ──────────────
-   Sits below the rendered paper, paired as one beat. The banner closes
-   the conversational loop (recipient's reply); the CTA invites the viewer
-   to write something similar. flex:1 + min-width:0 on the banner lets the
-   reply text wrap on its own line rather than crowding the CTA. */
+/* ── Slide meta row — reply banner under the letter ──────────────────────
+   Sits beneath the rendered paper, closes the conversational loop with
+   the recipient's reply. Width capped to match the paper's design width
+   so the banner doesn't stretch beyond the paper edges on wide viewports
+   (paper renders at 480 px design width; without the cap the banner would
+   fill the full ~680 px carousel container and look visually disconnected
+   from the letter above it). margin: 0 auto centers it under the paper. */
 .slideMeta {
   width: 100%;
+  max-width: 480px;
+  margin: 4px auto 0;
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-top: 4px;
 }
 
 /* Glassmorphic reply pill — bigger + more prominent than v1 so the reply

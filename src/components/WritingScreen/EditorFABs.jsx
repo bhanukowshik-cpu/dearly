@@ -31,18 +31,30 @@ function IconText({ size = 20 }) {
   )
 }
 
-function IconEmoji({ size = 22 }) {
+/* Native unicode emoji rendered at FAB-size — uses the system's color
+   emoji font (Apple Color Emoji on iOS), no SVG outline needed. */
+function IconEmoji() {
+  return (
+    <span className={styles.emojiGlyph} aria-hidden>😊</span>
+  )
+}
+
+function IconPen({ size = 22 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="9" cy="10" r="1" fill="currentColor" />
-      <circle cx="15" cy="10" r="1" fill="currentColor" />
-      <path d="M8.5 14.5c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M3 21l3.5-1L18 8.5 15.5 6 4 17.5 3 21z"
+        stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" fill="rgba(255,255,255,0.10)" />
+      <path d="M15.5 6l2.5-2.5 2.5 2.5L18 8.5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
     </svg>
   )
 }
 
-export default function EditorFABs({ onRequestFocusEditor, onAddEmoji }) {
+export default function EditorFABs({
+  onRequestFocusEditor,
+  onAddEmoji,
+  drawFabVisible = false,
+  onRequestDrawMode,
+}) {
   const emojiBtnRef = useRef(null)
   const [pickerOpen, setPickerOpen] = useState(false)
 
@@ -61,6 +73,19 @@ export default function EditorFABs({ onRequestFocusEditor, onAddEmoji }) {
   return (
     <>
       <div className={styles.root}>
+        {drawFabVisible && (
+          /* Replacement for the bottom WriteToolbar while typing — one
+             tap dismisses the editor + restores the drawing toolbar. */
+          <button
+            type="button"
+            className={styles.fab}
+            onClick={() => onRequestDrawMode?.()}
+            aria-label="Switch to drawing tools"
+            title="Draw"
+          >
+            <IconPen />
+          </button>
+        )}
         <button
           ref={emojiBtnRef}
           type="button"

@@ -121,12 +121,15 @@ export default async function handler(req, res) {
     '',
     'Rules:',
     '- ONE line, ≤ 80 characters total.',
-    '- Always use the recipient\'s first name AND the sender\'s first name.',
+    '- If a recipient name is provided, use it (their first name).',
+    '- If no recipient name is provided, just use the sender\'s first name + topic.',
+    '- Always use the sender\'s first name.',
     '- Reference the actual topic of the note, not generic phrases like "a note for you".',
     '- Warm, specific, conversational — like a friend describing the note to the recipient.',
     '- No emoji unless the note itself reads playful/celebratory.',
     '- No "RE:", "FW:", clickbait, or salesy language.',
-    '- Output ONLY the subject text, no quotes, no leading "Subject:".',
+    '- Output ONLY the subject text. No quotes, no "Subject:" prefix, no questions, no meta commentary.',
+    '- Never ask for more information — always write the best subject you can with what you have.',
   ].join('\n')
 
   const user = [
@@ -175,7 +178,16 @@ export default async function handler(req, res) {
       .trim()
       .slice(0, 120)
 
-    if (!subject) return ok(res, templateSubject({ fromName, recipientName, plain }))
+    // Sanity gate: if the model ignored the "no questions" rule and asked
+    // for more info (e.g. "Could you provide the recipient's name?"),
+    // fall back to the template — a question mark in an email subject
+    // looks broken in inboxes.
+    const looksLikeAQuestion = /\?\s*$/.test(subject) ||
+                               /^(could|can|would|please|i need|provide)\b/i.test(subject)
+
+    if (!subject || looksLikeAQuestion) {
+      return ok(res, templateSubject({ fromName, recipientName, plain }))
+    }
     return ok(res, subject)
   } catch (e) {
     // eslint-disable-next-line no-console

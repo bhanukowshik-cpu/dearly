@@ -41,3 +41,14 @@
 .fab:active {
   transform: translateY(0);
 }
+
+/* Render the native unicode emoji at FAB size — uses the platform's
+   color emoji font (Apple Color Emoji on iOS) so it stays vibrant
+   instead of the outlined SVG style. */
+.emojiGlyph {
+  font-size: 28px;
+  line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}
