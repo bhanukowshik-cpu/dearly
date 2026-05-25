@@ -527,12 +527,11 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
 
       const note = getNoteData()
       const baseName = buildExportFilename(note).replace(/\.json$/, '')
-      const result = await exportPaperAsPng({
-        pixelRatio: 2,
-        filename: `${baseName}.png`,
-      })
-      const kb = Math.max(1, Math.round((result.width * result.height * 4) / 1024 / 8))   // rough
-      showToast(`Paper exported as PNG — downloaded ${result.filename} (~${result.width * 2}×${result.height * 2}).`)
+      // result.width/height are the final output dimensions (captureCanvas
+      // uses pixelRatio: 3 internally, so they're already 3× the natural
+      // paper size — display them as-is).
+      const result = await exportPaperAsPng({ filename: `${baseName}.png` })
+      showToast(`Paper exported as PNG — downloaded ${result.filename} (${result.width}×${result.height}).`)
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[exportPng] failed', err)

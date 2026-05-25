@@ -621,14 +621,20 @@
 .mobilePaperFull {
   flex: 1;                /* Take all available vertical space */
   max-height: none;       /* Remove the 46vh clamp */
-  align-items: center;
-  /* flex-start so the paper hugs the top of its allotted area — when
-     the keyboard opens the visualViewport shrink leaves less room
-     below, and centering wasted space between paper bottom and the
-     bottom nav / keyboard. */
-  justify-content: flex-start;
+  /* The container is flex-direction: row by default, so:
+       justify-content = horizontal (main axis) → center horizontally
+       align-items     = vertical (cross axis) → pin to top so the gap
+                         below the paper isn't wasted when the keyboard
+                         shrinks the available height. */
+  justify-content: center;
+  align-items: flex-start;
   padding: 16px 24px 8px;
-  touch-action: none;     /* Allow custom pinch-zoom without browser scroll */
+  /* No browser-default touch behavior (scroll/zoom) on the paper area —
+     finger input is blocked entirely; only Pencil draws. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   overflow: hidden;
 }
 .mobilePaperFull .mobilePaperInner {

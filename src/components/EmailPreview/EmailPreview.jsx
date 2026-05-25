@@ -25,12 +25,13 @@ export default function EmailPreview() {
   const [recipientName, setRecipientName] = useState('Marcus')
   const [shareUrl,      setShareUrl]      = useState('https://bhanu-dearly.vercel.app/api/share?id=demo-1234')
   const [personalNote,  setPersonalNote]  = useState("Hey Marcus — I've been meaning to write this for a while. Thank you for backing me last quarter. It mattered.")
+  const [blurb,         setBlurb]         = useState('the conversation we had at the AI conference last week')
   const [assetOrigin,   setAssetOrigin]   = useState(window.location.origin)
   const [viewportId,    setViewportId]    = useState('mobile')
 
   const html = useMemo(() => buildEmailHtml({
-    fromName, recipientName, shareUrl, personalNote, assetOrigin,
-  }), [fromName, recipientName, shareUrl, personalNote, assetOrigin])
+    fromName, recipientName, shareUrl, personalNote, blurb, assetOrigin,
+  }), [fromName, recipientName, shareUrl, personalNote, blurb, assetOrigin])
 
   const viewport = VIEWPORTS.find(v => v.id === viewportId) ?? VIEWPORTS[0]
 
@@ -62,12 +63,26 @@ export default function EmailPreview() {
         </label>
 
         <label className={styles.field}>
-          <span className={styles.fieldLabel}>Personal note (optional)</span>
+          <span className={styles.fieldLabel}>Context blurb (AI-generated)</span>
+          <textarea
+            className={`${styles.input} ${styles.textarea}`}
+            value={blurb}
+            onChange={e => setBlurb(e.target.value)}
+            placeholder="e.g. the conversation we had at the AI conference last week"
+          />
+          <span className={styles.hint}>
+            Appended as <em>"…for you, about {'{blurb}'}."</em> — leave blank
+            to drop the "about…" clause entirely.
+          </span>
+        </label>
+
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Personal note (unused in current design)</span>
           <textarea
             className={`${styles.input} ${styles.textarea}`}
             value={personalNote}
             onChange={e => setPersonalNote(e.target.value)}
-            placeholder="Leave blank to see the default body copy."
+            placeholder="Kept for backward-compat; not rendered."
           />
         </label>
 

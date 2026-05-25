@@ -1,40 +1,19 @@
-import { useState, useEffect, useMemo, useRef, useLayoutEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import AnimatedGlyphText from '../WritingScreen/AnimatedGlyphText'
-import PaperCanvas from '../WritingScreen/PaperCanvas'
 import VideoBackground from '../VideoBackground/VideoBackground'
 import styles from './LoadingScreen.module.css'
 
-// Reference letters exported from the editor, inlined as static modules.
-// Each JSON contains the full PaperCanvas state (paperConfig, message,
-// stickers, mediaFrames with base64 images, voiceNotes with base64 audio,
-// strokes, etc.) — so each slide renders through the same component the
-// editor uses, no manual reconstruction. Order matters: Priya (conference)
-// → Marcus (manager) → Mai (friend). Builds emotional arc from professional
-// acquaintance → important boss → oldest friend.
-import priyaLetter   from '../../data/loadingLetters/priya.json'
-import marcusLetter  from '../../data/loadingLetters/marcus.json'
-import maiLetter     from '../../data/loadingLetters/mai.json'
-
-// Pool of short, gender-diverse first names. On each page load we pick one
-// per slide (without repeats) and substitute it for "Bhanu" in the message
-// text. The point is to make each letter feel like a different real person
-// sent it — not "the same template signed three ways". Names are short
-// because long sign-offs crowd the cream-paper aesthetic.
-const NAME_POOL = ['Aaron', 'Lena', 'Riya', 'Kai', 'Sam', 'Mira', 'Tomi', 'Devi']
-
-// Fisher-Yates sample of n names from the pool. Deterministic-per-render
-// callers should wrap in useMemo so the pick doesn't reroll mid-session.
-function pickNames(n) {
-  const pool = [...NAME_POOL]
-  const out = []
-  for (let i = 0; i < n; i++) {
-    if (pool.length === 0) break
-    const idx = Math.floor(Math.random() * pool.length)
-    out.push(pool.splice(idx, 1)[0])
-  }
-  return out
-}
+// Pre-rendered letter PNGs exported from the editor at 3× DPI. Using static
+// images here (instead of live PaperCanvas + ScaledPaper) sidesteps every
+// layout-drift problem we hit with the dynamic approach: text doesn't reflow
+// at carousel size, photos and stickers stay in their designed positions
+// pixel-perfect, the glyph stroke animation doesn't re-fire on every slide
+// change, and the carousel is naturally responsive via plain CSS (width:
+// 100% + object-fit: contain). What you designed is what you see.
+import priyaLetterPng  from '../../assets/loadingLetters/priya.png'
+import marcusLetterPng from '../../assets/loadingLetters/marcus.png'
+import maiLetterPng    from '../../assets/loadingLetters/mai.png'
 
 function IconArrow() {
   return (
@@ -61,113 +40,23 @@ const PACE_HERO = 360   // ≈ 7 chars × 360ms ≈ 2.5s
 
 // ─── Responsive pixel sizes for the hero ──────────────────────────────────
 // AnimatedGlyphText routes these through getScaledMetricsForPx, which gives
-// real per-glyph advance widths from the typography metadata (instead of the
-// legacy em-based fallback that produces the gappy "D e a r l y" look).
+// real per-glyph advance widths from the typography metadata.
 const HERO_PX = { mobile: 56, tablet: 70, desktop: 82 }
 
-// ─── ScaledPaper ──────────────────────────────────────────────────────────
-// Renders PaperCanvas at a FIXED "design" pixel width — the EXACT width the
-// editor renders the paper at on desktop — then CSS-scales it to fit the
-// carousel container. Critical for layout fidelity:
-//
-//   • Without this, PaperCanvas's body text reflows based on container
-//     width — and stickers / mediaFrames / drawn highlights stay at fixed
-//     % positions. The text moves, the elements don't. Highlights end up
-//     under empty space, photos overlap paragraphs.
-//   • With DESIGN_WIDTH matched to the editor's actual width, text wraps
-//     IDENTICALLY to what the user saw when designing. Highlights, photos,
-//     stickers track the words/positions they were drawn against.
-//
-// DESIGN_WIDTH = 720 — measured DIRECTLY on the editor's writing screen at
-// desktop viewport (1440 px window → postcard paper renders at 720×480).
-// To verify in dev, run on the writing screen:
-//   document.querySelector('[data-paper-canvas]').offsetWidth
-// This is the EXACT width the user designed their letters at. Any other
-// value here makes the carousel reflow text at a different width than the
-// editor used — and since stickers / mediaFrames / drawn highlights are
-// stored as fixed % of paper, they end up landing on different words than
-// the user placed them under.
-//
-// MAX_SCALE = 1.0 — we never zoom IN past the design size on desktop, so
-// text stays crisp. Mobile/tablet scale DOWN to fit narrower carousels;
-// the trade-off is mobile text gets smaller (0.48× at 375 px viewport),
-// but the alternative is broken layouts which is worse than small text.
-const DESIGN_WIDTH = 720
-const MAX_SCALE    = 1.0
-
-function ScaledPaper({ children, designWidth = DESIGN_WIDTH }) {
-  const wrapRef  = useRef(null)
-  const innerRef = useRef(null)
-  const [scale,       setScale]       = useState(1)
-  const [innerHeight, setInnerHeight] = useState(0)
-
-  useLayoutEffect(() => {
-    const wrapEl  = wrapRef.current
-    const innerEl = innerRef.current
-    if (!wrapEl || !innerEl) return
-
-    const ro = new ResizeObserver(() => {
-      // Outer width drives the scale factor. Allowed to grow past 1 so
-      // the paper fills wider carousels on desktop/iPad — capped at
-      // MAX_SCALE to prevent extreme upscale-blur. Layout stays exact
-      // either way (text reflow only depends on the INNER rendered
-      // width, which stays at designWidth regardless of scale).
-      const w = wrapEl.clientWidth
-      if (w > 0) setScale(Math.min(MAX_SCALE, w / designWidth))
-      // Inner height is the UNSCALED content height. Multiplied by scale
-      // below to size the visible wrapper.
-      const h = innerEl.offsetHeight
-      if (h > 0) setInnerHeight(h)
-    })
-    ro.observe(wrapEl)
-    ro.observe(innerEl)
-    return () => ro.disconnect()
-  }, [designWidth])
-
-  // Visible width of the scaled paper. Used to position the inner so it's
-  // horizontally centered in the wrapper (the wrapper itself is 100% of
-  // the carousel container, but the paper might be narrower when scale=1
-  // on wide viewports). transform-origin: top center matches this so the
-  // scale collapses toward the centered point, not the left edge.
-  const scaledWidth = designWidth * scale
-  return (
-    <div
-      ref={wrapRef}
-      className={styles.scaledPaperWrap}
-      // Reserve exactly the scaled-down height so the meta row sits
-      // immediately below the paper without a phantom gap.
-      style={{ height: innerHeight * scale }}
-    >
-      <div
-        ref={innerRef}
-        className={styles.scaledPaperInner}
-        style={{
-          width:           `${designWidth}px`,
-          transform:       `scale(${scale})`,
-          transformOrigin: 'top left',
-          // Center the (post-scale) paper horizontally in the wrapper.
-          // left: 50% then translateX(-50% of scaled width) doesn't work
-          // because we already use transform: scale; instead use margin-left
-          // on the absolute-positioned inner to push it to center.
-          left: `calc(50% - ${scaledWidth / 2}px)`,
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  )
-}
-
 // ─── Carousel slides ──────────────────────────────────────────────────────
-// Each slide bundles the rendered letter + a recipient's-reply banner that
-// sits beneath it as a glassmorphic strip. The reply is what makes each
-// scenario feel real — it's the second half of a conversation. Without it,
-// each letter is a one-sided shot; with it, the viewer sees the loop close.
+// Each slide bundles a pre-rendered letter image + a recipient's-reply
+// banner that sits beneath it. The image is the design FROZEN at editor
+// resolution; the carousel just `<img>` tags scale it via CSS. The reply
+// closes the conversational loop so each slide reads as one exchange.
+// `aspect` matches the PNG's natural ratio so the layout reserves the
+// right vertical space before the image loads (no jump on first paint).
 const SLIDES = [
   {
     id:        'priya',
     eyebrow:   'A note to someone you just met',
-    data:      priyaLetter,
+    img:       priyaLetterPng,
+    aspect:    '1520 / 1014',        // postcard 3:2
+    alt:       'A handwritten postcard to Priya, met at a design conference',
     replyFrom: 'Priya',
     replyRole: 'contact you met at a conference',
     reply:     "Great catching up! Coffee next time you're in town. ✨",
@@ -175,7 +64,9 @@ const SLIDES = [
   {
     id:        'marcus',
     eyebrow:   'A thank-you to your manager',
-    data:      marcusLetter,
+    img:       marcusLetterPng,
+    aspect:    '1520 / 1014',        // postcard 3:2
+    alt:       'A handwritten postcard thanking Marcus for his mentorship',
     replyFrom: 'Marcus',
     replyRole: 'manager',
     reply:     "Made my day. You're one of the kindest folks I've worked with. 💛",
@@ -183,7 +74,9 @@ const SLIDES = [
   {
     id:        'mai',
     eyebrow:   'A voice memo for your best friend',
-    data:      maiLetter,
+    img:       maiLetterPng,
+    aspect:    '1520 / 380',         // strip 4:1
+    alt:       'A paper strip with a voice note for Mai, an old friend',
     replyFrom: 'Mai',
     replyRole: 'best friend',
     reply:     "Crying. Calling you in five. 💌",
@@ -191,14 +84,6 @@ const SLIDES = [
 ]
 
 const SLIDE_INTERVAL_MS = 5000
-
-// Substitute the JSON's hard-coded "Bhanu" sign-off with a per-slide
-// randomized name. Handles both the "— Bhanu" (em-dash + space) and
-// "-Bhanu" (hyphen, no space) variants the source JSONs use.
-function swapSignOff(message, name) {
-  if (!message) return message
-  return message.replace(/Bhanu/g, name)
-}
 
 export default function LoadingScreen({ onCta = () => {} }) {
   // Sequencing:
@@ -210,12 +95,6 @@ export default function LoadingScreen({ onCta = () => {} }) {
   const [ctaVisible,   setCtaVisible]   = useState(false)
   const [slideIdx,     setSlideIdx]     = useState(0)
 
-  // One random name per slide, picked once per page load. Memoized so
-  // the names stay stable across rotation + state changes within a
-  // session — only a fresh page load rerolls them. Index mapped 1:1
-  // to SLIDES order so swapSignOff is always paired correctly.
-  const senderNames = useMemo(() => pickNames(SLIDES.length), [])
-
   // Kick off the Dearly, handwriting after a beat (skip if reduced motion)
   useEffect(() => {
     if (reducedMotion) return
@@ -224,17 +103,15 @@ export default function LoadingScreen({ onCta = () => {} }) {
   }, [])
 
   // Safety floor — if AnimatedGlyphText's onComplete is delayed (e.g. a
-  // missing glyph stalls the per-stroke draw) force writeDone so the card
-  // still appears. Length-aware: 7 chars × PACE_HERO (360ms) ≈ 2.5s, plus
-  // ~1s for the final char's slowed stroke draw + buffer. Bumped to 6s
-  // to give the 2× slowdown its full runtime before forcing the gate.
+  // missing glyph stalls the per-stroke draw) force writeDone so the
+  // carousel still appears after a generous timeout.
   useEffect(() => {
     if (reducedMotion || writeDone) return
     const id = setTimeout(() => setWriteDone(true), 6000)
     return () => clearTimeout(id)
   }, [writeDone])
 
-  // After writeDone → reveal the CTA + meta (and, eventually, the carousel)
+  // After writeDone → reveal the CTA + carousel
   useEffect(() => {
     if (!writeDone) return
     const delay = reducedMotion ? 80 : 480
@@ -242,10 +119,10 @@ export default function LoadingScreen({ onCta = () => {} }) {
     return () => clearTimeout(id)
   }, [writeDone])
 
-  // Carousel auto-rotation. Pauses entirely under reduced-motion so the
-  // user isn't dragged through animations they explicitly opted out of.
-  // Resets the interval when slideIdx changes from a manual dot-click so
-  // the user always gets the full 5 s on whatever they just selected.
+  // Carousel auto-rotation. Pauses entirely under reduced-motion (the user
+  // explicitly opted out of decorative motion). Resets the interval whenever
+  // slideIdx changes from a manual dot-click so the user always gets the
+  // full 5s on whatever they just selected.
   useEffect(() => {
     if (reducedMotion || !ctaVisible || SLIDES.length <= 1) return
     const id = setInterval(() => {
@@ -263,7 +140,7 @@ export default function LoadingScreen({ onCta = () => {} }) {
       <div className={styles.bgTint}  aria-hidden />
       <div className={styles.bgNoise} aria-hidden />
 
-      {/* ── Hero — starts centered, slides up when card appears ────────── */}
+      {/* ── Hero — starts centered, slides up when carousel appears ────── */}
       <motion.div
         layout="position"
         className={styles.hero}
@@ -295,11 +172,12 @@ export default function LoadingScreen({ onCta = () => {} }) {
         </motion.p>
       </motion.div>
 
-      {/* ── Carousel: real letters rendered via PaperCanvas ─────────────
-         Each slide loads a JSON export of a complete letter and feeds it
-         straight into PaperCanvas as props — same component the editor
-         uses, so what you see here is exactly what the user will design.
-         Auto-rotates every 5 s; the dot indicators below let you jump. */}
+      {/* ── Carousel: pre-rendered letter images ─────────────────────────
+         Each slide is a static PNG exported from the editor at 3× DPI.
+         No live PaperCanvas, no scaling math, no glyph re-animation —
+         just an <img>. The aspect-ratio attribute reserves vertical space
+         per slide so the layout doesn't jump when a postcard (3:2)
+         transitions to a strip (4:1) and vice versa. */}
       {ctaVisible && (
         <motion.div
           className={styles.carousel}
@@ -317,35 +195,21 @@ export default function LoadingScreen({ onCta = () => {} }) {
               transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             >
               <div className={styles.slideEyebrow}>{SLIDES[slideIdx].eyebrow}</div>
-              <div className={styles.slidePaperWrap}>
-                {/* ScaledPaper renders PaperCanvas at the editor's design
-                   width (720 px) then CSS-scales it to fit. Keeps text
-                   wrapping + sticker/photo positions identical to what
-                   the user saw when designing — no content drift. */}
-                <ScaledPaper>
-                  <PaperCanvas
-                    recipient={SLIDES[slideIdx].data.recipient ?? ''}
-                    message={swapSignOff(SLIDES[slideIdx].data.message ?? '', senderNames[slideIdx])}
-                    senderName={senderNames[slideIdx]}
-                    showRecipient={SLIDES[slideIdx].data.showRecipient ?? false}
-                    paperConfig={SLIDES[slideIdx].data.paperConfig}
-                    stickers={SLIDES[slideIdx].data.stickers ?? []}
-                    mediaFrames={SLIDES[slideIdx].data.mediaFrames ?? []}
-                    voiceNotes={SLIDES[slideIdx].data.voiceNotes ?? []}
-                    strokes={SLIDES[slideIdx].data.strokes ?? []}
-                    textSize={SLIDES[slideIdx].data.textSize ?? 'md'}
-                  />
-                </ScaledPaper>
-              </div>
+              <img
+                src={SLIDES[slideIdx].img}
+                alt={SLIDES[slideIdx].alt}
+                className={styles.slideImage}
+                style={{ aspectRatio: SLIDES[slideIdx].aspect }}
+                /* eager: the first slide should be visible the moment the
+                   carousel mounts; the other two are pre-loaded via the
+                   browser's normal img preload as they come up */
+                loading="eager"
+                decoding="async"
+                draggable={false}
+              />
 
-              {/* Reply banner — the recipient's response with emoji, beneath
-                  the letter. Closes the conversational loop so each slide
-                  reads as one exchange (note + reply), not a one-sided note.
-                  Role is shown in brackets next to the name to anchor who
-                  this person is in the user's life — "Marcus (manager)",
-                  "Mai (best friend)", "Priya (contact you met at a
-                  conference)". The page-level CTA below handles the
-                  call-to-action — no per-slide button. */}
+              {/* Reply banner — recipient's response with emoji, beneath
+                  the letter. Closes the conversational loop. */}
               <div className={styles.slideMeta}>
                 <div className={styles.replyBanner}>
                   <div className={styles.replyHeader}>
@@ -417,11 +281,6 @@ export default function LoadingScreen({ onCta = () => {} }) {
           </motion.p>
         </>
       )}
-
-      {/* (The "A product by The Thoughtful Designer" credit pill used to
-         sit here. Removed for now — the postcard already signs off as
-         Bhanu Kowshik, which carries the personal attribution. If a
-         real signature/handle is added later, this is where it'd go.) */}
 
     </div>
   )

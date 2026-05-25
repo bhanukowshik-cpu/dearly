@@ -297,56 +297,20 @@ export function pickJsonFile() {
  * flush any pending re-renders triggered by clicking the button (e.g.
  * deselecting a sticker before the screenshot).
  */
-export async function exportPaperAsPng({ pixelRatio = 2, filename } = {}) {
-  const { toPng } = await import('html-to-image')
-  const paperEl = document.querySelector('[data-paper-canvas]')
-  if (!paperEl) throw new Error('No paper canvas found on page.')
-
-  // Give React + ResizeObservers a tick to settle before capture.
-  await new Promise(r => setTimeout(r, 0))
-
-  // Read the paper's computed background color and pass it EXPLICITLY to
-  // toPng — html-to-image doesn't always carry forward inline-style
-  // backgroundColor through its SVG <foreignObject> rasterization, which
-  // is why vintage paper (which gets its cream bg via React style prop)
-  // was exporting as a black PNG showing only floating stickers / voice
-  // notes (the cream layer was effectively transparent in the capture).
-  // Falls back to white if the computed value comes back rgba(0,0,0,0).
-  const computedBg = getComputedStyle(paperEl).backgroundColor
-  const safeBg = (computedBg && computedBg !== 'rgba(0, 0, 0, 0)' && computedBg !== 'transparent')
-    ? computedBg
-    : '#FFFFFF'
-
-  const dataUrl = await toPng(paperEl, {
-    pixelRatio,
-    // cacheBust: false — appending ?t=... to URLs corrupts data: URIs that
-    // .stains uses for the aged-paper grain texture. Without cacheBust the
-    // SVG noise / stains layer captures correctly.
-    cacheBust: false,
-    backgroundColor: safeBg,
-    // Bigger pixelRatio bumps memory; cap canvas size sensibly via
-    // explicit width/height in source pixels.
-    width:  paperEl.offsetWidth,
-    height: paperEl.offsetHeight,
-    style: {
-      // Counter any transform applied by parents (e.g. ScaledPaper) so the
-      // capture grabs the natural-size paper, not a scaled one.
-      transform: 'none',
-    },
+/**
+ * exportPaperAsPng — thin shim that delegates to the shared captureCanvas
+ * helper. Kept exported under this name so existing callers (WritingScreen
+ * Export-PNG button) don't have to change their import. All the rendering
+ * logic — font embedding, animation freezing, drop-shadow handling, Safari
+ * double-call workaround — lives in captureUtils so every PNG-download
+ * surface in the app (this button, ShareSheet, RecipientScreen) goes
+ * through one tested path.
+ */
+export async function exportPaperAsPng({ filename } = {}) {
+  const { captureCanvasAsPng } = await import('./captureUtils')
+  return captureCanvasAsPng({
+    filename: filename || `dearly-letter-${Date.now()}.png`,
   })
-
-  // Trigger download (re-use the existing helpers).
-  const name = filename || `dearly-letter-${Date.now()}.png`
-  // Convert data URL to Blob → trigger anchor download (downloadAsFile
-  // expects a text body, so we inline a tiny anchor-click here instead).
-  const a = document.createElement('a')
-  a.href     = dataUrl
-  a.download = name
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-
-  return { filename: name, pixelRatio, width: paperEl.offsetWidth, height: paperEl.offsetHeight }
 }
 
 /**

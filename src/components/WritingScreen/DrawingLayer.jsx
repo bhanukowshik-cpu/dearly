@@ -197,11 +197,20 @@ export default function DrawingLayer({
   const beginStroke = useCallback((e) => {
     if (!activeTool) return
     if (pointerIdRef.current !== null) return
-    // penOnly mode (iPad write surface): finger taps + mouse fall through
-    // to whatever parent handles them (eg. pinch zoom). Pen is the only
-    // valid drawing input. Don't preventDefault/stopPropagation here so
-    // the parent listener still receives the event for its own gestures.
-    if (penOnly && e.pointerType !== 'pen') return
+    /* penOnly mode (iPad write surface): when a drawing tool is selected,
+       the canvas accepts ONLY Apple Pencil input. Any finger / palm /
+       mouse pointer that lands on the canvas is swallowed here —
+       preventDefault + stopPropagation block:
+         • iOS Safari's palm-rest text selection (handles + magnifier)
+         • pinch zoom inside the canvas (the +/- buttons still work)
+         • accidental finger strokes
+       Off-canvas (toolbar, FABs, nav) is untouched — fingers behave
+       normally everywhere except on the paper itself. */
+    if (penOnly && e.pointerType !== 'pen') {
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
     const el = rootRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
@@ -257,6 +266,14 @@ export default function DrawingLayer({
   const extendStroke = useCallback((e) => {
     const el = rootRef.current
     if (!el) return
+    // penOnly: swallow non-pen moves too so a finger drag during a stroke
+    // can't trigger browser gestures (text selection, scroll) on the
+    // canvas. Same guarantee as beginStroke above.
+    if (penOnly && e.pointerType !== 'pen') {
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
 
     // Eraser branch — runs whether or not a pointer is captured, so just
     // hovering with the mouse moves the indicator ring around.
@@ -376,10 +393,16 @@ export default function DrawingLayer({
     // tool. Without this the callback was frozen with whatever activeTool
     // was at first mount (typically null) and the eraser cursor stopped
     // tracking the pointer entirely.
-  }, [activeTool, eraseAt])
+  }, [activeTool, eraseAt, penOnly])
 
   const endStroke = useCallback((e) => {
     const el = rootRef.current
+    // penOnly: swallow non-pen lifts so nothing slips through.
+    if (penOnly && e.pointerType !== 'pen') {
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
 
     if (activeTool === 'eraser') {
       if (e.pointerId === pointerIdRef.current) {
@@ -408,7 +431,7 @@ export default function DrawingLayer({
     }
     inFlightRef.current = null
     setLivePath(null)
-  }, [activeTool, onStrokeComplete])
+  }, [activeTool, onStrokeComplete, penOnly])
 
   // Defensive panic on unmount — kills any in-flight scratch slices
   // during HMR or the panel closing rather than letting them ring out.
