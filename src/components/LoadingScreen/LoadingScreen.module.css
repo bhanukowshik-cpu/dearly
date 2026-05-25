@@ -248,6 +248,12 @@
 
 /* ── CTA — outside card, centered ───────────────────────────────────────── */
 
+/* ── CTA — solid white pill with dark text (matches ShareSheet primary) ──
+   Replaces the previous outlined/cursive-border button. The filled
+   white-on-dark contrast reads as a confident primary action and matches
+   the "Send / Share" button style from the writing-screen ShareSheet so
+   the visual language carries through from landing → product.
+   ────────────────────────────────────────────────────────────────────── */
 .cta {
   position: relative;
   z-index: 1;
@@ -255,35 +261,40 @@
   align-items: center;
   justify-content: center;
   width: 340px;
-  height: 62px;
-  background: none;
-  border: none;
+  height: 56px;
+  background: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 999px;
   cursor: pointer;
-  padding: 0;
+  padding: 0 22px;
   outline: none;
   -webkit-tap-highlight-color: transparent;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.45) inset,    /* subtle inner highlight */
+    0 8px 24px rgba(0, 0, 0, 0.22),             /* main lift */
+    0 2px 6px  rgba(0, 0, 0, 0.14);             /* close-contact shadow */
+  transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
-.ctaBorder {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+.cta:hover {
+  background: #fafafa;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.55) inset,
+    0 14px 36px rgba(0, 0, 0, 0.28),
+    0 2px 6px   rgba(0, 0, 0, 0.18);
 }
 
-.ctaBorder path {
-  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+.cta:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 3px;
 }
-
-.cta:hover .ctaBorder path        { stroke: rgba(255,255,255,1.0); stroke-width: 2.5; }
-.cta:focus-visible .ctaBorder path { stroke: rgba(255,255,255,1.0); stroke-width: 2.5; }
 
 .ctaLabel {
-  font-family: 'Caveat', cursive;
-  font-size: 21px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.95);
-  letter-spacing: 0.04em;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111418;
+  letter-spacing: 0.005em;
   position: relative;
   z-index: 1;
   user-select: none;
@@ -294,12 +305,12 @@
 }
 
 .ctaLabel svg {
-  color: rgba(255, 255, 255, 0.95);
+  color: #111418;
   transition: transform 0.2s ease;
 }
 
-.cta:hover .ctaLabel     { color: #ffffff; }
-.cta:hover .ctaLabel svg { transform: translateX(5px); }
+.cta:hover .ctaLabel     { color: #000000; }
+.cta:hover .ctaLabel svg { transform: translateX(5px); color: #000000; }
 
 /* ── meta text ───────────────────────────────────────────────────────────── */
 
@@ -368,6 +379,115 @@
   font-weight: 700;
 }
 
+/* ── Carousel — sits inside the postcard frame ──────────────────────────────
+   Single visible slide at any time (AnimatePresence cross-fades them) so the
+   image/text pair reads as one focused beat per persona instead of competing
+   for attention. Width pinned to the card's content area; height is auto so
+   slides with longer notes don't get clipped.
+   ─────────────────────────────────────────────────────────────────────────── */
+.carousel {
+  position: relative;
+  width: 100%;
+  /* Reserve enough vertical space so the cross-fade between slides of
+     different heights doesn't collapse the card. Same on desktop + tablet;
+     mobile overrides to a column layout below. */
+  min-height: 220px;
+  padding: clamp(16px, 3%, 24px) clamp(18px, 3.5%, 28px);
+  box-sizing: border-box;
+}
+
+.slide {
+  /* Image left, note right. min-width:0 on children lets the text column
+     shrink past its content-implied minimum so long notes wrap correctly. */
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
+  gap: clamp(14px, 2.4%, 22px);
+  align-items: center;
+}
+
+.slideImageWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 10px;
+  background: rgba(74, 51, 21, 0.05);   /* warm cream placeholder while loading */
+  /* Subtle inner shadow + warm border so the photo doesn't float as a flat rectangle */
+  box-shadow:
+    inset 0 0 0 1px rgba(74, 51, 21, 0.12),
+    0 2px 6px rgba(74, 51, 21, 0.10);
+}
+
+.slideImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  /* Slight desaturation so the photo blends with the cream-paper palette
+     instead of competing as a stock image. */
+  filter: saturate(0.92) contrast(0.96);
+}
+
+.slideNote {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.slideEyebrow {
+  font-family: 'Inter', sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: rgba(74, 51, 21, 0.62);
+}
+
+.slideText {
+  margin: 0;
+  font-family: 'Caveat', cursive;
+  font-weight: 500;
+  font-size: clamp(18px, 2.3vw, 24px);
+  line-height: 1.35;
+  color: #1A2A3A;
+}
+
+/* ── Dot indicators — bottom-center under the carousel ─────────────────── */
+
+.slideDots {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 0 14px;
+}
+
+.slideDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(74, 51, 21, 0.22);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease, width 0.22s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.slideDot:hover {
+  background: rgba(74, 51, 21, 0.42);
+}
+
+.slideDotActive {
+  background: rgba(74, 51, 21, 0.72);
+  /* Active dot stretches to a pill — common pattern (App Store, etc) that
+     reads as "you are here" without being a different shape from the others */
+  width: 18px;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    RESPONSIVE OVERRIDES — must live after all base rules so same-specificity
    media-query selectors actually win the cascade.
@@ -388,12 +508,28 @@
   }
 
   .ctaLabel {
-    font-size: 18px;
+    font-size: 15px;
   }
 
   /* Ensure hero title doesn't clip on narrow screens */
   .heroTitle {
     min-height: 64px;
+  }
+
+  /* Carousel — stack image above note on phones so neither side cramps */
+  .carousel {
+    min-height: 0;
+    padding: 14px 16px 4px;
+  }
+  .slide {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .slideImageWrap {
+    aspect-ratio: 16 / 9;     /* wider crop reads better when stacked */
+  }
+  .slideText {
+    font-size: 19px;
   }
 
   /* Designer credit — tighter padding on narrow screens so the pill fits

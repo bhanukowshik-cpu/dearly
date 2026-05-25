@@ -559,6 +559,34 @@
 
 .mobilePanel::-webkit-scrollbar { display: none; }
 
+/* ── iPad Write mode ─────────────────────────────────────────────────────
+   Centered canvas takes the full stage height. The panel area collapses
+   to zero (no text panel below — the paper itself is the input surface).
+   Pinch-zoom scaling lives on .mobilePaperInner via inline style. */
+
+.mobileStageIpad {
+  /* Allow ZoomControls + EditorFABs (position:absolute children) to escape
+     normal flow; min-height: 0 already covered above. */
+}
+
+.mobilePaperFull {
+  flex: 1;                /* Take all available vertical space */
+  max-height: none;       /* Remove the 46vh clamp */
+  align-items: center;    /* Center the paper vertically */
+  justify-content: center;
+  padding: 20px 24px;
+  touch-action: none;     /* Allow custom pinch-zoom without browser scroll */
+  overflow: hidden;
+}
+.mobilePaperFull .mobilePaperInner {
+  max-width: 640px;       /* Larger paper on iPad */
+  will-change: transform; /* Keep scale animations on the compositor */
+}
+
+.mobilePanelAreaHidden {
+  display: none;
+}
+
 /* ── Mobile tab bar ──────────────────────────────────────────────────────── */
 
 .mobileTabBar {

@@ -1,0 +1,42 @@
+/* EditorFABs — stacked floating action buttons, bottom-right.
+   Sits above the bottom nav + WriteToolbar with comfortable inset. */
+
+.root {
+  position: absolute;
+  /* WriteToolbar is ~58px tall, sits ~12px above the tab bar. Put FABs
+     above that with 12px more breathing room. */
+  bottom: calc(100% + 84px);
+  right: 16px;
+  z-index: 28;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.fab {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(12, 18, 32, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  color: rgba(255, 255, 255, 0.92);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease;
+}
+.fab:hover {
+  background: rgba(20, 30, 50, 0.96);
+  border-color: rgba(255, 255, 255, 0.28);
+  transform: translateY(-1px);
+}
+.fab:active {
+  transform: translateY(0);
+}

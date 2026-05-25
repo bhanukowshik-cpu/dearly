@@ -29,27 +29,18 @@ const reducedMotion =
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-// ─── Animation pacing (ms per character) ───────────────────────────────────
-// Hero "Dearly," is fewer chars but bigger → slower pacing reads as
-// deliberate signature writing. Body text is longer; medium pacing keeps
-// the total reveal under ~12s without feeling rushed. The actual SVG-stroke
-// draw animation overlaps with the next character's reveal, so the smaller
-// these numbers, the more "fluid pen" the handwriting feels.
-const PACE_HERO     = 360   // "Dearly," ≈ 7 chars × 360ms ≈ 2.5s
-                            // (slowed 2× from 180ms so the hero signature
-                            //  reads as deliberate, not hurried)
-const PACE_GREETING = 110   // "Hi there," ≈ 9 chars × 110ms ≈ 1s
-const PACE_BODY     = 38    // long paragraphs need to feel briskly written
+// ─── Hero animation pacing ─────────────────────────────────────────────────
+// "Dearly," is fewer chars but huge → slower pacing reads as deliberate
+// signature writing rather than hurried scribbling. The per-stroke draw
+// inside each glyph is independently slowed by strokeSpeedMultiplier=0.5
+// on the AnimatedGlyphText call below.
+const PACE_HERO = 360   // ≈ 7 chars × 360ms ≈ 2.5s
 
-// ─── Responsive pixel sizes ────────────────────────────────────────────────
-// AnimatedGlyphText routes these through getScaledMetricsForPx, which
-// produces real per-glyph advance widths + line-heights from the typography
-// metadata. Using clamp() / CSS-string fontSize would fall back to GlyphChar's
-// legacy em path (fixed 0.68em per char) and the spacing collapses into the
-// gappy "D e a r l y" look. Always prefer fontSizePx for glyph text.
-const HERO_PX     = { mobile: 56, tablet: 70, desktop: 82 }
-const GREETING_PX = { mobile: 26, tablet: 30, desktop: 34 }
-const BODY_PX     = { mobile: 15, tablet: 17, desktop: 19 }
+// ─── Responsive pixel sizes for the hero ──────────────────────────────────
+// AnimatedGlyphText routes these through getScaledMetricsForPx, which gives
+// real per-glyph advance widths from the typography metadata (instead of the
+// legacy em-based fallback that produces the gappy "D e a r l y" look).
+const HERO_PX = { mobile: 56, tablet: 70, desktop: 82 }
 
 // ─── Use-case carousel slides ──────────────────────────────────────────────
 // Each slide pitches a single recipient persona — Dearly handles all of them.
@@ -96,16 +87,14 @@ const SLIDES = [
 const SLIDE_INTERVAL_MS = 5000
 
 export default function LoadingScreen({ onCta = () => {} }) {
-  // Sequencing — each milestone gates the next so writes never overlap.
+  // Sequencing:
   //   writeStarted → kicks off "Dearly," hero
-  //   writeDone    → card slides in
-  //   cardVisible  → "Hi there," greeting writes
-  //   greetingDone → body paragraphs write in sequence
-  const [writeStarted,  setWriteStarted]  = useState(reducedMotion)
-  const [writeDone,     setWriteDone]     = useState(reducedMotion)
-  const [cardVisible,   setCardVisible]   = useState(false)
-  const [greetingDone,  setGreetingDone]  = useState(reducedMotion)
-  const [bodyStage,     setBodyStage]     = useState(reducedMotion ? 3 : 0) // 0..3 chained reveals
+  //   writeDone    → card + CTA mount
+  //   slideIdx     → which carousel slide is showing right now
+  const [writeStarted, setWriteStarted] = useState(reducedMotion)
+  const [writeDone,    setWriteDone]    = useState(reducedMotion)
+  const [cardVisible,  setCardVisible]  = useState(false)
+  const [slideIdx,     setSlideIdx]     = useState(0)
 
   // Kick off the Dearly, handwriting after a beat (skip if reduced motion)
   useEffect(() => {
@@ -133,22 +122,17 @@ export default function LoadingScreen({ onCta = () => {} }) {
     return () => clearTimeout(id)
   }, [writeDone])
 
-  // In reduced-motion mode, mark greeting + body fully revealed once the
-  // card appears so there's no animation to wait on.
+  // Carousel auto-rotation. Pauses entirely under reduced-motion (the user
+  // explicitly opted out of decorative motion). Pauses while the tab is
+  // backgrounded so we don't burn the queue silently. Manually clicking a
+  // dot just sets slideIdx — the interval restarts from the new position.
   useEffect(() => {
-    if (!reducedMotion || !cardVisible) return
-    setGreetingDone(true)
-    setBodyStage(3)
-  }, [cardVisible])
-
-  // Chain body paragraphs one after another, each waiting for the previous
-  // to land. Without chaining, three long lines would all stream at once
-  // and the effect collapses into typographic noise.
-  useEffect(() => {
-    if (!greetingDone || reducedMotion) return
-    // Body line 1 starts immediately after greeting
-    setBodyStage(1)
-  }, [greetingDone])
+    if (reducedMotion || !cardVisible) return
+    const id = setInterval(() => {
+      setSlideIdx(i => (i + 1) % SLIDES.length)
+    }, SLIDE_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [cardVisible, slideIdx])
 
   return (
     <div className={styles.root}>
@@ -206,73 +190,55 @@ export default function LoadingScreen({ onCta = () => {} }) {
               <StarCluster />
             </CardSticker>
 
-            <div className={styles.letterWrap}>
-              <div className={styles.letter}>
-
-                {/* Greeting — handwritten via SVG glyph animation */}
-                <div className={styles.greeting}>
-                  <AnimatedGlyphText
-                    text="Hi there,"
-                    fontSizePx={GREETING_PX}
-                    lineHeightMultiplier={1.1}
-                    fontWeight={700}
-                    inkColor="#1A2A3A"
-                    msPerChar={PACE_GREETING}
-                    typewriter={!reducedMotion}
-                    onComplete={() => setGreetingDone(true)}
-                  />
-                </div>
-
-                {/* Body — same glyph animation, chained line-by-line */}
-                {bodyStage >= 1 && (
-                  <p className={styles.para}>
-                    <AnimatedGlyphText
-                      text={BODY_LINE_1}
-                      fontSizePx={BODY_PX}
-                      lineHeightMultiplier={1.5}
-                      fontWeight={700}
-                      inkColor="#1A2A3A"
-                      msPerChar={PACE_BODY}
-                      typewriter={!reducedMotion}
-                      onComplete={() => setBodyStage(s => Math.max(s, 2))}
+            {/* ── Carousel — image left, handwritten note right ─────────
+               Each slide is a single beat: who the note is for + what to
+               write. We render only the current slide (AnimatePresence
+               handles the cross-fade) so old image elements unmount and
+               release decoded bitmaps. */}
+            <div className={styles.carousel}>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={SLIDES[slideIdx].id}
+                  className={styles.slide}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <div className={styles.slideImageWrap}>
+                    <img
+                      src={SLIDES[slideIdx].image}
+                      alt={SLIDES[slideIdx].alt}
+                      className={styles.slideImage}
+                      loading="eager"
+                      decoding="async"
                     />
-                  </p>
-                )}
+                  </div>
+                  <div className={styles.slideNote}>
+                    <div className={styles.slideEyebrow}>{SLIDES[slideIdx].eyebrow}</div>
+                    <p className={styles.slideText}>{SLIDES[slideIdx].note}</p>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            </div>
 
-                {bodyStage >= 2 && (
-                  <p className={styles.para}>
-                    <AnimatedGlyphText
-                      text={BODY_LINE_2}
-                      fontSizePx={BODY_PX}
-                      lineHeightMultiplier={1.5}
-                      fontWeight={700}
-                      inkColor="#1A2A3A"
-                      msPerChar={PACE_BODY}
-                      typewriter={!reducedMotion}
-                      onComplete={() => setBodyStage(s => Math.max(s, 3))}
-                    />
-                  </p>
-                )}
-
-                {bodyStage >= 3 && (
-                  <p className={styles.closing}>
-                    <AnimatedGlyphText
-                      text={BODY_LINE_3}
-                      fontSizePx={BODY_PX}
-                      lineHeightMultiplier={1.5}
-                      fontWeight={700}
-                      inkColor="#1A2A3A"
-                      msPerChar={PACE_BODY}
-                      typewriter={!reducedMotion}
-                    />
-                  </p>
-                )}
-
-              </div>
+            {/* Dot indicators — click to jump, also reflect auto-rotation */}
+            <div className={styles.slideDots} role="tablist" aria-label="Choose a use case">
+              {SLIDES.map((s, i) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === slideIdx}
+                  aria-label={s.eyebrow}
+                  className={`${styles.slideDot} ${i === slideIdx ? styles.slideDotActive : ''}`}
+                  onClick={() => setSlideIdx(i)}
+                />
+              ))}
             </div>
           </motion.article>
 
-          {/* ── CTA ──────────────────────────────────────────────────────── */}
+          {/* ── CTA — solid white pill, matches Share-note primary action ── */}
           <motion.button
             className={styles.cta}
             initial={{ opacity: 0 }}
@@ -282,12 +248,6 @@ export default function LoadingScreen({ onCta = () => {} }) {
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
           >
-            <svg className={styles.ctaBorder} viewBox="0 0 340 62" fill="none" aria-hidden>
-              <path d="M 14,7  C 113,5  227,5  326,8"  stroke="rgba(255,255,255,0.88)" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M 326,8 C 328,24 328,40 326,56" stroke="rgba(255,255,255,0.88)" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M 326,56 C 227,58 113,58 14,56" stroke="rgba(255,255,255,0.88)" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M 14,56 C 12,40 12,24 14,7"     stroke="rgba(255,255,255,0.88)" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
             <span className={styles.ctaLabel}>
               Write a Memorable Note <IconArrow />
             </span>

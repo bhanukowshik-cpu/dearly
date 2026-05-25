@@ -11,6 +11,8 @@ import MediaFramePicker from './MediaFramePicker'
 import VoiceRecorderPanel from './VoiceRecorderPanel'
 import DrawingPanel from './DrawingPanel'
 import WriteToolbar from './WriteToolbar'
+import ZoomControls, { clampZoom } from './ZoomControls'
+import EditorFABs from './EditorFABs'
 import styles from './WritingScreen.module.css'
 import { DEFAULT_PAPER } from './stylePresets'
 import { extractName } from './nameUtils'
@@ -110,21 +112,38 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   const [toast,              setToast]              = useState(null)
   const toastTimerRef  = useRef(null)
   const toastCounterRef = useRef(0)
-  const [isMobile,           setIsMobile]           = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 599px), (max-width: 1180px) and (orientation: portrait)').matches : false
-  )
-  /* iPad portrait gets a contenteditable paper (Scribble-ready). Phones keep
-     the InputPanel below the paper because the paper itself is too small to
-     comfortably write on. */
-  const [isIpad,             setIsIpad]             = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(min-width: 600px) and (max-width: 1180px) and (orientation: portrait)').matches : false
-  )
+  /* iPad detection — UA-based so it works in both orientations (iPadOS 13+
+     reports as Macintosh, so we also require maxTouchPoints > 1 to
+     distinguish a real iPad from a Mac). Stable for the session — orientation
+     changes don't toggle device identity. */
+  const isIpadDevice = (() => {
+    if (typeof navigator === 'undefined') return false
+    const ua = navigator.userAgent
+    if (/iPad/.test(ua)) return true
+    if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return true
+    return false
+  })()
+  const [isMobile,           setIsMobile]           = useState(() => {
+    if (typeof window === 'undefined') return false
+    if (isIpadDevice) return true
+    return window.matchMedia('(max-width: 599px), (max-width: 1180px) and (orientation: portrait)').matches
+  })
+  /* iPad gets a contenteditable paper (Scribble-ready) + a Write-mode UX
+     (centered canvas, zoom controls, floating Write toolbar, FABs). Phones
+     keep the InputPanel below the paper since the paper itself is too small
+     to comfortably write on with a finger. */
+  const [isIpad,             setIsIpad]             = useState(() => {
+    if (typeof window === 'undefined') return false
+    if (isIpadDevice) return true
+    return window.matchMedia('(min-width: 600px) and (max-width: 1366px) and (any-pointer: coarse)').matches
+  })
   /* iPad defaults to Write (so the user lands ready to type/scribble on the
      paper); everything else defaults to To/From so the first thing you see
      is the recipient picker. */
   const [activeTool,         setActiveTool]         = useState(() => {
     if (typeof window === 'undefined') return 'people'
-    const ipadInit = window.matchMedia('(min-width: 600px) and (max-width: 1180px) and (orientation: portrait)').matches
+    if (isIpadDevice) return 'text'
+    const ipadInit = window.matchMedia('(min-width: 600px) and (max-width: 1366px) and (any-pointer: coarse)').matches
     return ipadInit ? 'text' : 'people'
   })
 
@@ -140,6 +159,10 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   const [drawingTool,        setDrawingTool]        = useState('pen') // 'pen' | 'highlighter' | 'eraser' | null
   const [penColor,           setPenColor]           = useState(DEFAULT_PEN_COLOR)
   const [highlighterColor,   setHighlighterColor]   = useState(DEFAULT_HIGHLIGHTER_COLOR)
+
+  /* iPad zoom — applies a CSS transform: scale() on the paper container.
+     Pinch-to-zoom on the paper container shares this state. */
+  const [zoomLevel, setZoomLevel] = useState(1)
 
   const paperRef    = useRef(null)
   const shareWrapRef = useRef(null)
@@ -177,19 +200,21 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     }
   }, [message, textSize, paperConfig])
 
-  /* Respond to viewport width changes */
+  /* Respond to viewport width changes. On a real iPad device the flags stay
+     true regardless of orientation; the matchMedia only matters for
+     browsers without iPad UA (eg. desktop Chrome simulating a tablet). */
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 599px), (max-width: 1180px) and (orientation: portrait)')
-    const handler = e => setIsMobile(e.matches)
+    const handler = e => setIsMobile(e.matches || isIpadDevice)
     mq.addEventListener('change', handler)
-    const ipadMq = window.matchMedia('(min-width: 600px) and (max-width: 1180px) and (orientation: portrait)')
-    const ipadHandler = e => setIsIpad(e.matches)
+    const ipadMq = window.matchMedia('(min-width: 600px) and (max-width: 1366px) and (any-pointer: coarse)')
+    const ipadHandler = e => setIsIpad(e.matches || isIpadDevice)
     ipadMq.addEventListener('change', ipadHandler)
     return () => {
       mq.removeEventListener('change', handler)
       ipadMq.removeEventListener('change', ipadHandler)
     }
-  }, [])
+  }, [isIpadDevice])
 
 
   /* Cleanup toast timer on unmount */
@@ -694,6 +719,75 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     setVoiceNotes(prev => prev.map(n => n.id === id ? { ...n, rotation } : n))
   }
 
+  /* ── iPad helpers (Phase 2/3) ─────────────────────────────────────────
+     Focus the contenteditable paper (Text FAB), add an emoji as a draggable
+     sticker (Emoji FAB), and pinch-to-zoom on the paper container with
+     finger only — Pencil pinch never fires since pen pointers go to
+     DrawingLayer's pen-only capture instead. */
+  const focusPaperEditor = useCallback(() => {
+    const editor = paperRef.current?.querySelector('[contenteditable="true"]')
+    if (editor) editor.focus()
+  }, [])
+
+  const addEmojiSticker = useCallback((char) => {
+    if (!char) return
+    function EmojiSticker() {
+      return (
+        <span style={{
+          fontSize: '64px',
+          lineHeight: 1,
+          display: 'block',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+        }}>{char}</span>
+      )
+    }
+    addSticker({
+      id: `emoji-${char}`,
+      Component: EmojiSticker,
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Pinch-to-zoom: track two simultaneous finger (touch) pointers on the
+     paper container. Pen pointers are ignored — they belong to DrawingLayer.
+     We compute the live finger-to-finger distance vs the starting distance
+     and multiply the zoom level by the ratio. */
+  const pinchStateRef = useRef(null)  // { p1: PointerEvent, p2: PointerEvent, startDist, startZoom }
+  const handlePaperPointerDown = useCallback((e) => {
+    if (!isIpad) return
+    if (e.pointerType !== 'touch') return
+    const st = pinchStateRef.current
+    if (!st) {
+      pinchStateRef.current = { p1: { id: e.pointerId, x: e.clientX, y: e.clientY }, p2: null, startDist: 0, startZoom: zoomLevel }
+    } else if (!st.p2 && st.p1.id !== e.pointerId) {
+      st.p2 = { id: e.pointerId, x: e.clientX, y: e.clientY }
+      const dx = st.p2.x - st.p1.x
+      const dy = st.p2.y - st.p1.y
+      st.startDist = Math.hypot(dx, dy)
+      st.startZoom = zoomLevel
+    }
+  }, [isIpad, zoomLevel])
+  const handlePaperPointerMove = useCallback((e) => {
+    if (!isIpad) return
+    if (e.pointerType !== 'touch') return
+    const st = pinchStateRef.current
+    if (!st || !st.p2 || st.startDist === 0) return
+    if (e.pointerId === st.p1.id) { st.p1.x = e.clientX; st.p1.y = e.clientY }
+    else if (e.pointerId === st.p2.id) { st.p2.x = e.clientX; st.p2.y = e.clientY }
+    const dx = st.p2.x - st.p1.x
+    const dy = st.p2.y - st.p1.y
+    const dist = Math.hypot(dx, dy)
+    const ratio = dist / st.startDist
+    setZoomLevel(clampZoom(st.startZoom * ratio))
+  }, [isIpad])
+  const handlePaperPointerEnd = useCallback((e) => {
+    const st = pinchStateRef.current
+    if (!st) return
+    if (e.pointerId === st.p1?.id || e.pointerId === st.p2?.id) {
+      pinchStateRef.current = null
+    }
+  }, [])
+
   /* ── Shared JSX fragments ───────────────────────────────────────────── */
   const paperCanvas = (
     <PaperCanvas
@@ -926,17 +1020,39 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       {isMobile && (
         <>
 
-          <div className={styles.mobileStage}>
+          <div className={`${styles.mobileStage} ${isIpad ? styles.mobileStageIpad : ''}`}>
 
-            {/* Paper preview,clipped so it never dominates the screen */}
-            <div className={styles.mobilePaper}>
-              <div ref={paperRef} className={styles.mobilePaperInner}>
+            {/* Zoom controls — iPad-only, top-right of the writing surface */}
+            {isIpad && activeTool === 'text' && (
+              <ZoomControls zoomLevel={zoomLevel} onChangeZoom={setZoomLevel} />
+            )}
+
+            {/* Paper preview. On iPad in Write mode the paper grows to fill
+                the stage (no panel area below) and scales via zoomLevel. */}
+            <div
+              className={`${styles.mobilePaper} ${isIpad && activeTool === 'text' ? styles.mobilePaperFull : ''}`}
+              onPointerDown={handlePaperPointerDown}
+              onPointerMove={handlePaperPointerMove}
+              onPointerUp={handlePaperPointerEnd}
+              onPointerCancel={handlePaperPointerEnd}
+            >
+              <div
+                ref={paperRef}
+                className={styles.mobilePaperInner}
+                style={isIpad && activeTool === 'text' ? {
+                  transform: `scale(${zoomLevel})`,
+                  transformOrigin: 'center center',
+                  transition: pinchStateRef.current ? 'none' : 'transform 0.18s ease',
+                } : undefined}
+              >
                 {paperCanvas}
               </div>
             </div>
 
-            {/* Animated tool panel — mirrors desktop EditorToolbar tools */}
-            <div className={styles.mobilePanelArea}>
+            {/* Animated tool panel — mirrors desktop EditorToolbar tools.
+                On iPad in Write mode the panel area is suppressed since the
+                paper itself is the input surface (Scribble + tap-to-type). */}
+            <div className={`${styles.mobilePanelArea} ${isIpad && activeTool === 'text' ? styles.mobilePanelAreaHidden : ''}`}>
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={activeTool ?? 'none'}
@@ -974,6 +1090,14 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
                   />
                 )}
               </AnimatePresence>
+              {/* Text + Emoji FABs — iPad Write mode only, anchored above
+                  the nav so calc() math stays in sync with WriteToolbar. */}
+              {isIpad && activeTool === 'text' && (
+                <EditorFABs
+                  onRequestFocusEditor={focusPaperEditor}
+                  onAddEmoji={addEmojiSticker}
+                />
+              )}
               {[
                 { tool: 'people',   label: 'To/From',  icon: <IconPlane size={20} /> },
                 { tool: 'text',     label: 'Write',    icon: <IconText size={20} /> },

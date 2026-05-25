@@ -1,0 +1,57 @@
+/* ZoomControls — top-right floating pill on the iPad write surface. */
+
+.root {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 25;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: rgba(12, 18, 32, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 999px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.30);
+  pointer-events: auto;
+}
+
+.btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 18px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+.btn:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.20);
+}
+.btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.value {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
+  min-width: 44px;
+  text-align: center;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
