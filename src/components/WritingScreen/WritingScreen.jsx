@@ -18,7 +18,7 @@ import { DEFAULT_PAPER } from './stylePresets'
 import { extractName } from './nameUtils'
 import { DEFAULT_FRAME } from '../../lib/mediaFrameConfig'
 import { computeFrameHeight } from '../../lib/mediaFrameHelpers'
-import { exportNoteToJson, copyToClipboard, downloadAsFile, buildExportFilename } from '../../lib/exportNoteJson'
+import { exportNoteToJson, copyToClipboard, downloadAsFile, buildExportFilename, importNoteFromFile, pickJsonFile } from '../../lib/exportNoteJson'
 import {
   DEFAULT_PEN_COLOR,
   DEFAULT_HIGHLIGHTER_COLOR,
@@ -452,6 +452,79 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       setExporting(false)
     }
   }, [exporting, getNoteData, showToast])
+
+  // ─── Dev: import a previously exported note from a .json file ─────────
+  // Inverse of Export. Hydrates every editor state field from the file so
+  // you can keep iterating on a designed reference letter across sessions.
+  // The picker opens immediately on click; if the user cancels (or picks a
+  // non-JSON / wrong-format file), we surface a clear toast and do nothing
+  // to the current state. If the current letter has unsaved content, we
+  // confirm before clobbering so a stray click can't nuke 20 minutes of work.
+  const [importing, setImporting] = useState(false)
+  const handleImportJson = useCallback(async () => {
+    if (importing) return
+    try {
+      const file = await pickJsonFile()
+      if (!file) return                          // user cancelled — silent no-op
+      setImporting(true)
+
+      const incoming = await importNoteFromFile(file)
+
+      // Soft confirm if there's anything to lose. isEmpty (computed below)
+      // covers the five "anything on the canvas" predicates; we trust that.
+      if (!isEmpty) {
+        // eslint-disable-next-line no-alert
+        const ok = window.confirm(
+          "Loading this note will replace everything on your current canvas. Continue?"
+        )
+        if (!ok) { setImporting(false); return }
+      }
+
+      // Hydrate state. Order doesn't really matter (React batches), but we
+      // clear selections first so old selected-uid pointers don't outlive
+      // the items they referenced (selected sticker uid from previous note
+      // would otherwise reference an object that no longer exists).
+      setSelectedStickerId(null)
+      setSelectedFrameId(null)
+      setSelectedVoiceNoteId(null)
+
+      setRecipient(incoming.recipient)
+      setSenderName(incoming.senderName)
+      setShowRecipient(incoming.showRecipient)
+      setMessage(incoming.message)
+      lastValidMessageRef.current = incoming.message
+      setEditorResyncKey(k => k + 1)             // force contenteditable re-sync
+      setPaperConfig(incoming.paperConfig ?? DEFAULT_PAPER)
+      setTextSize(incoming.textSize ?? 'md')
+      setStickers(incoming.stickers)
+      setMediaFrames(incoming.mediaFrames)
+      setVoiceNotes(incoming.voiceNotes)
+      setStrokes(incoming.strokes)
+
+      // Bump auto-increment refs past the max id from the imported note so
+      // any subsequent add doesn't collide with an existing item id.
+      const maxFrameId = incoming.mediaFrames.reduce((m, f) => Math.max(m, f.id ?? 0), 0)
+      const maxVoiceId = incoming.voiceNotes.reduce((m, v) => Math.max(m, v.id ?? 0), 0)
+      nextFrameIdRef.current     = maxFrameId + 1
+      nextVoiceNoteIdRef.current = maxVoiceId + 1
+
+      // Drop undo/redo history — the imported state is the new "start".
+      undoStackRef.current = []
+      redoStackRef.current = []
+      syncHistoryFlags()
+
+      showToast(`Note imported — ${file.name} loaded into the editor.`)
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[import] failed', err)
+      showToast(`Import failed — ${err?.message || 'unknown error'}`)
+    } finally {
+      setImporting(false)
+    }
+    // isEmpty + syncHistoryFlags are referenced; both are declared earlier
+    // in the component and stable across renders for our purposes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [importing, showToast])
 
   const handleCanvasClick = useCallback(() => {
     if (isMobile) return
@@ -1013,6 +1086,24 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
             >
               <span className={styles.exportNavBtnGlyph} aria-hidden>{'{ }'}</span>
               <span>{exporting ? 'Exporting…' : 'Export'}</span>
+            </motion.button>
+          )}
+          {/* Dev: import a previously exported note. Mirrors the Export
+             styling (dashed border + monospaced glyph) so the pair reads
+             as one tool. The ↑ glyph signals "load in" without needing
+             a separate icon component. */}
+          {!isMobile && (
+            <motion.button
+              className={styles.exportNavBtn}
+              onClick={handleImportJson}
+              disabled={importing}
+              title="Import a previously exported .json note into the editor"
+              whileHover={importing ? {} : { scale: 1.04 }}
+              whileTap={importing ? {} : { scale: 0.96 }}
+              transition={{ duration: 0.1 }}
+            >
+              <span className={styles.exportNavBtnGlyph} aria-hidden>{'↑{}'}</span>
+              <span>{importing ? 'Importing…' : 'Import'}</span>
             </motion.button>
           )}
           <div className={styles.shareWrap} ref={shareWrapRef}>

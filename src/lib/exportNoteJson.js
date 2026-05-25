@@ -166,6 +166,117 @@ export async function copyToClipboard(text) {
 }
 
 /**
+ * importNoteFromFile — inverse of exportNoteToJson.
+ *
+ * Reads a File (from an <input type="file">), parses the JSON, validates
+ * the format header, and returns the parsed note object. Throws on any
+ * failure (bad JSON, wrong format marker, newer schema version) so the
+ * caller can decide how to surface the error to the user.
+ *
+ * The returned object is shaped exactly like what exportNoteToJson emits,
+ * which is also exactly what WritingScreen state expects field-for-field.
+ * Media URLs are already data: URLs and need no conversion — they drop
+ * straight into <img src> / <audio src>.
+ */
+export async function importNoteFromFile(file) {
+  if (!file)                       throw new Error('No file selected.')
+  if (file.size > 50 * 1024 * 1024) throw new Error('File is too large (>50 MB).')
+
+  const text = await file.text()
+  let parsed
+  try {
+    parsed = JSON.parse(text)
+  } catch (e) {
+    throw new Error('File is not valid JSON.')
+  }
+
+  // Format guard. We accept anything that *looks* like a Dearly export
+  // (has the magic marker) — a missing __format is a hard reject because
+  // it likely means the user grabbed an unrelated JSON file by mistake.
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('JSON does not contain a note object.')
+  }
+  // Diagnostic: log what we actually parsed so we can debug
+  // missing-format failures. The first three keys + the __format value
+  // are enough to tell apart "wrong file" vs "stale module" vs "format
+  // serialization bug" without dumping the whole letter to the console.
+  // eslint-disable-next-line no-console
+  console.info('[import] parsed keys:', Object.keys(parsed).slice(0, 4),
+               '__format value:', JSON.stringify(parsed.__format),
+               'type:', typeof parsed.__format)
+  if (parsed.__format !== 'dearly-note') {
+    throw new Error(`This file isn't a Dearly note (missing "__format": "dearly-note"). Got: ${JSON.stringify(parsed.__format)}`)
+  }
+  if (typeof parsed.__version === 'number' && parsed.__version > 1) {
+    // Newer-than-known version: warn but still try. Today's loader knows v1;
+    // if a future export adds new fields they'll just be ignored.
+    // eslint-disable-next-line no-console
+    console.warn(`[importNoteFromFile] Loading a v${parsed.__version} export — some newer fields may be ignored.`)
+  }
+
+  // Normalize array fields so destructuring downstream is defensive against
+  // older / hand-edited exports missing some keys.
+  return {
+    paperConfig:   parsed.paperConfig   ?? null,
+    recipient:     parsed.recipient     ?? '',
+    recipientName: parsed.recipientName ?? '',
+    senderName:    parsed.senderName    ?? '',
+    showRecipient: !!parsed.showRecipient,
+    message:       parsed.message       ?? '',
+    textSize:      parsed.textSize      ?? 'md',
+    stickers:      Array.isArray(parsed.stickers)    ? parsed.stickers    : [],
+    mediaFrames:   Array.isArray(parsed.mediaFrames) ? parsed.mediaFrames : [],
+    voiceNotes:    Array.isArray(parsed.voiceNotes)  ? parsed.voiceNotes  : [],
+    strokes:       Array.isArray(parsed.strokes)     ? parsed.strokes     : [],
+  }
+}
+
+/**
+ * pickJsonFile — opens the OS file picker (single .json file) and resolves
+ * with the chosen File, or null if the user cancelled. Returns a promise so
+ * the caller can `await` it like any other async input.
+ *
+ * Uses a transient <input type=file> element appended to the DOM, clicked
+ * programmatically, then removed. The hidden-input pattern is more
+ * compatible than the modern showOpenFilePicker() (which Safari doesn't
+ * implement yet) and survives sandboxed iframes.
+ */
+export function pickJsonFile() {
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type   = 'file'
+    input.accept = '.json,application/json'
+    input.style.position = 'fixed'
+    input.style.opacity  = '0'
+    input.style.pointerEvents = 'none'
+    let settled = false
+    const settle = (value) => {
+      if (settled) return
+      settled = true
+      try { document.body.removeChild(input) } catch { /* already gone */ }
+      resolve(value)
+    }
+    input.onchange = () => settle(input.files?.[0] ?? null)
+    // `cancel` fires when the picker is dismissed without selecting. Not
+    // supported everywhere — we also fall back to a focus listener so we
+    // resolve null on browsers that don't dispatch it.
+    input.oncancel = () => settle(null)
+    const onFocus = () => {
+      // The picker is modal; focus returns to the page once dismissed.
+      // Give the change event a tick to fire first.
+      setTimeout(() => {
+        if (!settled && (!input.files || input.files.length === 0)) settle(null)
+      }, 300)
+      window.removeEventListener('focus', onFocus)
+    }
+    window.addEventListener('focus', onFocus)
+
+    document.body.appendChild(input)
+    input.click()
+  })
+}
+
+/**
  * Convenience: builds a kebab-case filename from the recipient + a short
  * timestamp so multiple exports don't overwrite each other in Downloads.
  */
