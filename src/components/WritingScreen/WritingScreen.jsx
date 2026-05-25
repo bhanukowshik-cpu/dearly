@@ -358,16 +358,22 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   }, [strokes.length, syncHistoryFlags])
 
   /* The drawing layer only intercepts pointer events when the Draw tab is
-     open. Leaving the Draw tab releases the layer so other tools (stickers,
-     frames…) get pointer events back. Returning to the Draw tab re-arms the
-     pen automatically so the user can draw immediately. */
+     open — EXCEPT on iPad, where the pen is always armed so Apple Pencil
+     strokes become ink anywhere on the paper (preserving the handwritten
+     look instead of getting converted to text by iOS Scribble). On iPad we
+     additionally pass `penOnly` to DrawingLayer so finger taps still focus
+     the contenteditable. Leaving the Draw tab on non-iPad releases the
+     layer so other tools (stickers, frames…) get pointer events back. */
   useEffect(() => {
     if (activeTool === 'draw') {
       if (drawingTool === null) setDrawingTool('pen')
-    } else if (drawingTool !== null) {
+    } else if (drawingTool !== null && !isIpad) {
       setDrawingTool(null)
+    } else if (drawingTool === null && isIpad) {
+      // Re-arm the pen after returning from Draw mode on iPad.
+      setDrawingTool('pen')
     }
-  }, [activeTool, drawingTool])
+  }, [activeTool, drawingTool, isIpad])
 
   /* Mirror activeTool into a ref so the [] keydown handler below can read
      the *current* tab without re-binding listeners on every change. */
@@ -723,6 +729,10 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       textSize={textSize}
       strokes={strokes}
       drawingTool={drawingTool}
+      /* iPad: outside of the Draw tab the pen still draws, but only pen
+         pointers — finger taps + keyboard fall through to the contenteditable
+         so the paper stays writable two ways. */
+      drawingPenOnly={isIpad && activeTool !== 'draw'}
       drawingColor={drawingTool === 'highlighter' ? highlighterColor : penColor}
       onAddStroke={addStroke}
       onEraseStrokes={eraseStrokes}

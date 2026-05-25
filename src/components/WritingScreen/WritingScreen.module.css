@@ -82,12 +82,14 @@
 }
 
 /* Mobile-only attribution row — a thin band right under the top bar that
-   centers the pill. Doesn't compete with the Preview/Share buttons for
-   horizontal space, so the copy can stay readable. */
+   centers the pill. Explicit z-index so it stacks above the bgImage /
+   bgTint / bgNoise overlays that sit behind everything in WritingScreen. */
 .designedByRow {
+  position: relative;
+  z-index: 10;
   display: flex;
   justify-content: center;
-  padding: 8px 16px 4px;
+  padding: 10px 16px 6px;
   flex-shrink: 0;
 }
 

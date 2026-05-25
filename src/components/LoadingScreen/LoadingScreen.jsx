@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { TegakiRenderer } from 'tegaki/react'
-import { font } from '../../lib/tegakiFont'
+import AnimatedGlyphText from '../WritingScreen/AnimatedGlyphText'
 import { StarCluster } from '../WritingScreen/handDrawnStickers'
 import VideoBackground from '../VideoBackground/VideoBackground'
 import styles from './LoadingScreen.module.css'
@@ -30,32 +29,35 @@ const reducedMotion =
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-// Caveat plain-text style used as animated fallback
-const caveatStyle = (size, color, weight = 700) => ({
-  fontFamily: "'Caveat', cursive",
-  fontSize:   size,
-  color,
-  fontWeight: weight,
-  whiteSpace: 'nowrap',
-  lineHeight: 1,
-  display:    'inline-block',
-})
+// ─── Animation pacing (ms per character) ───────────────────────────────────
+// Hero "Dearly," is fewer chars but bigger → slower pacing reads as
+// deliberate signature writing. Body text is longer; medium pacing keeps
+// the total reveal under ~12s without feeling rushed. The actual SVG-stroke
+// draw animation overlaps with the next character's reveal, so the smaller
+// these numbers, the more "fluid pen" the handwriting feels.
+const PACE_HERO     = 180   // "Dearly," ≈ 7 chars × 180ms ≈ 1.25s
+const PACE_GREETING = 110   // "Hi there," ≈ 9 chars × 110ms ≈ 1s
+const PACE_BODY     = 38    // long paragraphs need to feel briskly written
+
+// Body copy lifted from the previous Caveat paragraphs, flattened to plain
+// strings so the glyph animator can stream them char-by-char. Inline rich
+// markup (bold/highlight) is intentionally dropped on the launch screen —
+// the handwriting itself is the emphasis here.
+const BODY_LINE_1 = "My name is Bhanu — I obsess over making experiences more personal and delightful."
+const BODY_LINE_2 = "I built Dearly for moments that deserve more than a text. Send someone who matters a note they'll actually keep."
+const BODY_LINE_3 = "With passion, Bhanu Kowshik"
 
 export default function LoadingScreen({ onCta = () => {} }) {
-  // When reduced motion is on, start in the "done" state so content appears instantly
-  const [writeStarted,       setWriteStarted]       = useState(reducedMotion)
-  const [writeDone,          setWriteDone]          = useState(reducedMotion)
-  const [cardVisible,        setCardVisible]        = useState(false)
-  const [greetingDone,       setGreetingDone]       = useState(reducedMotion)
-  // Safari: canvas gets cleared when the layout animation fires — fall back to
-  // plain Caveat text for "Dearly," if the animation hasn't finished by then
-  const [heroFallback,       setHeroFallback]       = useState(reducedMotion)
-  // Safari: "Hi there," TegakiRenderer silently fails — fall back to Caveat text
-  const [greetingAnimFailed, setGreetingAnimFailed] = useState(reducedMotion)
-
-  // Track whether each animation completed naturally (vs timeout)
-  const animFinished     = useRef(reducedMotion)
-  const greetingFinished = useRef(reducedMotion)
+  // Sequencing — each milestone gates the next so writes never overlap.
+  //   writeStarted → kicks off "Dearly," hero
+  //   writeDone    → card slides in
+  //   cardVisible  → "Hi there," greeting writes
+  //   greetingDone → body paragraphs write in sequence
+  const [writeStarted,  setWriteStarted]  = useState(reducedMotion)
+  const [writeDone,     setWriteDone]     = useState(reducedMotion)
+  const [cardVisible,   setCardVisible]   = useState(false)
+  const [greetingDone,  setGreetingDone]  = useState(reducedMotion)
+  const [bodyStage,     setBodyStage]     = useState(reducedMotion ? 3 : 0) // 0..3 chained reveals
 
   // Kick off the Dearly, handwriting after a beat (skip if reduced motion)
   useEffect(() => {
@@ -63,25 +65,6 @@ export default function LoadingScreen({ onCta = () => {} }) {
     const id = setTimeout(() => setWriteStarted(true), 350)
     return () => clearTimeout(id)
   }, [])
-
-  // Safety timeout: if TegakiRenderer's onComplete never fires (font failure,
-  // Safari quirk), force writeDone so the card and CTA still appear.
-  useEffect(() => {
-    if (reducedMotion || writeDone) return
-    const id = setTimeout(() => setWriteDone(true), 2500)
-    return () => clearTimeout(id)
-  }, [writeDone])
-
-  // Safety timeout for the card greeting — if TegakiRenderer never calls
-  // onComplete (silent Safari failure), mark it failed so we show the Caveat fallback.
-  useEffect(() => {
-    if (reducedMotion || !cardVisible || greetingDone) return
-    const id = setTimeout(() => {
-      if (!greetingFinished.current) setGreetingAnimFailed(true)
-      setGreetingDone(true)
-    }, 1500)
-    return () => clearTimeout(id)
-  }, [cardVisible, greetingDone])
 
   // After writeDone → reveal the card
   useEffect(() => {
@@ -91,18 +74,22 @@ export default function LoadingScreen({ onCta = () => {} }) {
     return () => clearTimeout(id)
   }, [writeDone])
 
-  // When the hero layout-shift fires, Safari's compositing clears the canvas.
-  // Switch "Dearly," to plain text at that moment if TegakiRenderer didn't finish.
-  useEffect(() => {
-    if (!cardVisible || animFinished.current) return
-    setHeroFallback(true)
-  }, [cardVisible])
-
-  // When card appears in reduced-motion mode, immediately mark greeting done
+  // In reduced-motion mode, mark greeting + body fully revealed once the
+  // card appears so there's no animation to wait on.
   useEffect(() => {
     if (!reducedMotion || !cardVisible) return
     setGreetingDone(true)
+    setBodyStage(3)
   }, [cardVisible])
+
+  // Chain body paragraphs one after another, each waiting for the previous
+  // to land. Without chaining, three long lines would all stream at once
+  // and the effect collapses into typographic noise.
+  useEffect(() => {
+    if (!greetingDone || reducedMotion) return
+    // Body line 1 starts immediately after greeting
+    setBodyStage(1)
+  }, [greetingDone])
 
   return (
     <div className={styles.root}>
@@ -121,27 +108,15 @@ export default function LoadingScreen({ onCta = () => {} }) {
       >
         <div className={styles.heroTitle}>
           {writeStarted && (
-            heroFallback ? (
-              <span style={caveatStyle('clamp(52px, 7vw, 82px)', '#ffffff')}>
-                Dearly,
-              </span>
-            ) : (
-              <TegakiRenderer
-                font={font}
-                onComplete={() => { animFinished.current = true; setWriteDone(true) }}
-                time={{ mode: 'uncontrolled', duration: 1.5 }}
-                style={{
-                  fontSize:   'clamp(52px, 7vw, 82px)',
-                  color:      '#ffffff',
-                  fontWeight: 700,
-                  whiteSpace: 'nowrap',
-                  lineHeight: 1,
-                  willChange: 'transform',
-                }}
-              >
-                Dearly,
-              </TegakiRenderer>
-            )
+            <AnimatedGlyphText
+              text="Dearly,"
+              fontSize="clamp(52px, 7vw, 82px)"
+              fontWeight={700}
+              inkColor="#ffffff"
+              msPerChar={PACE_HERO}
+              typewriter={!reducedMotion}
+              onComplete={() => setWriteDone(true)}
+            />
           )}
         </div>
 
@@ -173,59 +148,60 @@ export default function LoadingScreen({ onCta = () => {} }) {
             <div className={styles.letterWrap}>
               <div className={styles.letter}>
 
-                {/* Greeting */}
+                {/* Greeting — handwritten via SVG glyph animation */}
                 <div className={styles.greeting}>
-                  {reducedMotion || greetingAnimFailed ? (
-                    <span style={caveatStyle('clamp(24px, 3.2vw, 34px)', '#1A2A3A')}>
-                      Hi there,
-                    </span>
-                  ) : (
-                    <TegakiRenderer
-                      font={font}
-                      onComplete={() => { greetingFinished.current = true; setGreetingDone(true) }}
-                      time={{ mode: 'uncontrolled', duration: 0.8 }}
-                      style={{
-                        fontSize:   'clamp(24px, 3.2vw, 34px)',
-                        color:      '#1A2A3A',
-                        fontWeight: 700,
-                        whiteSpace: 'nowrap',
-                        lineHeight: 1,
-                      }}
-                    >
-                      Hi there,
-                    </TegakiRenderer>
-                  )}
+                  <AnimatedGlyphText
+                    text="Hi there,"
+                    fontSize="clamp(24px, 3.2vw, 34px)"
+                    fontWeight={700}
+                    inkColor="#1A2A3A"
+                    msPerChar={PACE_GREETING}
+                    typewriter={!reducedMotion}
+                    onComplete={() => setGreetingDone(true)}
+                  />
                 </div>
 
-                {/* Body text */}
-                <motion.p
-                  className={styles.para}
-                  initial={{ opacity: 0, y: reducedMotion ? 0 : 10 }}
-                  animate={{ opacity: greetingDone ? 1 : 0, y: greetingDone ? 0 : 10 }}
-                  transition={{ duration: 0.45, ease: 'easeOut', delay: greetingDone ? 0 : 0 }}
-                >
-                  <strong>My name is Bhanu</strong> — I obsess over making experiences{' '}
-                  <mark className={styles.highlightBlue}>more personal</mark> and delightful. ✨
-                </motion.p>
+                {/* Body — same glyph animation, chained line-by-line */}
+                {bodyStage >= 1 && (
+                  <p className={styles.para}>
+                    <AnimatedGlyphText
+                      text={BODY_LINE_1}
+                      fontSize="clamp(15px, 1.55vw, 19px)"
+                      fontWeight={700}
+                      inkColor="#1A2A3A"
+                      msPerChar={PACE_BODY}
+                      typewriter={!reducedMotion}
+                      onComplete={() => setBodyStage(s => Math.max(s, 2))}
+                    />
+                  </p>
+                )}
 
-                <motion.p
-                  className={styles.para}
-                  initial={{ opacity: 0, y: reducedMotion ? 0 : 10 }}
-                  animate={{ opacity: greetingDone ? 1 : 0, y: greetingDone ? 0 : 10 }}
-                  transition={{ duration: 0.45, ease: 'easeOut', delay: greetingDone ? 0.11 : 0 }}
-                >
-                  I built Dearly for moments that deserve more than a text.{' '}
-                  Send someone who matters a note they'll actually keep. 💌
-                </motion.p>
+                {bodyStage >= 2 && (
+                  <p className={styles.para}>
+                    <AnimatedGlyphText
+                      text={BODY_LINE_2}
+                      fontSize="clamp(15px, 1.55vw, 19px)"
+                      fontWeight={700}
+                      inkColor="#1A2A3A"
+                      msPerChar={PACE_BODY}
+                      typewriter={!reducedMotion}
+                      onComplete={() => setBodyStage(s => Math.max(s, 3))}
+                    />
+                  </p>
+                )}
 
-                <motion.p
-                  className={styles.closing}
-                  initial={{ opacity: 0, y: reducedMotion ? 0 : 10 }}
-                  animate={{ opacity: greetingDone ? 1 : 0, y: greetingDone ? 0 : 10 }}
-                  transition={{ duration: 0.45, ease: 'easeOut', delay: greetingDone ? 0.22 : 0 }}
-                >
-                  With passion,<br />Bhanu Kowshik
-                </motion.p>
+                {bodyStage >= 3 && (
+                  <p className={styles.closing}>
+                    <AnimatedGlyphText
+                      text={BODY_LINE_3}
+                      fontSize="clamp(15px, 1.55vw, 19px)"
+                      fontWeight={700}
+                      inkColor="#1A2A3A"
+                      msPerChar={PACE_BODY}
+                      typewriter={!reducedMotion}
+                    />
+                  </p>
+                )}
 
               </div>
             </div>

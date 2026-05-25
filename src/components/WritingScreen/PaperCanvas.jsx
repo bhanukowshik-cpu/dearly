@@ -695,6 +695,10 @@ export default function PaperCanvas({
   // null, the rendered strokes stay visible but are inert.
   strokes = [],
   drawingTool = null,
+  /* iPad: pen-only capture mode — DrawingLayer renders + captures pen
+     strokes, but finger taps + mouse fall through so the contenteditable
+     body underneath can still receive focus and text input. */
+  drawingPenOnly = false,
   drawingColor = '#1F2024',
   onAddStroke = null,
   onEraseStrokes = null,
@@ -1106,6 +1110,7 @@ export default function PaperCanvas({
             {/* Handwritten drawing overlay — vector strokes on top of text/media. */}
             <DrawingLayer
               activeTool={drawingTool}
+              penOnly={drawingPenOnly}
               toolColor={drawingColor}
               strokes={strokes}
               onStrokeComplete={onAddStroke ?? (() => {})}

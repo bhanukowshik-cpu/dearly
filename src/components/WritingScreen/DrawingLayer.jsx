@@ -49,6 +49,13 @@ function renderStrokePath(stroke, paperW, paperH) {
 
 export default function DrawingLayer({
   activeTool        = null,          // 'pen' | 'highlighter' | 'eraser' | null
+  /* penOnly: iPad mode where the layer stays mounted + active but ONLY
+     captures Apple Pencil. Finger taps + mouse fall through to whatever
+     sits beneath (the contenteditable paper) so text input still works.
+     Implemented via parent-scoped capture-phase listeners that filter on
+     pointerType === 'pen'; the root keeps pointer-events:none so other
+     pointer types are never hit-tested onto the layer. */
+  penOnly           = false,
   toolColor         = '#1F2024',
   strokes           = [],
   onStrokeComplete  = () => {},
@@ -427,22 +434,70 @@ export default function DrawingLayer({
     if (activeTool === 'eraser') setEraserCursor(null)
   }, [activeTool])
 
+  /* penOnly mode (iPad): attach capture-phase pointer listeners on the
+     parent (paper) element. The root itself stays pointer-events:none so
+     finger taps + mouse pass through to the contenteditable underneath.
+     Pen pointers get intercepted and routed into the normal stroke
+     pipeline, with preventDefault() to stop iOS Scribble from converting
+     the handwriting to text. */
+  useEffect(() => {
+    if (!penOnly || !activeTool) return
+    const el = rootRef.current
+    if (!el) return
+    const paper = el.parentElement
+    if (!paper) return
+
+    let pointerActive = false
+
+    function onDown(e) {
+      if (e.pointerType !== 'pen') return
+      e.preventDefault()
+      e.stopPropagation()
+      pointerActive = true
+      beginStroke(e)
+    }
+    function onMove(e) {
+      if (!pointerActive || e.pointerType !== 'pen') return
+      extendStroke(e)
+    }
+    function onUp(e) {
+      if (!pointerActive) return
+      pointerActive = false
+      endStroke(e)
+    }
+
+    paper.addEventListener('pointerdown', onDown, { capture: true })
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+    return () => {
+      paper.removeEventListener('pointerdown', onDown, { capture: true })
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+    }
+  }, [penOnly, activeTool, beginStroke, extendStroke, endStroke])
+
   const interactive = !!activeTool
   const isEraser    = activeTool === 'eraser'
   const eraserRadiusPx = isEraser && size.w > 0
     ? size.w * TOOL_CONFIG.eraser.cursorRadiusRatio
     : 0
 
+  /* In penOnly mode the root must remain pointer-events:none so non-pen
+     pointers fall through to the contenteditable below. Pen events are
+     routed via the parent-scoped capture listener in the effect above. */
+  const reactCapture = interactive && !penOnly
   return (
     <div
       ref={rootRef}
-      className={`${styles.root} ${interactive ? styles.rootActive : ''} ${isEraser ? styles.rootEraser : ''}`}
+      className={`${styles.root} ${reactCapture ? styles.rootActive : ''} ${isEraser && !penOnly ? styles.rootEraser : ''}`}
       data-drawing-layer
-      onPointerDown={interactive ? beginStroke : undefined}
-      onPointerMove={interactive ? extendStroke : undefined}
-      onPointerUp={interactive ? endStroke : undefined}
-      onPointerCancel={interactive ? endStroke : undefined}
-      onPointerLeave={isEraser ? handlePointerLeave : undefined}
+      onPointerDown={reactCapture ? beginStroke : undefined}
+      onPointerMove={reactCapture ? extendStroke : undefined}
+      onPointerUp={reactCapture ? endStroke : undefined}
+      onPointerCancel={reactCapture ? endStroke : undefined}
+      onPointerLeave={isEraser && !penOnly ? handlePointerLeave : undefined}
     >
       {size.w > 0 && size.h > 0 && (
         <svg
