@@ -437,9 +437,14 @@ export default function DrawingLayer({
   /* penOnly mode (iPad): attach capture-phase pointer listeners on the
      parent (paper) element. The root itself stays pointer-events:none so
      finger taps + mouse pass through to the contenteditable underneath.
-     Pen pointers get intercepted and routed into the normal stroke
-     pipeline, with preventDefault() to stop iOS Scribble from converting
-     the handwriting to text. */
+
+     Pen pointers get intercepted, routed into the stroke pipeline, AND we
+     synchronously flip the contenteditable attribute to false for the
+     duration of the stroke. preventDefault() alone isn't enough — iOS
+     Scribble's gesture recognizer engages at the system level before web
+     event listeners can cancel it. Removing contenteditable BEFORE the
+     event bubbles to the target denies Scribble a surface to attach to,
+     and we restore it on pointerup so finger / keyboard typing still works. */
   useEffect(() => {
     if (!penOnly || !activeTool) return
     const el = rootRef.current
@@ -448,11 +453,34 @@ export default function DrawingLayer({
     if (!paper) return
 
     let pointerActive = false
+    let suppressedEditable = null
+
+    function disableScribble() {
+      // Find the contenteditable inside the paper and turn it off so iOS
+      // Scribble has nothing to bind the Pencil stroke to. Tracked so we
+      // can restore exactly the elements we touched on pointerup.
+      const editables = paper.querySelectorAll('[contenteditable="true"]')
+      if (editables.length === 0) return null
+      const list = []
+      for (const node of editables) {
+        node.setAttribute('contenteditable', 'false')
+        list.push(node)
+      }
+      return list
+    }
+    function restoreScribble() {
+      if (!suppressedEditable) return
+      for (const node of suppressedEditable) {
+        node.setAttribute('contenteditable', 'true')
+      }
+      suppressedEditable = null
+    }
 
     function onDown(e) {
       if (e.pointerType !== 'pen') return
       e.preventDefault()
       e.stopPropagation()
+      suppressedEditable = disableScribble()
       pointerActive = true
       beginStroke(e)
     }
@@ -464,6 +492,7 @@ export default function DrawingLayer({
       if (!pointerActive) return
       pointerActive = false
       endStroke(e)
+      restoreScribble()
     }
 
     paper.addEventListener('pointerdown', onDown, { capture: true })
@@ -475,6 +504,7 @@ export default function DrawingLayer({
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
+      restoreScribble()
     }
   }, [penOnly, activeTool, beginStroke, extendStroke, endStroke])
 

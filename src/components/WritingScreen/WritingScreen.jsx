@@ -18,6 +18,7 @@ import { DEFAULT_PAPER } from './stylePresets'
 import { extractName } from './nameUtils'
 import { DEFAULT_FRAME } from '../../lib/mediaFrameConfig'
 import { computeFrameHeight } from '../../lib/mediaFrameHelpers'
+import { exportNoteToJson, copyToClipboard, downloadAsFile, buildExportFilename } from '../../lib/exportNoteJson'
 import {
   DEFAULT_PEN_COLOR,
   DEFAULT_HIGHLIGHTER_COLOR,
@@ -419,6 +420,38 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   const handlePreview = useCallback(() => {
     if (onPreview) onPreview(getNoteData())
   }, [onPreview, getNoteData])
+
+  // ─── Dev: export the whole note as a portable JSON file ───────────────
+  // Used to design reference letters in the editor and ship them to the
+  // loading screen / docs as static fixtures. Async because uploaded images
+  // and voice notes have to be fetched + base64-inlined (their blob: URLs
+  // would otherwise die the moment the tab closes). Both copies to clipboard
+  // AND triggers a .json download so you can paste OR drag-and-drop the file.
+  const [exporting, setExporting] = useState(false)
+  const handleExportJson = useCallback(async () => {
+    if (exporting) return
+    setExporting(true)
+    try {
+      const exported = await exportNoteToJson(getNoteData())
+      const text     = JSON.stringify(exported, null, 2)
+      const filename = buildExportFilename(getNoteData())
+      const copied   = await copyToClipboard(text)
+      downloadAsFile(text, filename)
+      // ~size hint so you can sanity-check the export landed something real
+      const kb = Math.max(1, Math.round(text.length / 1024))
+      showToast(
+        copied
+          ? `Note exported — copied to clipboard and downloaded (${filename}, ${kb} KB).`
+          : `Note exported — downloaded ${filename} (${kb} KB). Clipboard copy failed; use the file.`
+      )
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[export] failed', err)
+      showToast('Export failed — see browser console for details.')
+    } finally {
+      setExporting(false)
+    }
+  }, [exporting, getNoteData, showToast])
 
   const handleCanvasClick = useCallback(() => {
     if (isMobile) return
@@ -962,6 +995,24 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
             >
               <IconEye size={13} />
               <span>Preview</span>
+            </motion.button>
+          )}
+          {/* Dev: export current note state as portable JSON. Desktop-only
+             so the design-reference workflow isn't surfaced to real users
+             on mobile. Disabled while an in-flight export is serializing
+             so a double-click can't queue two downloads. */}
+          {!isMobile && (
+            <motion.button
+              className={styles.exportNavBtn}
+              onClick={handleExportJson}
+              disabled={exporting}
+              title="Export this note as JSON (for use as a reference letter)"
+              whileHover={exporting ? {} : { scale: 1.04 }}
+              whileTap={exporting ? {} : { scale: 0.96 }}
+              transition={{ duration: 0.1 }}
+            >
+              <span className={styles.exportNavBtnGlyph} aria-hidden>{'{ }'}</span>
+              <span>{exporting ? 'Exporting…' : 'Export'}</span>
             </motion.button>
           )}
           <div className={styles.shareWrap} ref={shareWrapRef}>

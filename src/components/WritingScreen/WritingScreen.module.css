@@ -203,6 +203,55 @@
   border-color: rgba(255, 255, 255, 0.38);
 }
 
+/* ── Top-bar Export button (dev utility) ────────────────────────────────────
+   Visually subordinate to Preview / Share — a dashed border + Inter (not
+   Caveat) + monospaced "{ }" glyph signal "developer tool, not for users"
+   without literally needing a hidden flag to gate visibility. Same height
+   and padding rhythm as previewNavBtn so the three buttons sit cleanly on
+   one row. */
+.exportNavBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(255, 255, 255, 0.26);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.62);
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.exportNavBtn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.42);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.exportNavBtn:disabled {
+  cursor: progress;
+  opacity: 0.55;
+}
+
+.exportNavBtnGlyph {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: -0.05em;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.exportNavBtn:hover .exportNavBtnGlyph {
+  color: rgba(255, 255, 255, 0.85);
+}
+
 /* ── Hand-drawn action buttons (Share / Preview) ─────────────────────────── */
 
 .handBtn {

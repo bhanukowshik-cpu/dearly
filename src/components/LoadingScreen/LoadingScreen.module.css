@@ -325,59 +325,11 @@
   margin: 0;
 }
 
-/* ── Designer credit pill ───────────────────────────────────────────────────
-   Fixed at the bottom-center of the viewport so it stays in place across
-   resize/scroll. Translucent dark fill + subtle 1px border + soft blur to
-   read as "chrome" rather than content — same visual language as the editor
-   toolbar panels (white/0.045 fill, white/0.08 border, backdrop-blur). The
-   16px bottom inset leaves room above any future bottom-nav bar.
-   ─────────────────────────────────────────────────────────────────────────── */
-.designerCredit {
-  position: fixed;
-  bottom: 16px;
-  /* Auto-centre via left/right + margin instead of transform — the
-     framer-motion entry animation also writes to `transform`, which
-     was overriding `translateX(-50%)` and pushing the pill off-centre
-     (clipping on the right at narrow widths). */
-  left: 0;
-  right: 0;
-  margin-left: auto;
-  margin-right: auto;
-  width: fit-content;
-  max-width: calc(100vw - 24px);
-  z-index: 4;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 16px;
-  border-radius: 999px;
-  background: rgba(15, 22, 36, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  backdrop-filter: blur(12px) saturate(120%);
-  -webkit-backdrop-filter: blur(12px) saturate(120%);
-  /* Caveat for the hand-drawn brand feel — sits comfortably at 18 px
-     since Caveat reads small. Letter-spacing trimmed because Caveat
-     already has natural air around each glyph. */
-  font-family: 'Caveat', cursive;
-  font-size: 18px;
-  line-height: 1;
-  letter-spacing: 0;
-  white-space: nowrap;
-  user-select: none;
-  pointer-events: none;
-  /* No shadow — clean glass look. */
-  box-shadow: none;
-}
-
-.designerCreditLabel {
-  color: rgba(255, 255, 255, 0.62);
-  font-weight: 400;
-}
-
-.designerCreditName {
-  color: rgba(255, 255, 255, 0.96);
-  font-weight: 700;
-}
+/* (The .designerCredit pill rules were removed alongside the JSX —
+   no attribution credit on the landing for now. The postcard's
+   "With passion, Bhanu Kowshik" signature carries the personal
+   touch on its own. If a real signature/handle is added back,
+   restore this block.) */
 
 /* ── Carousel — sits inside the postcard frame ──────────────────────────────
    Single visible slide at any time (AnimatePresence cross-fades them) so the
@@ -532,15 +484,8 @@
     font-size: 19px;
   }
 
-  /* Designer credit — tighter padding on narrow screens so the pill fits
-     comfortably above the safe-area inset without crowding the meta line.
-     Caveat at 17 px on mobile reads about the same visual size as the
-     desktop 18 px once you account for the slimmer mobile viewport. */
-  .designerCredit {
-    bottom: max(12px, env(safe-area-inset-bottom, 0px));
-    padding: 6px 14px;
-    font-size: 17px;
-  }
+  /* (Designer credit mobile override removed alongside the JSX/desktop
+     rules — no attribution pill on the landing for now.) */
 }
 
 /* ── Tablet+ : content-height card, 24px ruler grid ─────────────────────── */

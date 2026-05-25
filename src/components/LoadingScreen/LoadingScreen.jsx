@@ -123,70 +123,14 @@ export default function LoadingScreen({ onCta = () => {} }) {
         </motion.p>
       </motion.div>
 
-      {/* ── Card + CTA — only mount when ready so hero is truly centered ── */}
-      {cardVisible && (
+      {/* ── CTA + meta ────────────────────────────────────────────────────
+         Card/carousel slot intentionally omitted — pending the four real
+         designed letters (Partner / Friend / Manager / Client) coming
+         back from the editor as screenshots. The carousel JSX + state +
+         auto-rotation effect will be reintroduced once those land.
+         Until then, the screen is clean: hero → tagline → CTA → meta. */}
+      {ctaVisible && (
         <>
-          <motion.article
-            className={styles.card}
-            initial={{ opacity: 0, y: reducedMotion ? 0 : 22 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <div className={styles.stains} aria-hidden />
-
-            <CardSticker style={{ top: 8, right: 10, width: 62, transform: 'rotate(14deg)', opacity: 0.85 }}>
-              <StarCluster />
-            </CardSticker>
-
-            {/* ── Carousel — image left, handwritten note right ─────────
-               Each slide is a single beat: who the note is for + what to
-               write. We render only the current slide (AnimatePresence
-               handles the cross-fade) so old image elements unmount and
-               release decoded bitmaps. */}
-            <div className={styles.carousel}>
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={SLIDES[slideIdx].id}
-                  className={styles.slide}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  <div className={styles.slideImageWrap}>
-                    <img
-                      src={SLIDES[slideIdx].image}
-                      alt={SLIDES[slideIdx].alt}
-                      className={styles.slideImage}
-                      loading="eager"
-                      decoding="async"
-                    />
-                  </div>
-                  <div className={styles.slideNote}>
-                    <div className={styles.slideEyebrow}>{SLIDES[slideIdx].eyebrow}</div>
-                    <p className={styles.slideText}>{SLIDES[slideIdx].note}</p>
-                  </div>
-                </motion.div>
-              </AnimatePresence>
-            </div>
-
-            {/* Dot indicators — click to jump, also reflect auto-rotation */}
-            <div className={styles.slideDots} role="tablist" aria-label="Choose a use case">
-              {SLIDES.map((s, i) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={i === slideIdx}
-                  aria-label={s.eyebrow}
-                  className={`${styles.slideDot} ${i === slideIdx ? styles.slideDotActive : ''}`}
-                  onClick={() => setSlideIdx(i)}
-                />
-              ))}
-            </div>
-          </motion.article>
-
-          {/* ── CTA — solid white pill, matches Share-note primary action ── */}
           <motion.button
             className={styles.cta}
             initial={{ opacity: 0 }}
@@ -212,22 +156,10 @@ export default function LoadingScreen({ onCta = () => {} }) {
         </>
       )}
 
-      {/* ── Designer credit — fixed pill at bottom-center ────────────────────
-         Sits inside .root (not portaled) so it inherits the screen's stacking
-         context — guaranteed below any modals/toasts the parent app mounts,
-         but above the background layers. Fixed positioning keeps it pinned
-         to the viewport bottom regardless of card length, so it stays put
-         even on tall content / scrolled views. */}
-      <motion.div
-        className={styles.designerCredit}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: 'easeOut', delay: reducedMotion ? 0 : 0.8 }}
-        aria-label="A product by The Thoughtful Designer"
-      >
-        <span className={styles.designerCreditLabel}>A product by</span>
-        <span className={styles.designerCreditName}>The Thoughtful Designer</span>
-      </motion.div>
+      {/* (The "A product by The Thoughtful Designer" credit pill used to
+         sit here. Removed for now — the postcard already signs off as
+         Bhanu Kowshik, which carries the personal attribution. If a
+         real signature/handle is added later, this is where it'd go.) */}
 
     </div>
   )
