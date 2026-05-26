@@ -918,7 +918,13 @@ export default function PaperCanvas({
     measure()
 
     return () => { cancelled = true; ro.disconnect() }
-  }, [showRuler, liveRecipient, hasMessage, textSize, viewportWidth]) // eslint-disable-line react-hooks/exhaustive-deps
+    // Depend on the FULL message string (not just hasMessage boolean) so
+    // that every content change re-runs measure. Without this, typing
+    // additional characters didn't fire ResizeObserver (the body's flex
+    // size stayed constant), and the ruler stayed pinned at whatever
+    // offset the first measurement computed — visibly drifting from the
+    // actual first-glyph baseline as content reflowed.
+  }, [showRuler, liveRecipient, message, textSize, viewportWidth]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scale letter content to fit within the fixed paper dimensions.
   // Scale letter content to fit within the paper on the recipient screen.
