@@ -299,6 +299,19 @@
 }
 
 
+/* ── CTA group — wraps the button + meta caption as one grid row so the
+   14 px grid row-gap doesn't apply between them. Internal gap is tight
+   (6 px) so the "No signup required" line reads as a caption hugging
+   the button rather than a separate paragraph floating below it. */
+.ctaGroup {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
 /* ── CTA — outside card, centered ───────────────────────────────────────── */
 
 /* ── CTA — Caveat label on a hand-drawn crooked white SVG fill ───────────

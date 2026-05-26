@@ -221,11 +221,12 @@ export default function LoadingScreen({ onCta = () => {} }) {
         </motion.div>
       )}
 
-      {/* ── CTA + meta — both rise from the bottom, staggered behind the
-          carousel so the three lower elements arrive in a clear cascade
-          (carousel → CTA → meta) rather than all at once. ──────────── */}
+      {/* ── CTA + meta — grouped into one row so the grid's row-gap only
+          separates them from the carousel above (not from each other).
+          Internal gap is tight (6 px) so "No signup required" reads as
+          a caption directly under the button, not a standalone block. */}
       {ctaVisible && (
-        <>
+        <div className={styles.ctaGroup}>
           <motion.button
             className={styles.cta}
             initial={{ opacity: 0, y: reducedMotion ? 0 : 48 }}
@@ -260,7 +261,7 @@ export default function LoadingScreen({ onCta = () => {} }) {
           >
             No signup required / free to use
           </motion.p>
-        </>
+        </div>
       )}
 
     </div>
