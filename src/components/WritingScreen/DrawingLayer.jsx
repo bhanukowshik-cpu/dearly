@@ -312,8 +312,12 @@ export default function DrawingLayer({
     distAccumRef.current     = 0
     lastScratchAtRef.current = performance.now()
     smoothedSpeedRef.current = 0
-    inkAudio.init().then(() => inkAudio.playScratch(activeTool, 0.3))
-    inkAudio.playScratch(activeTool, 0.3)
+    /* Initial-contact scratch — bumped 0.3 → 0.6 so the "pen lands on
+       paper" cue is clearly audible on iPad's speaker. Fired twice:
+       once sync (in case audio is already initialised) and once after
+       init() resolves (covers the very first stroke before init). */
+    inkAudio.init().then(() => inkAudio.playScratch(activeTool, 0.6))
+    inkAudio.playScratch(activeTool, 0.6)
 
     // Paint the first point straight to the canvas — no React render,
     // no waiting for state to flush. Subsequent samples repaint via
@@ -387,8 +391,21 @@ export default function DrawingLayer({
     const SCRATCH_MAX_GAP_MS   = 130
     const MIN_INTERVAL_MS      = 35
     const MIN_MOVE_FOR_TIME_PX = 1.5
-    const MIN_AUDIBLE_SPEED    = 0.05
-    const SPEED_TO_FULL_VOLUME = 1.5
+    /* Lower MIN_AUDIBLE_SPEED so even careful, slow letter-shapes
+       trigger scratches — previously the silence floor was hit during
+       normal writing of slow letters (H, lowercase l) on iPad and the
+       user heard nothing. Speeds are CSS px / ms, so this is 20 px/s. */
+    const MIN_AUDIBLE_SPEED    = 0.02
+    /* Lower SPEED_TO_FULL_VOLUME so typical writing speeds map closer
+       to peak intensity instead of sitting near the bottom of the
+       gain range. Was 1.5 px/ms (1500 px/s = a flick); now 0.6 px/ms
+       (600 px/s = brisk handwriting). */
+    const SPEED_TO_FULL_VOLUME = 0.6
+    /* Intensity floor — even the gentlest scratch should be audible
+       enough to register tactile feedback. Without this, slow strokes
+       computed an intensity of ~0.02 which multiplied with the gain
+       chain came out as effectively silent. */
+    const MIN_INTENSITY        = 0.45
 
     distAccumRef.current += segDist
     const nowMs = performance.now()
@@ -402,11 +419,12 @@ export default function DrawingLayer({
         const speed = smoothedSpeedRef.current
         if (speed >= MIN_AUDIBLE_SPEED) {
           // Linear ramp from MIN_AUDIBLE_SPEED → SPEED_TO_FULL_VOLUME
-          // mapped onto intensity 0 → 1. Below the floor: no scratch at
-          // all (early-returned above). Above the ceiling: capped at 1.
+          // mapped onto intensity 0 → 1, then clamped to a MIN_INTENSITY
+          // floor so even slow strokes still produce an audible scratch
+          // (was sitting near 0.02 before → effectively silent on iPad).
           const t = (speed - MIN_AUDIBLE_SPEED) /
                     (SPEED_TO_FULL_VOLUME - MIN_AUDIBLE_SPEED)
-          const intensity = Math.max(0, Math.min(1, t))
+          const intensity = Math.max(MIN_INTENSITY, Math.min(1, t))
           distAccumRef.current     = 0
           lastScratchAtRef.current = nowMs
           inkAudio.playScratch(live.tool, intensity)

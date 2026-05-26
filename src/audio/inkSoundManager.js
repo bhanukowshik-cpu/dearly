@@ -21,36 +21,45 @@ import * as Tone from 'tone'
 // SAME source into a softer felt-tip character via filter + slower rate.
 const SAMPLE_URL = '/sounds/pen/drawing-line.wav'
 
-const MASTER_DB = -4
+/* Bumped from -4 dB → 0 dB. Previous value was tuned for headphones;
+   on the iPad built-in speaker (competing with ambient sound) the
+   scratches were inaudible. 0 dB is unity — Tone is still the only
+   thing playing into masterGain so there's no clipping risk. */
+const MASTER_DB = 0
 
 const TOOLS = {
   pen: {
     fadeInSec:      0.04,
-    fadeOutSec:     0.08,   // snappy silence — no lingering tail
-    minDb:          -30,
-    maxDb:          -8,
+    fadeOutSec:     0.08,
+    /* Loudness range bumped ~6 dB hotter than before:
+         minDb -30 → -22 (still soft but not buried)
+         maxDb  -8 →  -2 (loud peak, clearly audible on iPad speaker) */
+    minDb:          -22,
+    maxDb:          -2,
     minRate:        0.95,
     maxRate:        1.18,
     minFilterHz:    1400,
     maxFilterHz:    6500,
     filterType:     'bandpass',
     filterQ:        0.9,
-    pressureWeight: 0.7,    // how much pressure (vs velocity) drives loudness
-    contactDb:      -10,    // tiny percussive bump at pointerdown
+    pressureWeight: 0.7,
+    contactDb:      -4,    // initial-contact bump — louder for tactile cue
   },
   highlighter: {
     fadeInSec:      0.06,
     fadeOutSec:     0.12,
-    minDb:          -34,
-    maxDb:          -14,
+    /* Same +6 dB lift on the highlighter, keeping the relative gap
+       to pen so the broad-felt-tip character still reads softer. */
+    minDb:          -26,
+    maxDb:          -8,
     minRate:        0.78,
     maxRate:        0.95,
     minFilterHz:    480,
     maxFilterHz:    1800,
     filterType:     'lowpass',
     filterQ:        0.65,
-    pressureWeight: 0.55,   // less aggressive than pen
-    contactDb:      -18,
+    pressureWeight: 0.55,
+    contactDb:      -12,
   },
 }
 
