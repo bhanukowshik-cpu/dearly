@@ -1171,30 +1171,21 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     />
   )
 
-  /* Has-content flag — paper-size selection locks once any stroke, text,
-     sticker, media, or voice exists. Changing size after content exists
-     would visually shrink/stretch the strokes (they're stored in %-of-
-     paper coords), and the user explicitly didn't want that. Locking is
-     the simplest no-data-loss fix; undo a step to re-enable the picker. */
-  const paperSizeLocked = (
-    (strokes?.length ?? 0) > 0 ||
-    (message?.trim()?.length ?? 0) > 0 ||
-    (recipient?.trim()?.length ?? 0) > 0 ||
-    (stickers?.length ?? 0) > 0 ||
-    (mediaFrames?.length ?? 0) > 0 ||
-    (voiceNotes?.length ?? 0) > 0
-  )
-
   /* Mobile "Style" tab — paper config (size + style + ruler/zig-zag) on top
      and the sticker picker below in the same panel. On desktop the paper
      controls live in the right-rail CanvasSidebar, so the desktop Stickers
-     tab keeps just stickers — only mobile uses this combined version. */
+     tab keeps just stickers — only mobile uses this combined version.
+
+     NOTE: paper-size buttons (Strip / Postcard / A4) stay clickable even
+     when there's content. The user explicitly preferred this over the
+     previous "lock once written" behaviour — switching may resize the
+     existing strokes proportionally, but that's a known trade-off the
+     user accepted in favour of always being able to change size. */
   const stylePanel = (
     <>
       <CanvasSidebar
         paperConfig={paperConfig}
         onChangePaper={setPaperConfig}
-        sizeLocked={paperSizeLocked}
       />
       <div className={styles.sidebarDivider} />
       {stickerPanel}
@@ -1555,7 +1546,6 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
             <CanvasSidebar
               paperConfig={paperConfig}
               onChangePaper={setPaperConfig}
-              sizeLocked={paperSizeLocked}
             />
           </motion.div>
         </main>

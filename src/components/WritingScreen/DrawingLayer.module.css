@@ -27,9 +27,19 @@
   mix-blend-mode: multiply;
 }
 
-/* Raster live-preview canvas — same mix-blend so highlighter looks
-   identical in-flight vs committed. Pointer-events:none so it never
-   competes with the layer root's pointer capture. */
+/* Raster live-preview canvas — pointer-events:none so it never competes
+   with the layer root's pointer capture. NO mix-blend-mode: multiply
+   here, even though the committed SVG layer above uses it. Reason:
+   when both children of the same stacking context use multiply,
+   iPadOS Safari ends up blending the canvas against a transparent
+   backdrop (the SVG above it) → painted pixels multiply by 0 → the
+   in-flight stroke renders invisible until the user lifts the stylus.
+   On commit the stroke moves to the SVG layer which DOES multiply
+   correctly against the paper bg. The visual difference between
+   in-flight (no multiply) and committed (multiply) is negligible
+   for pen (full opacity) and an acceptable trade for highlighters
+   (very slight tone shift mid-stroke) given the alternative was
+   invisible-while-drawing. */
 .liveCanvas {
   position: absolute;
   inset: 0;
@@ -37,5 +47,4 @@
   height: 100%;
   display: block;
   pointer-events: none;
-  mix-blend-mode: multiply;
 }

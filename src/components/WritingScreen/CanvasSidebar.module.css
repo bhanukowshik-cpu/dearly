@@ -97,25 +97,3 @@
   color: rgba(220, 235, 255, 0.95);
 }
 
-/* Locked state — applied to non-active pills while there's content on
-   the page. Dimmer than the default, cursor flips to not-allowed, and
-   hover styles are suppressed so the buttons clearly read as inert. */
-.sizePillLocked {
-  opacity: 0.40;
-  cursor: not-allowed;
-}
-.sizePillLocked:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.10);
-  color: rgba(255, 255, 255, 0.60);
-}
-
-.sizeLockHint {
-  margin: 8px 2px 0;
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.42);
-  letter-spacing: 0.01em;
-}
-
