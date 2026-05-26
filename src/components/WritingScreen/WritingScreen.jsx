@@ -87,6 +87,15 @@ const STICKER_SLOTS = [
   { x: 68, y: 20 }, { x: 78, y: 82 }, { x: 88, y: 57 },
 ]
 
+/* Dev-only toolbar buttons (Export JSON / Import JSON / Export PNG) — these
+   are designer workflow utilities used to capture reference letters for
+   the LoadingScreen carousel, not features for real end users. Hidden in
+   production builds via Vite's import.meta.env.DEV flag, which evaluates
+   to true under `vite dev` and false under `vite build`. The button JSX
+   below is gated on IS_DEV && !isMobile, so production users never see
+   them while local dev still has the full export toolkit. */
+const IS_DEV = import.meta.env.DEV
+
 /* ─────────────────────────────────────────────────────────────────────────
    WritingScreen
    ───────────────────────────────────────────────────────────────────────── */
@@ -1362,11 +1371,13 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               <span>Preview</span>
             </motion.button>
           )}
-          {/* Dev: export current note state as portable JSON. Desktop-only
-             so the design-reference workflow isn't surfaced to real users
-             on mobile. Disabled while an in-flight export is serializing
-             so a double-click can't queue two downloads. */}
-          {!isMobile && (
+          {/* Dev-only: export current note state as portable JSON. Hidden
+             in production builds (IS_DEV gate) — this is a designer
+             reference-capture tool, not an end-user feature. Desktop-only
+             since the workflow involves downloading files. Disabled while
+             an in-flight export is serializing so a double-click can't
+             queue two downloads. */}
+          {IS_DEV && !isMobile && (
             <motion.button
               className={styles.exportNavBtn}
               onClick={handleExportJson}
@@ -1380,11 +1391,11 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               <span>{exporting ? 'Exporting…' : 'Export'}</span>
             </motion.button>
           )}
-          {/* Dev: import a previously exported note. Mirrors the Export
-             styling (dashed border + monospaced glyph) so the pair reads
-             as one tool. The ↑ glyph signals "load in" without needing
-             a separate icon component. */}
-          {!isMobile && (
+          {/* Dev-only: import a previously exported note. Hidden in prod
+             (IS_DEV gate). Mirrors the Export styling (dashed border +
+             monospaced glyph) so the pair reads as one tool. The ↑ glyph
+             signals "load in" without needing a separate icon component. */}
+          {IS_DEV && !isMobile && (
             <motion.button
               className={styles.exportNavBtn}
               onClick={handleImportJson}
@@ -1398,12 +1409,13 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               <span>{importing ? 'Importing…' : 'Import'}</span>
             </motion.button>
           )}
-          {/* Dev: export the live paper as a high-DPI PNG for use as a
-             frozen "showcase" image (LoadingScreen carousel, marketing,
-             etc). Bypasses the layout-drift problems of rendering live
-             PaperCanvas in a smaller container. Same dashed-border style
-             family as Export/Import so it reads as one tool group. */}
-          {!isMobile && (
+          {/* Dev-only: export the live paper as a high-DPI PNG. Hidden in
+             prod (IS_DEV gate). Used for capturing frozen "showcase"
+             images for the LoadingScreen carousel + marketing — bypasses
+             the layout-drift problems of rendering live PaperCanvas in a
+             smaller container. Same dashed-border style family as
+             Export/Import so it reads as one tool group. */}
+          {IS_DEV && !isMobile && (
             <motion.button
               className={styles.exportNavBtn}
               onClick={handleExportPng}

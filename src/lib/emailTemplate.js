@@ -204,12 +204,10 @@ export function buildEmailHtml({
     -ms-interpolation-mode: bicubic;
   }
   /* Caption shared base — Caveat, slight rotation per side so they
-     read as actually hand-written. Cream-ink color (matches the rest
-     of the email's INK palette) instead of dark brown — the dark
-     version was reading as "part of the envelope" and getting lost.
-     Cream-on-tan pops cleanly and ties the captions to the email
-     atmosphere instead of the envelope graphic. Subtle dark drop
-     shadow keeps them legible if the envelope is on a lighter spot. */
+     read as actually hand-written. Very soft graphite mark (#252525
+     @ 10% opacity) — reads like a faint pencil note on the envelope
+     rather than competing ink. No drop shadow at this opacity (would
+     muddy the mark). */
   .em-env-cap {
     position: absolute;
     z-index: 2;
@@ -217,10 +215,9 @@ export function buildEmailHtml({
     font-weight: 500;
     font-size: 16px;
     line-height: 1;
-    color: rgba(255, 247, 230, 0.88);
+    color: rgba(37, 37, 37, 0.30);
     white-space: nowrap;
     pointer-events: none;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   }
   .em-env-from {
     top: 13%;
