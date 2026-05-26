@@ -157,14 +157,6 @@ export default function LoadingScreen({ onCta = () => {} }) {
           )}
         </div>
 
-        <motion.p
-          className={styles.heroSub}
-          initial={{ opacity: 0, y: reducedMotion ? 0 : 14 }}
-          animate={{ opacity: writeDone ? 1 : 0, y: writeDone ? 0 : 14 }}
-          transition={{ duration: 0.6, ease: 'easeOut', delay: writeDone ? 0.1 : 0 }}
-        >
-          Letters people actually keep.
-        </motion.p>
       </div>
 
       {/* ── Carousel — fixed-height slot, image + reply banner stacked ── */}

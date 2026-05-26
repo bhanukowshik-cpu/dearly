@@ -259,6 +259,7 @@ function FoldedLetter({
                 recipient={recipient} message={message}
                 showRecipient={showRecipient} paperConfig={paperConfig}
                 stickers={stickers} textSize={textSize}
+                textElements={textElements}
                 selectedStickerId={null}
                 onSelectSticker={NOOP} onRemoveSticker={NOOP}
                 onMoveSticker={NOOP}  onResizeSticker={NOOP} onRotateSticker={NOOP}
@@ -389,6 +390,9 @@ export default function RecipientScreen({
   message       = '',
   paperConfig,
   stickers      = [],
+  /* iPad-authored draggable text cards. Render-only on this screen
+     (no edit). Coexist with `message` so legacy notes still display. */
+  textElements  = [],
   showRecipient = true,
   textSize      = 'lg',
   onWriteOwn    = () => {},

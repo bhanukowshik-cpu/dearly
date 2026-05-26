@@ -107,6 +107,13 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   })
   const [stickers,           setStickers]           = useState([])
   const [selectedStickerId,  setSelectedStickerId]  = useState(null)
+  /* iPad text-element layer — typed entries from the TextPopup get
+     dropped here as individual draggable cards (on iPad only). On
+     desktop / mobile the existing `message` paragraph is still the
+     primary input. textElements coexist with `message`: both render
+     on the paper, both persist with the note. */
+  const [textElements,         setTextElements]         = useState([])
+  const [selectedTextElementId, setSelectedTextElementId] = useState(null)
   const [mediaFrames,        setMediaFrames]        = useState([])
   const [selectedFrameId,    setSelectedFrameId]    = useState(null)
   const nextFrameIdRef = useRef(1)
@@ -244,6 +251,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   const shareWrapRef = useRef(null)
   const selectedStickerIdRef = useRef(selectedStickerId)
   useEffect(() => { selectedStickerIdRef.current = selectedStickerId }, [selectedStickerId])
+  const selectedTextElementIdRef = useRef(selectedTextElementId)
+  useEffect(() => { selectedTextElementIdRef.current = selectedTextElementId }, [selectedTextElementId])
   const selectedFrameIdRef = useRef(selectedFrameId)
   useEffect(() => { selectedFrameIdRef.current = selectedFrameId }, [selectedFrameId])
   const selectedVoiceNoteIdRef = useRef(selectedVoiceNoteId)
@@ -342,8 +351,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
 
   const getNoteData = useCallback(() => ({
     senderName, recipient, recipientName, message, paperConfig, stickers, mediaFrames, voiceNotes, showRecipient, textSize,
-    strokes,
-  }), [senderName, recipient, recipientName, message, paperConfig, stickers, mediaFrames, voiceNotes, showRecipient, textSize, strokes])
+    strokes, textElements,
+  }), [senderName, recipient, recipientName, message, paperConfig, stickers, mediaFrames, voiceNotes, showRecipient, textSize, strokes, textElements])
 
   /* ── Drawing handlers ────────────────────────────────────────────────── */
   //
@@ -616,6 +625,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       setMediaFrames(incoming.mediaFrames)
       setVoiceNotes(incoming.voiceNotes)
       setStrokes(incoming.strokes)
+      setTextElements(incoming.textElements ?? [])
+      setSelectedTextElementId(null)
 
       // Bump auto-increment refs past the max id from the imported note so
       // any subsequent add doesn't collide with an existing item id.
@@ -700,12 +711,14 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       const stickerId = selectedStickerIdRef.current
       const frameId   = selectedFrameIdRef.current
       const voiceId   = selectedVoiceNoteIdRef.current
-      if (!stickerId && !frameId && !voiceId) return
+      const textId    = selectedTextElementIdRef.current
+      if (!stickerId && !frameId && !voiceId && !textId) return
       if (isEditing) return
       e.preventDefault()
       if (stickerId) removeSticker(stickerId)
       if (frameId)   removeMediaFrame(frameId)
       if (voiceId)   removeVoiceNote(voiceId)
+      if (textId)    removeTextElement(textId)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
@@ -745,19 +758,66 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     setStickers(prev => prev.map(s => s.uid === uid ? { ...s, rotation } : s))
   }
 
+  /* ── Text-element handlers (iPad authoring + cross-device render) ──── */
+
+  /* Place a new text card at the next sequential row. First card sits
+     near top-left; each subsequent card stacks ~12% below the previous
+     one (wraps to a new column at 80% y). User can drag from there to
+     fine-tune. */
+  function addTextElement({ text, size = textSize, color = '#1F2024' }) {
+    const trimmed = String(text || '').trim()
+    if (!trimmed) return
+    const last = textElements[textElements.length - 1]
+    let x, y
+    if (!last) {
+      x = 18
+      y = 14
+    } else {
+      x = last.x
+      y = last.y + 12
+      if (y > 82) { x = Math.min(80, last.x + 36); y = 14 }
+    }
+    const uid = `txt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    setTextElements(prev => [...prev, {
+      uid, text: trimmed, x, y, scale: 1, rotation: 0, size, color,
+    }])
+    setSelectedTextElementId(uid)
+  }
+
+  function removeTextElement(uid) {
+    setTextElements(prev => prev.filter(t => t.uid !== uid))
+    if (selectedTextElementId === uid) setSelectedTextElementId(null)
+  }
+
+  function moveTextElement(uid, x, y) {
+    setTextElements(prev => prev.map(t => t.uid === uid ? { ...t, x, y } : t))
+  }
+
+  function resizeTextElement(uid, scale) {
+    setTextElements(prev => prev.map(t => t.uid === uid ? { ...t, scale } : t))
+  }
+
+  function rotateTextElement(uid, rotation) {
+    setTextElements(prev => prev.map(t => t.uid === uid ? { ...t, rotation } : t))
+  }
+
   /* Selection helpers — selecting one type clears the others so only one
      object shows controls at a time. */
   const selectSticker = useCallback((uid) => {
     setSelectedStickerId(uid)
-    if (uid !== null) { setSelectedFrameId(null); setSelectedVoiceNoteId(null) }
+    if (uid !== null) { setSelectedFrameId(null); setSelectedVoiceNoteId(null); setSelectedTextElementId(null) }
   }, [])
   const selectMediaFrame = useCallback((id) => {
     setSelectedFrameId(id)
-    if (id !== null) { setSelectedStickerId(null); setSelectedVoiceNoteId(null) }
+    if (id !== null) { setSelectedStickerId(null); setSelectedVoiceNoteId(null); setSelectedTextElementId(null) }
   }, [])
   const selectVoiceNote = useCallback((id) => {
     setSelectedVoiceNoteId(id)
-    if (id !== null) { setSelectedStickerId(null); setSelectedFrameId(null) }
+    if (id !== null) { setSelectedStickerId(null); setSelectedFrameId(null); setSelectedTextElementId(null) }
+  }, [])
+  const selectTextElement = useCallback((uid) => {
+    setSelectedTextElementId(uid)
+    if (uid !== null) { setSelectedStickerId(null); setSelectedFrameId(null); setSelectedVoiceNoteId(null) }
   }, [])
 
   /* ── Media-frame handlers ───────────────────────────────────────────── */
@@ -1121,6 +1181,13 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       onMoveSticker={moveSticker}
       onResizeSticker={resizeSticker}
       onRotateSticker={rotateSticker}
+      textElements={textElements}
+      selectedTextElementId={selectedTextElementId}
+      onSelectTextElement={selectTextElement}
+      onRemoveTextElement={removeTextElement}
+      onMoveTextElement={moveTextElement}
+      onResizeTextElement={resizeTextElement}
+      onRotateTextElement={rotateTextElement}
       mediaFrames={mediaFrames}
       selectedFrameId={selectedFrameId}
       onSelectFrame={selectMediaFrame}
@@ -1520,6 +1587,11 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
                   onClose={() => setEditorActive(false)}
                   textSize={textSize}
                   onChangeTextSize={setTextSize}
+                  /* iPad: typed entries drop as draggable text cards on
+                     the paper, not appended to the paragraph body. The
+                     popup clears the textarea after each commit so the
+                     user can rapid-fire several entries. */
+                  onCommitElement={addTextElement}
                 />
               )}
               {[

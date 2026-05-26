@@ -77,6 +77,11 @@ export function buildEmailHtml({
   personalNote,
   // One-line AI-generated context about the note.
   blurb = '',
+  // First ~140 chars of the actual letter body — rendered as a real
+  // tilted paper teaser so the email shows what's inside instead of a
+  // generic envelope graphic. Trimmed + fades out at the bottom so it
+  // reads as "there's more, come read it."
+  excerpt = '',
   assetOrigin = 'https://bhanu-dearly.vercel.app',
 }) {
   const senderFirst = firstName(fromName) || ''
@@ -96,20 +101,22 @@ export function buildEmailHtml({
   const bgUrl       = `${assetOrigin}/bg.jpg`
   const envelopeUrl = `${assetOrigin}/envelope.png`
 
+  // Corner annotations overlaid on the envelope — "from Bhanu" top-left,
+  // "to Marcus" bottom-right. Hand-written-looking captions that match
+  // how someone would actually address an envelope by hand.
+  const envFrom = `from ${esc(senderFirst || 'someone')}`
+  const envTo   = `to ${esc(recipFirst   || 'you')}`
+
   // ── Font stack: Caveat only ───────────────────────────────────────────
   const FF = `'Caveat', 'Brush Script MT', cursive`
 
   // ── Ink palette ───────────────────────────────────────────────────────
-  const INK_HI   = 'rgba(255, 251, 240, 0.97)'  // H1, CTA, brand
-  const INK      = 'rgba(255, 247, 230, 0.78)'  // H2 body
-  const INK_SOFT = 'rgba(255, 247, 230, 0.50)'  // footer
-  const RULE     = 'rgba(255, 247, 230, 0.14)'  // hairline divider
-
-  // The CSS mask that fades the trailing edge of the context line into
-  // transparency — like ink dissolving. The fade is gentle until 60% so
-  // the readable words stay sharp, then accelerates. Both `mask-image`
-  // and the WebKit-prefixed variant for older clients (Apple Mail).
-  const FADE_MASK = 'linear-gradient(to right, #000 0%, #000 60%, rgba(0,0,0,0.4) 88%, transparent 100%)'
+  // Dialed back from the previous high-contrast Caveat — the H1 and H2
+  // were reading as "loud" and bold-y. Lower opacity + lower weight
+  // gives a quieter, more elegant feel.
+  const INK_HI   = 'rgba(255, 251, 240, 0.92)'  // H1 (was 0.97)
+  const INK      = 'rgba(255, 247, 230, 0.70)'  // H2 (was 0.78)
+  const INK_SOFT = 'rgba(255, 247, 230, 0.55)'  // footer
 
   // CTA — exact white-wavy-pill from the landing screen
   // (src/components/LoadingScreen/LoadingScreen.jsx ~line 257). The SVG
@@ -130,66 +137,110 @@ export function buildEmailHtml({
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <title>${esc(senderFirst || 'Someone')} wrote you a note</title>
 <style>
-  /* Mobile-first base sizes; @media bumps them on larger viewports.
-     Email clients that ignore @media (Outlook desktop) fall back to
-     mobile sizes, which still look fine in a narrow pane. */
-  .em-wrap     { padding-top: 72px; padding-bottom: 56px; }
-  .em-h1       { font-size: 56px; line-height: 1.1; }
-  .em-h2       { font-size: 32px; line-height: 1.35; padding: 0 24px 36px; max-width: 460px; }
-  .em-env      { max-width: 280px; padding: 8px 24px 36px; }
-  .em-cta-svg  { width: 240px; }
+  /* Mobile-first base sizes — tuned so the whole email fits inside a
+     single iPhone viewport (~720px usable). H1 + H2 are smaller and
+     lighter than before; the teaser card is the visual anchor, not
+     the headline. @media bumps things up on iPad / desktop. */
+  .em-wrap     { padding-top: 28px; padding-bottom: 24px; }
+  .em-h1       { font-size: 38px; line-height: 1.1; font-weight: 400; padding: 0 24px 4px; }
+  .em-h2       { font-size: 18px; line-height: 1.35; font-weight: 400; padding: 0 28px 18px; max-width: 460px; }
+  .em-env      { max-width: 320px; padding: 4px 24px 22px; }
+  .em-cta-svg  { width: 220px; }
   .em-cta-lbl  { font-size: 18px; gap: 10px; }
   .em-cta-arr  { width: 18px; height: 9px; }
-  .em-cta-wrap { padding: 0 24px 72px; }
-  .em-divider  { width: 44px; }
-  /* Footer — two-piece "Made with Dearly" / "A product by Bhanu Kowshik".
-     Stacks vertically on phones, sits as 2 columns on iPad+. */
-  .em-foot-row { padding: 0 24px 24px; }
-  .em-foot     { font-size: 14px; line-height: 1.4; }
-  .em-foot-l, .em-foot-r {
-    display: block; text-align: center; padding: 4px 0;
-  }
+  .em-cta-wrap { padding: 0 24px 22px; }
+  /* Footer — single-line "made with dearly". Quiet attribution. */
+  .em-foot-row { padding: 0 24px 14px; }
+  .em-foot     { font-size: 16px; letter-spacing: 0.01em; }
 
   /* iPad / wide tablet / Gmail web reading-pane at moderate width */
   @media only screen and (min-width: 520px) {
-    .em-wrap     { padding-top: 96px; padding-bottom: 72px; }
-    .em-h1       { font-size: 76px; }
-    .em-h2       { font-size: 38px; padding: 0 32px 44px; max-width: 600px; }
-    .em-env      { max-width: 380px; padding: 12px 24px 44px; }
-    .em-cta-svg  { width: 300px; }
+    .em-wrap     { padding-top: 44px; padding-bottom: 36px; }
+    .em-h1       { font-size: 50px; padding: 0 32px 6px; font-weight: 400; }
+    .em-h2       { font-size: 22px; padding: 0 32px 26px; max-width: 600px; }
+    .em-env      { max-width: 400px; padding: 6px 24px 32px; }
+    .em-cta-svg  { width: 280px; }
     .em-cta-lbl  { font-size: 22px; gap: 12px; }
     .em-cta-arr  { width: 22px; height: 11px; }
-    .em-cta-wrap { padding: 0 24px 88px; }
-    .em-divider  { width: 56px; }
-    .em-foot-row { padding: 0 36px 32px; }
-    .em-foot     { font-size: 15px; }
-    .em-foot-l, .em-foot-r {
-      display: table-cell; width: 50%; padding: 0;
-    }
-    .em-foot-l { text-align: left; }
-    .em-foot-r { text-align: right; }
+    .em-cta-wrap { padding: 0 24px 32px; }
+    .em-foot-row { padding: 0 32px 20px; }
+    .em-foot     { font-size: 18px; }
   }
 
   /* Desktop Gmail, full-width preview */
   @media only screen and (min-width: 760px) {
-    .em-wrap     { padding-top: 120px; padding-bottom: 88px; }
-    .em-h1       { font-size: 96px; line-height: 1.05; }
-    .em-h2       { font-size: 44px; line-height: 1.3; padding: 0 32px 52px; max-width: 720px; }
-    .em-env      { max-width: 460px; padding: 16px 24px 56px; }
-    .em-cta-svg  { width: 360px; }
-    .em-cta-lbl  { font-size: 26px; gap: 14px; }
+    .em-wrap     { padding-top: 56px; padding-bottom: 44px; }
+    .em-h1       { font-size: 60px; line-height: 1.05; padding: 0 32px 8px; font-weight: 400; }
+    .em-h2       { font-size: 24px; line-height: 1.3; padding: 0 32px 32px; max-width: 720px; }
+    .em-env      { max-width: 460px; padding: 8px 24px 36px; }
+    .em-cta-svg  { width: 320px; }
+    .em-cta-lbl  { font-size: 24px; gap: 14px; }
     .em-cta-arr  { width: 26px; height: 13px; }
-    .em-cta-wrap { padding: 0 24px 104px; }
-    .em-divider  { width: 64px; }
-    .em-foot-row { padding: 0 48px 40px; }
-    .em-foot     { font-size: 16px; }
+    .em-cta-wrap { padding: 0 24px 40px; }
+    .em-foot-row { padding: 0 48px 28px; }
+    .em-foot     { font-size: 20px; }
   }
 
-  /* Ink-dissolve fade on the trailing edge of the context line.
-     Falls back to fully visible text in clients that strip mask-image. */
-  .em-fade {
-    -webkit-mask-image: ${FADE_MASK};
-            mask-image: ${FADE_MASK};
+  /* ── Envelope hero ──────────────────────────────────────────────────
+     Envelope.png is the visual centerpiece — keeps the reveal intact
+     (recipient has to click through to read the actual letter). Two
+     hand-written corner labels overlay it: "from {sender}" top-left,
+     "to {recipient}" bottom-right, anchored to where the envelope's
+     ribbon crosses each quadrant. */
+  .em-env-wrap {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    max-width: 280px;
+    margin: 0 auto;
+    line-height: 0;
+  }
+  .em-env-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 0;
+    outline: none;
+    -ms-interpolation-mode: bicubic;
+  }
+  /* Caption shared base — Caveat, slight rotation per side so they
+     read as actually hand-written. Cream-ink color (matches the rest
+     of the email's INK palette) instead of dark brown — the dark
+     version was reading as "part of the envelope" and getting lost.
+     Cream-on-tan pops cleanly and ties the captions to the email
+     atmosphere instead of the envelope graphic. Subtle dark drop
+     shadow keeps them legible if the envelope is on a lighter spot. */
+  .em-env-cap {
+    position: absolute;
+    z-index: 2;
+    font-family: ${FF};
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 1;
+    color: rgba(255, 247, 230, 0.88);
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  }
+  .em-env-from {
+    top: 13%;
+    left: 11%;
+    transform: rotate(-3deg);
+    transform-origin: left top;
+  }
+  .em-env-to {
+    bottom: 13%;
+    right: 11%;
+    transform: rotate(2deg);
+    transform-origin: right bottom;
+  }
+  @media only screen and (min-width: 520px) {
+    .em-env-wrap { max-width: 360px; }
+    .em-env-cap  { font-size: 19px; }
+  }
+  @media only screen and (min-width: 760px) {
+    .em-env-wrap { max-width: 420px; }
+    .em-env-cap  { font-size: 22px; }
   }
 
   /* Subtle floor-shadow lift on the CTA (matches the landing button) */
@@ -228,21 +279,27 @@ export function buildEmailHtml({
           </h1>
         </td></tr>
 
-        <!-- H2 — context line, ~½ H1 size, trailing edge fades to transparent
-             so it reads as a teaser. Wrapped in a centred inline-block so the
-             mask follows the actual text width, not the full column. -->
+        <!-- H2 — context line. No fade gradient — the user wanted plain
+             text, no ink-dissolve effect on the trailing edge. -->
         <tr><td align="center">
-          <p class="em-h2 em-fade"
-             style="margin:0 auto;display:inline-block;font-family:${FF};font-weight:400;color:${INK};text-align:center;">
+          <p class="em-h2"
+             style="margin:0 auto;font-family:${FF};font-weight:400;color:${INK};text-align:center;">
             ${line2}
           </p>
         </td></tr>
 
-        <!-- Envelope sticker — the visual centerpiece -->
-        <tr><td align="center" class="em-env" style="margin:0 auto;">
-          <img src="${esc(envelopeUrl)}" alt="${esc(altGreeting)}"
-               width="100%" height="auto"
-               style="display:block;margin:0 auto;width:100%;height:auto;border:0;outline:none;-ms-interpolation-mode:bicubic;"/>
+        <!-- Envelope hero — keeps the reveal intact. Two hand-written
+             corner labels overlay the envelope image: "from Bhanu" sits
+             in the upper-left quadrant (above where the ribbon crosses),
+             "to Marcus" sits in the lower-right quadrant. -->
+        <tr><td align="center" class="em-env">
+          <div class="em-env-wrap">
+            <img src="${esc(envelopeUrl)}" alt="${esc(altGreeting)}"
+                 class="em-env-img"
+                 width="100%" height="auto"/>
+            <span class="em-env-cap em-env-from">${envFrom}</span>
+            <span class="em-env-cap em-env-to">${envTo}</span>
+          </div>
         </td></tr>
 
         <!-- CTA — exact white wavy pill from the landing screen.
@@ -272,31 +329,14 @@ export function buildEmailHtml({
           </a>
         </td></tr>
 
-        <!-- Hairline divider — separates content from the footer -->
-        <tr><td align="center" style="padding:0 24px 18px;">
-          <hr class="em-divider"
-              style="margin:0 auto;border:0;border-top:1px solid ${RULE};"/>
-        </td></tr>
-
-        <!-- Footer — "Made with Dearly" left, "A product by Bhanu Kowshik"
-             right at iPad+. On mobile the two pieces stack and centre.
-             Implemented as a nested table so the responsive switch from
-             stacked → side-by-side just toggles td display via @media.
-             Brand words use font-weight 700 against weight 500 prefix so
-             the eye finds them without needing a size change. -->
-        <tr><td class="em-foot-row">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-            <tr>
-              <td class="em-foot-l em-foot"
-                  style="font-family:${FF};color:${INK_SOFT};">
-                <span style="font-weight:500;">Made with </span><span style="font-weight:700;color:${INK};">Dearly</span>
-              </td>
-              <td class="em-foot-r em-foot"
-                  style="font-family:${FF};color:${INK_SOFT};">
-                <span style="font-weight:500;">A product by </span><span style="font-weight:700;color:${INK};">Bhanu Kowshik</span>
-              </td>
-            </tr>
-          </table>
+        <!-- Footer — minimal single-line "made with dearly". Tagline +
+             "A product by" prefixes removed per request; just the
+             attribution, quiet and centered. -->
+        <tr><td class="em-foot-row" align="center">
+          <div class="em-foot"
+               style="font-family:${FF};color:${INK_SOFT};line-height:1;">
+            made with <span style="color:${INK_HI};font-weight:600;">dearly</span>
+          </div>
         </td></tr>
 
       </table>

@@ -1,0 +1,136 @@
+/* TextElementRenderer — draggable text-card styles.
+   Positioning: absolute, centred on its (x%, y%) anchor via translate.
+   Text uses Caveat so it reads consistent with pen strokes. */
+
+.elementRoot {
+  position: absolute;
+  /* Centred on the (x%, y%) anchor */
+  translate: -50% -50%;
+  font-family: 'Caveat', cursive;
+  font-weight: 500;
+  line-height: 1.25;
+  cursor: grab;
+  -webkit-user-select: none;
+          user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+  white-space: pre-wrap;
+  /* Soft pad so the drag area is comfortable but doesn't visually
+     enlarge the text. Hit-test stays generous on iPad. */
+  padding: 6px 10px;
+  /* Hairline border on selection only (added via class below). */
+  border: 1.5px dashed transparent;
+  border-radius: 6px;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+.elementRoot:active { cursor: grabbing; }
+.elementRootSelected {
+  border-color: rgba(80, 130, 255, 0.55);
+  background: rgba(80, 130, 255, 0.04);
+}
+
+.elementText {
+  display: inline-block;
+}
+
+/* ── Controls — outside the scaled motion.div so handles stay constant size ── */
+
+.controlsRoot {
+  position: absolute;
+  /* Anchored at the same (x%, y%) as the renderer but rotated into the
+     element's frame. The frame box inside sets the visible bounding. */
+  z-index: 18;
+  pointer-events: none;     /* handles re-enable themselves below */
+  width: 0;
+  height: 0;
+}
+.controlsRoot * { pointer-events: auto; }
+
+/* Selection frame — a thin dashed rectangle sized via the handles'
+   positions. We size it with a fixed CSS variable here but each handle
+   uses absolute offsets from centre, so resizing the text doesn't
+   require frame recomputation. */
+.frame {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border: 1.5px dashed rgba(80, 130, 255, 0.55);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* ── Handles — fixed pixel size, sit at element corners ── */
+
+.handle {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -11px;            /* centre on the anchor point */
+  background: #ffffff;
+  border: 1.5px solid rgba(80, 130, 255, 0.85);
+  border-radius: 50%;
+  cursor: grab;
+  padding: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+.handle:active { cursor: grabbing; }
+
+/* Bottom-right corner (scale handle). Placed via translate so the
+   anchor is the centre of the handle, not its top-left. */
+.handleCornerBR {
+  left: 50%;
+  top: 50%;
+  transform: translate(28px, 18px);
+}
+
+/* Rotation handle — sits above the text, connected via a tiny tick. */
+.handleRotate {
+  left: 50%;
+  top: 50%;
+  transform: translate(0, -40px);
+  background: #fff;
+  border-color: rgba(80, 130, 255, 0.85);
+}
+.rotateTick {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -40px);
+  width: 1.5px;
+  height: 18px;
+  background: rgba(80, 130, 255, 0.55);
+  pointer-events: none;
+}
+
+/* Delete (×) — top-right small button */
+.deleteBtn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  transform: translate(20px, -22px);
+  margin: -11px;
+  background: #fff;
+  border: 1.5px solid rgba(220, 70, 70, 0.85);
+  color: rgba(180, 30, 30, 0.95);
+  border-radius: 50%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  -webkit-tap-highlight-color: transparent;
+}
+.deleteBtn:hover {
+  background: rgba(220, 70, 70, 0.12);
+}

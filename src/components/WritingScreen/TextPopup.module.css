@@ -44,14 +44,51 @@
   font-style: italic;
 }
 
-/* S / M / L row — sits along the bottom of the popup. */
-.sizeRow {
+/* Bottom row holds the size picker on the left and (in element-commit
+   mode) the Add button on the right. */
+.controlsRow {
   display: flex;
-  justify-content: flex-end;
-  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* S / M / L row — sits inside controlsRow on the left. */
+.sizeRow {
+  display: flex;
+  gap: 6px;
+}
+
+/* Add button — Caveat label, white when there's a draft, dimmed when
+   the textarea is empty. preventDefault on pointerdown keeps the
+   keyboard up while tapping. */
+.addBtn {
+  height: 28px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.55);
+  font-family: 'Caveat', cursive;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+.addBtn:disabled { cursor: not-allowed; }
+.addBtnEnabled,
+.addBtnEnabled:hover {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #0c1220;
 }
 
 .sizeBtn {

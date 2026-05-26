@@ -7,6 +7,7 @@ import GlyphChar from './GlyphChar'
 import MediaFrameRenderer from './MediaFrameRenderer'
 import VoiceNoteRenderer from './VoiceNoteRenderer'
 import DrawingLayer from './DrawingLayer'
+import { TextElementRenderer, TextElementControls } from './TextElementRenderer'
 import { IconClose, IconRotate } from './editorIcons'
 import { getScaledMetrics } from '../../lib/typographyMetadata'
 import styles from './PaperCanvas.module.css'
@@ -697,6 +698,16 @@ export default function PaperCanvas({
   onMoveSticker,
   onResizeSticker,
   onRotateSticker,
+  /* Text elements — independent draggable text cards. Created on iPad
+     via the TextPopup, but RENDERED everywhere (so recipients on any
+     device see them). Same x%/y% coord system as stickers. */
+  textElements = [],
+  selectedTextElementId = null,
+  onSelectTextElement,
+  onRemoveTextElement,
+  onMoveTextElement,
+  onResizeTextElement,
+  onRotateTextElement,
   mediaFrames = [],
   selectedFrameId = null,
   onSelectFrame,
@@ -1037,7 +1048,7 @@ export default function PaperCanvas({
             data-paper-size={size}
             className={`${styles.paper} ${showZigzag ? styles.paperZigzag : ''}`}
             style={paperStyle}
-            onPointerDown={() => { onSelectSticker?.(null); onSelectFrame?.(null); onSelectVoiceNote?.(null) }}
+            onPointerDown={() => { onSelectSticker?.(null); onSelectFrame?.(null); onSelectVoiceNote?.(null); onSelectTextElement?.(null) }}
             onDoubleClick={() => onBgClick?.()}
           >
             {/* Stains at paper level so they cover the full paper even when letterContent is scaled */}
@@ -1149,6 +1160,20 @@ export default function PaperCanvas({
               ))}
             </AnimatePresence>
 
+            {/* Text elements — independent draggable text cards */}
+            <AnimatePresence>
+              {textElements.map(el => (
+                <TextElementRenderer
+                  key={el.uid}
+                  element={el}
+                  isSelected={selectedTextElementId === el.uid}
+                  paperRef={paperRef}
+                  onSelect={onSelectTextElement}
+                  onMove={onMoveTextElement}
+                />
+              ))}
+            </AnimatePresence>
+
             {/* Interactive drawing layer — renders pen strokes (above text)
                 and handles ALL pointer events for pen, highlighter, and
                 eraser. Highlighter persisted strokes are rendered by the
@@ -1186,6 +1211,21 @@ export default function PaperCanvas({
                 ))
               }
             </AnimatePresence>
+
+            {/* Text element controls — selection frame + resize + rotate + delete */}
+            {textElements
+              .filter(el => el.uid === selectedTextElementId)
+              .map(el => (
+                <TextElementControls
+                  key={`txt-ctrl-${el.uid}`}
+                  element={el}
+                  paperRef={paperRef}
+                  onRemove={onRemoveTextElement}
+                  onResize={onResizeTextElement}
+                  onRotate={onRotateTextElement}
+                />
+              ))
+            }
           </div>
         </motion.div>
       </AnimatePresence>

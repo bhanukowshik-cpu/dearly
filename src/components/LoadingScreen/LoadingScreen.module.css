@@ -4,15 +4,19 @@
   position: relative;
   min-height: 100vh;
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  /* Tightened from 48/80 → 24/32 + smaller gap so the full stack
-     (hero + carousel + CTA + meta) fits inside 900 px viewport on
-     desktop with no scroll, and inside 812 px on mobile too. */
-  padding: 20px 0 24px;
-  gap: 10px;
+  /* Grid for clean row pinning + place-content: center to keep the WHOLE
+     stack tight and vertically centered as a block on the page. All four
+     rows are auto-sized, so the stack hugs its content; the carousel
+     row below has a FIXED height (= tallest slide) so cycling between
+     postcards (tall) and Mai's strip (short) does NOT change the stack
+     height — hero and CTA stay pinned, only the carousel's interior
+     repositions Mai vs postcards. */
+  display: grid;
+  grid-template-rows: auto auto auto auto;
+  place-content: center;
+  justify-items: center;
+  padding: 20px 16px;
+  row-gap: 14px;
 }
 
 /* ── background ──────────────────────────────────────────────────────────── */
@@ -388,17 +392,20 @@
 .carousel {
   position: relative;
   z-index: 1;
-  /* Scaled the desktop cap down from 720 → 640 px so the letter image
-     feels less dominant and the whole stack breathes more on wide
-     viewports. Mobile/iPad stay capped by 92vw so they're unaffected.
-     The fixed-aspect slot below reserves consistent vertical space so
-     cycling between postcard (3:2) and strip (4:1) doesn't jump the
-     layout. */
+  /* Width capped to 640 on desktop, 92vw on smaller. */
   width: min(640px, 92vw);
+  /* FIXED height = tallest slide content (postcard at 3:2 + slide gap +
+     reply-banner up-to-2-lines). Calc keeps it responsive: image height
+     = carousel width × (2/3); add ~120 px for banner + 10 px slide-gap.
+     This locks the carousel's outer height so cycling between postcards
+     (which fill the cell) and Mai's strip (which centers in the empty
+     extra space) NEVER changes the stack height — hero and CTA stay
+     pinned exactly where they were. */
+  height: calc(min(640px, 92vw) * 2 / 3 + 120px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  justify-content: center;
   overflow-x: clip;
 }
 
@@ -425,18 +432,15 @@
   text-align: center;
 }
 
-/* Fixed-height slot for the letter image — sized for the TALLEST aspect
-   (postcard 3:2) so all slides reserve the same vertical space. When the
-   strip (4:1, much shorter) cycles in, it floats vertically centered
-   inside the slot — leaves empty paper-bg-tinted space above and below
-   instead of collapsing the carousel height and yanking the reply
-   banner upward. Layout stays rock-still across slide changes. */
+/* Slot wraps the letter image at its NATURAL height — postcards land at
+   ~3:2, Mai's strip lands at ~4:1 (much shorter). The carousel block
+   therefore resizes per slide, and the root's `justify-content: center`
+   pulls the whole stack back to the middle of the viewport on every
+   transition — so Mai ends up centered on the page rather than pinned
+   below an empty reservation. The user accepted this small layout shift
+   in exchange for proper per-slide composition. */
 .slideImageSlot {
   width: 100%;
-  /* Height = carousel width × (2/3) for postcard aspect, used as the
-     reservation for ALL slides. aspect-ratio on the slot makes the
-     height responsive to the carousel's actual rendered width. */
-  aspect-ratio: 3 / 2;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -485,7 +489,10 @@
   background: rgba(15, 22, 36, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 18px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
+  /* No drop-shadow on the banner — the soft halo it cast onto the
+     blurred video background was reading as a leftover artifact (a
+     vestige of the old "white pill" progress-bar bug). The translucent
+     dark fill is enough lift on its own. */
   overflow: hidden;
 }
 

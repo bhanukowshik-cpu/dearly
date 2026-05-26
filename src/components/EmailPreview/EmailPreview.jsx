@@ -30,12 +30,15 @@ export default function EmailPreview() {
   // when a pronoun is needed — never "we", since Dearly is the third-
   // party messenger, not a party to the conversation.
   const [blurb,         setBlurb]         = useState('the AI conference you both attended last week')
+  // Excerpt: first ~140 chars of the actual letter body. Renders as the
+  // tilted paper teaser card in place of the old envelope graphic.
+  const [excerpt,       setExcerpt]       = useState("I've been meaning to write this for a while. Thank you for backing me last quarter — it really mattered. The way you showed up when nobody else did still sits with me.")
   const [assetOrigin,   setAssetOrigin]   = useState(window.location.origin)
   const [viewportId,    setViewportId]    = useState('mobile')
 
   const html = useMemo(() => buildEmailHtml({
-    fromName, recipientName, shareUrl, personalNote, blurb, assetOrigin,
-  }), [fromName, recipientName, shareUrl, personalNote, blurb, assetOrigin])
+    fromName, recipientName, shareUrl, personalNote, blurb, excerpt, assetOrigin,
+  }), [fromName, recipientName, shareUrl, personalNote, blurb, excerpt, assetOrigin])
 
   const viewport = VIEWPORTS.find(v => v.id === viewportId) ?? VIEWPORTS[0]
 
@@ -79,6 +82,20 @@ export default function EmailPreview() {
             to drop the clause. <strong>3rd-person voice</strong>: Dearly
             is the messenger, not a participant. Use "you both", "your
             meeting", "the conference you attended" — never "we".
+          </span>
+        </label>
+
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Letter excerpt (renders in the teaser card)</span>
+          <textarea
+            className={`${styles.input} ${styles.textarea}`}
+            value={excerpt}
+            onChange={e => setExcerpt(e.target.value)}
+            placeholder="First ~140 chars of the actual letter body."
+          />
+          <span className={styles.hint}>
+            Auto-trimmed to ~140 chars + ellipsis. The teaser card fades
+            out at the bottom so the cut reads as deliberate.
           </span>
         </label>
 
