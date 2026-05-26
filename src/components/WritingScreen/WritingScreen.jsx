@@ -14,6 +14,7 @@ import WriteToolbar from './WriteToolbar'
 import ZoomControls, { clampZoom } from './ZoomControls'
 import EditorFABs from './EditorFABs'
 import TextPopup from './TextPopup'
+import PaperSizePicker from './PaperSizePicker'
 import styles from './WritingScreen.module.css'
 import { DEFAULT_PAPER } from './stylePresets'
 import { extractName } from './nameUtils'
@@ -1495,6 +1496,15 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
             {/* (Text-size picker moved INSIDE the TextPopup so the controls
                 live together — matches the desktop InputPanel pattern.) */}
 
+            {/* Paper size picker (phones only — iPad has its own write-
+                mode UX that locks the paper-size to content). Quiet pill
+                above the paper preview. */}
+            {!isIpad && (
+              <div className={styles.mobileSizePickerRow}>
+                <PaperSizePicker paperConfig={paperConfig} onChangePaper={setPaperConfig} />
+              </div>
+            )}
+
             {/* Paper preview. On iPad in Write mode the paper grows to fill
                 the stage (no panel area below) and scales via zoomLevel. */}
             <div
@@ -1662,6 +1672,10 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
             />
 
             <div className={styles.centerCol}>
+              {/* Paper size picker — segmented pill ABOVE the paper.
+                  Direct-manipulation discoverability for strip/postcard/A4
+                  which used to be buried in the Style sidebar. */}
+              <PaperSizePicker paperConfig={paperConfig} onChangePaper={setPaperConfig} />
               <div ref={paperRef}>
                 {paperCanvas}
               </div>

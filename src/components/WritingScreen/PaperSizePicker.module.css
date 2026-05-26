@@ -1,0 +1,54 @@
+/* PaperSizePicker — segmented pill above the paper.
+   Quiet translucent dark glass to match the rest of the editor chrome.
+   Hugged content width so it never extends past the paper. */
+
+.root {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 4px;
+  background: rgba(12, 18, 32, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
+  pointer-events: auto;
+  -webkit-user-select: none;
+  user-select: none;
+  /* Sit BELOW the bottom of the wrapper that contains us, so the
+     parent can center us above the paper with margin-bottom. */
+  margin: 0 auto 10px;
+}
+
+.seg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  min-width: 64px;
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.68);
+  font-family: 'Caveat', cursive;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.16s ease, color 0.16s ease, transform 0.10s ease;
+}
+.seg:hover:not(.segActive) {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.92);
+}
+.seg:active { transform: scale(0.97); }
+
+.segActive,
+.segActive:hover {
+  background: rgba(255, 255, 255, 0.96);
+  color: #0c1220;
+  cursor: default;
+}

@@ -572,6 +572,15 @@
   min-height: 0;
 }
 
+/* Row that hosts the PaperSizePicker pill on mobile (phones), centered
+   above the paper preview. iPad skips this entirely. */
+.mobileSizePickerRow {
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px 0;
+  flex-shrink: 0;
+}
+
 .mobilePaper {
   flex-shrink: 0;
   display: flex;
