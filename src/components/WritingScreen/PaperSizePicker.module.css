@@ -65,31 +65,45 @@
 
 
 /* ══════════════════════════════════════════════════════════════════════════
-   TABS VARIANT (mobile + iPad)
+   TABS VARIANT (mobile)
+   Outer glass pill containing three inner-pill options. Selection animates
+   via a single layout-shared indicator that slides between options
+   (see motion.span layoutId in PaperSizePicker.jsx).
    ══════════════════════════════════════════════════════════════════════════ */
 
 .tabsRoot {
   display: inline-flex;
-  align-items: flex-end;
-  gap: 2px;
-  margin: 0 auto -1px;       /* 1px overlap to hide the seam vs paper */
-  padding: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  background: rgba(12, 18, 32, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.36),
+    0 1px 0    rgba(255, 255, 255, 0.05) inset;
   pointer-events: auto;
   -webkit-user-select: none;
   user-select: none;
+  margin: 0 auto 12px;
 }
 
 .tabSeg {
+  /* Each option is its own pill — uniform width keeps the slide track even. */
+  position: relative;
+  flex: 1 1 0;
+  min-width: 78px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 18px 9px;
-  min-width: 78px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-bottom: none;
-  background: rgba(12, 18, 32, 0.78);
-  border-radius: 10px 10px 0 0;
-  color: rgba(255, 255, 255, 0.62);
+  padding: 0 18px;
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.72);
   font-family: 'Caveat', cursive;
   font-size: 17px;
   font-weight: 600;
@@ -97,28 +111,35 @@
   line-height: 1;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition:
-    background 0.18s ease,
-    color      0.18s ease,
-    padding    0.18s ease,
-    box-shadow 0.18s ease;
-  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.22);
+  transition: color 0.18s ease;
 }
 .tabSeg:hover:not(.tabSegActive) {
-  background: rgba(40, 50, 70, 0.88);
-  color: rgba(255, 255, 255, 0.88);
+  color: rgba(255, 255, 255, 0.92);
 }
+.tabSeg:active:not(.tabSegActive) { transform: scale(0.97); }
 
 .tabSegActive,
 .tabSegActive:hover {
-  background: #FAFAF8;
-  border-color: rgba(0, 0, 0, 0.10);
-  border-bottom: none;
-  color: #2A1F12;
-  padding-top: 10px;
-  padding-bottom: 11px;
+  /* Text color flips to dark; the bright pill background is supplied by
+     the sliding motion.span indicator (see .tabIndicator). */
+  color: #1A1409;
   cursor: default;
+}
+
+.tabIndicator {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #FFFFFF 0%, #F4F1EA 100%);
   box-shadow:
-    0 -3px 10px rgba(0, 0, 0, 0.30),
-    0 -1px 0    rgba(255, 250, 240, 0.10) inset;
+    0 3px 8px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(0, 0, 0, 0.04) inset,
+    0 1px 0   rgba(255, 255, 255, 0.85) inset;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.segLabel {
+  position: relative;
+  z-index: 1;
 }

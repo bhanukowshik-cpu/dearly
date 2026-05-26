@@ -14,6 +14,7 @@
  * UX and locks the paper-size to the content per earlier feedback.
  */
 
+import { motion } from 'framer-motion'
 import { PAPER_SIZES } from './stylePresets'
 import styles from './PaperSizePicker.module.css'
 
@@ -32,9 +33,14 @@ export default function PaperSizePicker({ paperConfig, onChangePaper, variant = 
     onChangePaper?.({ ...paperConfig, size })
   }
 
-  const rootClass = variant === 'tabs' ? styles.tabsRoot : styles.pillRoot
-  const segClass  = variant === 'tabs' ? styles.tabSeg  : styles.pillSeg
-  const activeClass = variant === 'tabs' ? styles.tabSegActive : styles.pillSegActive
+  const isTabs    = variant === 'tabs'
+  const rootClass = isTabs ? styles.tabsRoot : styles.pillRoot
+  const segClass  = isTabs ? styles.tabSeg  : styles.pillSeg
+  const activeClass = isTabs ? styles.tabSegActive : styles.pillSegActive
+  // Single layoutId per variant — the indicator is conditionally rendered
+  // inside the active button; framer-motion re-parents + animates it when
+  // selection changes, giving the "pill slides between options" toggle feel.
+  const indicatorLayoutId = `paperSizePill-${variant}`
 
   return (
     <div className={rootClass} role="radiogroup" aria-label="Paper size">
@@ -51,7 +57,15 @@ export default function PaperSizePicker({ paperConfig, onChangePaper, variant = 
             aria-label={`${data.label} paper`}
             title={data.label}
           >
-            {data.label}
+            {active && isTabs && (
+              <motion.span
+                layoutId={indicatorLayoutId}
+                className={styles.tabIndicator}
+                aria-hidden
+                transition={{ type: 'spring', stiffness: 460, damping: 38, mass: 0.7 }}
+              />
+            )}
+            <span className={styles.segLabel}>{data.label}</span>
           </button>
         )
       })}

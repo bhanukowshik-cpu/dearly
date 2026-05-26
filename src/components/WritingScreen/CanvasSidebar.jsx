@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { PAPER_TYPES, COLOR_SWATCHES } from './stylePresets'
+import { PAPER_SIZES, PAPER_TYPES, COLOR_SWATCHES } from './stylePresets'
 import paperStyles from './PaperControls.module.css'
 import styles from './CanvasSidebar.module.css'
 
@@ -75,18 +75,32 @@ function Toggle({ icon, label, active, onClick }) {
      • Toggles         (Ruler, Zig-zag)
    ───────────────────────────────────────────────────────────────────────── */
 export default function CanvasSidebar({ paperConfig, onChangePaper }) {
-  // Size is managed by the floating PaperSizePicker above the paper;
-  // CanvasSidebar only handles style (type/color) + ruler/zigzag toggles.
-  const { type, color, showRuler, showZigzag } = paperConfig
+  const { size = 'postcard', type, color, showRuler, showZigzag } = paperConfig
 
   function set(patch) { onChangePaper({ ...paperConfig, ...patch }) }
 
   return (
     <aside className={styles.wrap} aria-label="Canvas options">
 
-      {/* (Paper size moved out of the Style sidebar — it now lives as a
-          segmented pill directly above the paper, where it's much more
-          discoverable. See PaperSizePicker.jsx.) */}
+      {/* ── Paper size ─────────────────────────────────────────────────
+         Lives in the sidebar on desktop. Mobile + iPad surface this via
+         the PaperSizePicker tabs nested on the paper's top edge. */}
+      <section className={styles.section}>
+        <h2 className={styles.heading}>Paper size</h2>
+        <div className={styles.sizeCol}>
+          {Object.entries(PAPER_SIZES).map(([id, sizeData]) => (
+            <button
+              key={id}
+              type="button"
+              className={`${styles.sizePill} ${size === id ? styles.sizePillActive : ''}`}
+              onClick={() => set({ size: id })}
+              aria-pressed={size === id}
+            >
+              {sizeData.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {/* ── Paper style (type + color swatches) ────────────────────────── */}
       <section className={styles.section}>

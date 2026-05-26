@@ -815,6 +815,7 @@ export default function PaperCanvas({
 
   const paperRef      = useRef(null)
   const bodyRef       = useRef(null)
+  const greetingRef   = useRef(null)
   const letterRef     = useRef(null)
   const [rulerOffset,    setRulerOffset]    = useState(21)
   const [contentScale,   setContentScale]   = useState(1)
@@ -913,18 +914,26 @@ export default function PaperCanvas({
       setRulerOffset(rounded)
     }
 
-    // Re-measure on layout changes from any of three independent sources:
+    // Re-measure on layout changes from any of four independent sources:
     //   1. `paper` resize — viewport changes, paper aspect-ratio shifts
     //   2. `letterContent` resize — its `clamp(... 5%, ...)` padding
     //      can change without paper resizing in some flex/grid contexts
-    //   3. `body` resize — message wrap / greeting growth pushes body around
-    // All three feed the same measure() — cheap, idempotent.
+    //   3. `body` resize — message wrap pushes body around vertically
+    //   4. `greeting` resize — greeting font-size or wrap changes its
+    //      vertical footprint, which shifts the body down WITHOUT changing
+    //      body's own size or letterContent's size (paper is fixed-aspect).
+    //      Without this, switching the greeting renderer (or just having
+    //      greeting present from initial mount before body settles) leaves
+    //      the cached ruler offset misaligned — text floats above its line.
+    // All four feed the same measure() — cheap, idempotent.
     const lcEl = bodyRef.current?.parentElement
     const bdEl = bodyRef.current
+    const grEl = greetingRef.current
     const ro   = new ResizeObserver(measure)
     ro.observe(paper)
     if (lcEl) ro.observe(lcEl)
     if (bdEl) ro.observe(bdEl)
+    if (grEl) ro.observe(grEl)
 
     // First measure runs after fonts are ready — Caveat ships via @font-face
     // and arrives async. If we measure before it loads, the browser lays out
@@ -1121,7 +1130,7 @@ export default function PaperCanvas({
                 </motion.div>
               )}
               {liveRecipient && (
-                <div className={styles.greeting}>
+                <div ref={greetingRef} className={styles.greeting}>
                   <GreetingText
                     text={liveRecipient} inkColor={inkColor}
                     readingConfig={readingConfig} wordIndexStart={0}

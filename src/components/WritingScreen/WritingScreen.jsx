@@ -1674,10 +1674,6 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
             />
 
             <div className={styles.centerCol}>
-              {/* Paper size picker — segmented pill ABOVE the paper.
-                  Direct-manipulation discoverability for strip/postcard/A4
-                  which used to be buried in the Style sidebar. */}
-              <PaperSizePicker paperConfig={paperConfig} onChangePaper={setPaperConfig} />
               <div ref={paperRef}>
                 {paperCanvas}
               </div>
