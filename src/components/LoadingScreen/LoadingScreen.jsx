@@ -137,8 +137,12 @@ export default function LoadingScreen({ onCta = () => {} }) {
       <div className={styles.bgTint}  aria-hidden />
       <div className={styles.bgNoise} aria-hidden />
 
-      {/* ── Hero — Dearly + tagline ──────────────────────────────────── */}
-      <div className={styles.hero}>
+      {/* ── Hero — Dearly ─────────────────────────────────────────────────
+          Wrapped in a motion.div with `layout` so when the carousel + CTA
+          mount below it (which changes the grid's row count), Dearly's
+          shift from absolute-center → top-of-stack animates smoothly
+          instead of snapping. */}
+      <motion.div className={styles.hero} layout transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
         <div className={styles.heroTitle}>
           {writeStarted && (
             <AnimatedGlyphText
@@ -157,15 +161,17 @@ export default function LoadingScreen({ onCta = () => {} }) {
           )}
         </div>
 
-      </div>
+      </motion.div>
 
-      {/* ── Carousel — fixed-height slot, image + reply banner stacked ── */}
+      {/* ── Carousel — fades in from the bottom toward its centred slot.
+          y starts well below the final position (80 px) and rises with a
+          long easing curve so the lift reads as deliberate, not snappy. */}
       {ctaVisible && (
         <motion.div
           className={styles.carousel}
-          initial={{ opacity: 0, y: reducedMotion ? 0 : 22 }}
+          initial={{ opacity: 0, y: reducedMotion ? 0 : 80 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
         >
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
@@ -215,14 +221,16 @@ export default function LoadingScreen({ onCta = () => {} }) {
         </motion.div>
       )}
 
-      {/* ── CTA + meta ─────────────────────────────────────────────────── */}
+      {/* ── CTA + meta — both rise from the bottom, staggered behind the
+          carousel so the three lower elements arrive in a clear cascade
+          (carousel → CTA → meta) rather than all at once. ──────────── */}
       {ctaVisible && (
         <>
           <motion.button
             className={styles.cta}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
+            initial={{ opacity: 0, y: reducedMotion ? 0 : 48 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.18 }}
             onClick={onCta}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
@@ -246,9 +254,9 @@ export default function LoadingScreen({ onCta = () => {} }) {
 
           <motion.p
             className={styles.meta}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
+            initial={{ opacity: 0, y: reducedMotion ? 0 : 28 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.34 }}
           >
             No signup required / free to use
           </motion.p>

@@ -2,7 +2,15 @@
 
 .root {
   position: relative;
+  /* `100vh` on mobile Safari includes/excludes the URL bar
+     inconsistently, which made Dearly land off-centre between the
+     intro frame and the moment the URL bar collapses. `100dvh` (dynamic
+     viewport height) always tracks the current visible area, so Dearly
+     is truly viewport-centred at any moment — across all devices and
+     all browsers that support dvh (every modern one). Plain 100vh
+     stays as a fallback for older WebKit. */
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
   /* Grid for clean row pinning + place-content: center to keep the WHOLE
      stack tight and vertically centered as a block on the page. All four
