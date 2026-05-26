@@ -34,9 +34,12 @@ export const HIGHLIGHTER_COLORS = [
 ]
 
 export const PEN = {
-  // Base size in *fraction of paper width* — 0.5% feels like a fine-tip pen
-  // at any paper size. Multiplied by paperWidth to get px feed to getStroke().
-  sizeRatio: 0.0055,
+  // Base size in *fraction of paper width* — ~0.28% feels like a fine-tip
+  // gel pen at any paper size. Halved from 0.0055 per user request so the
+  // default sm / md / lg presets all draw 50% thinner. Highlighter
+  // sizeRatio below is intentionally untouched (chisel-tip needs its
+  // bulk). Multiplied by paperWidth to get px feed to getStroke().
+  sizeRatio: 0.00275,
   opacity:   1,
   freehand: {
     thinning:           0.55,
