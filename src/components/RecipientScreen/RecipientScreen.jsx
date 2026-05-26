@@ -199,6 +199,11 @@ function HandStar({ size = 24, filled = false }) {
 function FoldedLetter({
   phase, recipientName, onUnfoldDone,
   recipient, message, showRecipient, paperConfig, stickers, textSize,
+  /* iPad-authored draggable text cards — forwarded straight through to
+     PaperCanvas. Missing this destructure was crashing the preview /
+     recipient render with a ReferenceError (textElements undefined)
+     even though line 262 below was already trying to pass it down. */
+  textElements = [],
   readingMode, revealedWordIdx, paperRef,
 }) {
   const isOpening = phase === 'opening'
@@ -751,6 +756,7 @@ export default function RecipientScreen({
               showRecipient={showRecipient}
               paperConfig={paperConfig}
               stickers={stickers}
+              textElements={textElements}
               textSize={textSize}
               readingMode={readingMode && isLetterPhase}
               revealedWordIdx={revealedWordIdx}

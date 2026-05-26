@@ -44,26 +44,51 @@
    older rules are still in this file but now dead code — safe to delete later.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── PRIMARY: email block (always expanded, top) ──────────────────────── */
+/* ── Section shell (collapsible block) ─────────────────────────────────────
+   Each section is a translucent rounded card with a clickable header
+   that toggles a body open/closed. Email + Link use this; the Download
+   "section" is just a header-styled button with no body. */
 
-.primaryBlock {
+.section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.18s, background 0.18s;
+}
+.section.sectionOpen {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
-.primaryHeader {
+/* Header row — full-width clickable. Caveat label centered between an
+   icon on the left and a chevron on the right. Both email + link + the
+   download button share this style so the three rows align as siblings. */
+.collapseHeader {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 4px;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: rgba(255, 255, 255, 0.95);
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.14s;
+}
+.collapseHeader:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+}
+.collapseHeader:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-.primaryHeaderIcon {
+.collapseHeaderIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -75,13 +100,49 @@
   flex-shrink: 0;
 }
 
-.primaryHeaderLabel {
+.collapseHeaderLabel {
+  flex: 1;
   font-family: 'Caveat', cursive;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 0.01em;
   color: rgba(255, 255, 255, 0.95);
   line-height: 1;
+}
+
+.collapseChevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.50);
+  flex-shrink: 0;
+  transition: transform 0.22s ease, color 0.18s;
+}
+.section.sectionOpen .collapseChevron {
+  transform: rotate(180deg);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Body — content area inside an expanded section. */
+.collapseBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 14px 14px;
+}
+
+/* Download "section" — header-styled button that triggers handlePng
+   directly (no collapse body). Slight visual lift via background tint
+   to signal it's a primary action, not a toggle. */
+.downloadHeader {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: background 0.14s, border-color 0.14s;
+}
+.downloadHeader:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 /* Bigger, properly-readable input. 16 px is the magic number to stop iOS
@@ -114,19 +175,25 @@
 }
 
 .primaryTextarea {
-  min-height: 64px;
+  /* Taller default so the "short note" field reads as a real writing
+     surface, not a one-liner. Still resize: vertical so the user can
+     grow it further if they want to write more. */
+  min-height: 110px;
   resize: vertical;
   line-height: 1.45;
 }
 
 /* The white primary CTA — matches "Share this note" in the top bar:
    warm cream pill, dark text, Caveat. Full-width so it's the obvious
-   commit step for the form above it. */
+   commit step for the form above it. Hosts the paper-airplane icon
+   (same glyph as the editor's To/From tool) to the left of the label
+   so the verb reads as "send a letter" not just "submit a form". */
 .primaryCTA {
   align-self: stretch;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   height: 44px;
   padding: 0 24px;
   background: #ffffff;
@@ -143,6 +210,13 @@
   transition: opacity 0.14s, transform 0.06s;
   margin-top: 4px;
 }
+
+.primaryCTAIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #1c1c1e;
+}
 .primaryCTA:hover:not(:disabled) {
   opacity: 0.92;
 }
@@ -154,79 +228,38 @@
   cursor: not-allowed;
 }
 
-/* ── SECONDARY: share link (compact row) ──────────────────────────────── */
-
-.secondaryBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.secondaryRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.78);
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  text-align: left;
+/* ── Link section body — Create-link button (pre-mint) ─────────────────────
+   Once expanded by the user, if no link has been created yet, show a
+   single full-width prompt that explains the action. Caveat-light so it
+   reads as a friendly secondary CTA, not a primary one. After the link
+   is minted, this collapses out and .linkRow (the input + Copy button)
+   takes over — the existing share mechanism, untouched. */
+.linkCreateBtn {
   width: 100%;
-  transition: background 0.14s, border-color 0.14s;
-  -webkit-tap-highlight-color: transparent;
-}
-.secondaryRow:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.14);
-}
-.secondaryRow:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-/* When the link has been minted, the row contains an input + Copy
-   button; loosen the gap so they breathe. */
-.secondaryRow:has(input) {
-  padding: 6px 6px 6px 12px;
-}
-.secondaryRow > svg {
-  flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-/* ── TERTIARY: PNG download (icon only) ───────────────────────────────── */
-
-.tertiaryRow {
-  display: flex;
-  justify-content: center;
-  padding-top: 2px;
-}
-
-.tertiaryIconBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.55);
-  cursor: pointer;
-  transition: background 0.14s, border-color 0.14s, color 0.14s;
-  -webkit-tap-highlight-color: transparent;
-}
-.tertiaryIconBtn:hover:not(:disabled) {
+  height: 40px;
+  padding: 0 16px;
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.20);
-  color: rgba(255, 255, 255, 0.85);
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.82);
+  font-family: 'Caveat', cursive;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
 }
-.tertiaryIconBtn:disabled {
-  opacity: 0.40;
+.linkCreateBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.30);
+  color: rgba(255, 255, 255, 0.95);
+}
+.linkCreateBtn:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
 }
 

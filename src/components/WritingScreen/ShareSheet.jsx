@@ -5,6 +5,10 @@ import { generateShareUrl } from '../../lib/shareUtils'
 import { saveNote } from '../../lib/supabase'
 import { captureCanvas } from '../../lib/captureUtils'
 import { trackEvent } from '../../lib/analytics'
+// IconPlane is the same paper-airplane glyph used by the editor's To/From
+// tool — reused on the Send button so the "send a letter" verb visually
+// matches the "to/from a person" tool the user already knows.
+import { IconPlane } from './editorIcons'
 
 // ── Hand-drawn icons ────────────────────────────────────────────────────────
 function IconLink() {
@@ -70,6 +74,17 @@ function IconEmail() {
   )
 }
 
+// Tiny chevron — used as the collapsed/expanded affordance on the
+// section headers. Rotates 180° via CSS when its parent is .open.
+function IconChevron() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <path d="M3.5 5L7 8.5L10.5 5"
+        stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
 // ── ShareSheet ──────────────────────────────────────────────────────────────
 const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
 const isMobileDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod|Android/i.test(navigator.userAgent)
@@ -94,8 +109,11 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
   const [downloadDone,   setDownloadDone]   = useState(false) // 'done' | 'ios' | false
   const [exportErr,      setExportErr]      = useState('')
   const [imageOverlayUrl, setImageOverlayUrl] = useState(null)
-  // Email-send state — opens an inline form when the user clicks "Send via email"
+  // Section open/closed state — both email and link start COLLAPSED. The
+  // user has to tap a header to expand. This keeps the sheet compact and
+  // doesn't push the friendlier "Download your image" CTA off-screen.
   const [emailOpen,      setEmailOpen]      = useState(false)
+  const [linkOpen,       setLinkOpen]       = useState(false)
   const [emailTo,        setEmailTo]        = useState('')
   const [emailNote,      setEmailNote]      = useState('')
   const [emailSubject,   setEmailSubject]   = useState('')
@@ -349,138 +367,189 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
       className={styles.dropdown}
       {...motionProps}
     >
-      {/* Options — rebuilt hierarchy:
-           Primary   → Send via email (always expanded, white CTA, top)
-           Secondary → Share link (compact row, copy on demand)
-           Tertiary  → Download PNG (icon-only at the foot) */}
+      {/* Options — new hierarchy:
+           Section 1 → Send via email (COLLAPSED by default — header in
+                       Caveat, expands to reveal the form on tap)
+           Section 2 → Share link    (COLLAPSED by default — header in
+                       Caveat, expands to the existing create/copy flow)
+           Section 3 → Download your image (always EXPANDED — direct
+                       full-width action button, Caveat label, no nesting)
+           Headers all use the same .collapseHeader style so the three
+           sections read as siblings; the third one is just a "live" header
+           that does the action instead of toggling visibility. */}
       <div className={styles.options}>
 
-        {/* ── PRIMARY: Send via email ── */}
-        <form className={styles.primaryBlock} onSubmit={handleSendEmail}>
-          <div className={styles.primaryHeader}>
-            <span className={styles.primaryHeaderIcon}><IconEmail /></span>
-            <span className={styles.primaryHeaderLabel}>
-              {emailSentTo ? `Sent to ${emailSentTo} ✓` : 'Send via email'}
-            </span>
-          </div>
-
-          <input
-            className={styles.primaryInput}
-            type="text"
-            inputMode="email"
-            autoComplete="off"
-            placeholder="Up to 5 emails, separated by commas"
-            value={emailTo}
-            onChange={e => setEmailTo(e.target.value)}
-            disabled={emailSending}
-            required
-          />
-
-          <input
-            className={styles.primaryInput}
-            type="text"
-            placeholder={subjectLoading ? 'Writing a subject for you…' : 'Subject line'}
-            value={emailSubject}
-            onChange={e => { setEmailSubject(e.target.value); setSubjectTouched(true) }}
-            maxLength={160}
-            disabled={emailSending}
-          />
-
-          <textarea
-            className={`${styles.primaryInput} ${styles.primaryTextarea}`}
-            placeholder="Add a short note (optional)"
-            value={emailNote}
-            onChange={e => setEmailNote(e.target.value)}
-            maxLength={500}
-            disabled={emailSending}
-          />
-
-          <button type="submit" className={styles.primaryCTA} disabled={emailSending}>
-            {emailSending ? 'Sending…' : 'Send'}
-          </button>
-
-          <AnimatePresence>
-            {emailErr && (
-              <motion.p
-                className={styles.errorText}
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                {emailErr}
-              </motion.p>
-            )}
-          </AnimatePresence>
-        </form>
-
-        {/* ── SECONDARY: Share link ── */}
-        <div className={styles.secondaryBlock}>
-          {!linkUrl ? (
-            <button
-              type="button"
-              className={styles.secondaryRow}
-              onClick={handleCreateLink}
-              disabled={creatingLink}
-            >
-              <IconLink />
-              <span>{creatingLink ? 'Creating link…' : 'Share link'}</span>
-            </button>
-          ) : (
-            <div className={styles.secondaryRow}>
-              <IconLink />
-              <input
-                className={styles.linkInput}
-                value={linkUrl}
-                readOnly
-                inputMode="none"
-                onFocus={e => e.target.blur()}
-              />
-              <button
-                type="button"
-                className={`${styles.copyBtn} ${copied ? styles.copyBtnDone : ''}`}
-                onClick={handleCopy}
-                aria-label="Copy link"
-              >
-                {copied ? <IconCheck /> : <IconCopy />}
-                <span>{copied ? 'Copied' : 'Copy'}</span>
-              </button>
-            </div>
-          )}
-
-          <AnimatePresence>
-            {linkErr && (
-              <motion.p
-                className={styles.errorText}
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                {linkErr}
-              </motion.p>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* ── TERTIARY: Download as PNG (icon-only) ── */}
-        <div className={styles.tertiaryRow}>
+        {/* ── Section 1: Send via email (collapsible) ── */}
+        <div className={`${styles.section} ${emailOpen ? styles.sectionOpen : ''}`}>
           <button
             type="button"
-            className={styles.tertiaryIconBtn}
-            onClick={handlePng}
-            disabled={loadingPng}
-            title={
-              loadingPng                ? 'Generating…' :
-              downloadDone === 'done'   ? 'Saved ✓' :
-              downloadDone === 'ios'    ? 'Long press the image to save' :
-                                          'Download as image'
-            }
-            aria-label="Download as image"
+            className={styles.collapseHeader}
+            onClick={() => setEmailOpen(o => !o)}
+            aria-expanded={emailOpen}
           >
-            <IconPNG />
+            <span className={styles.collapseHeaderIcon}><IconEmail /></span>
+            <span className={styles.collapseHeaderLabel}>
+              {emailSentTo ? `Sent to ${emailSentTo} ✓` : 'Send via email'}
+            </span>
+            <span className={styles.collapseChevron}><IconChevron /></span>
           </button>
+
+          <AnimatePresence initial={false}>
+            {emailOpen && (
+              <motion.form
+                key="email-body"
+                className={styles.collapseBody}
+                onSubmit={handleSendEmail}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                style={{ overflow: 'hidden' }}
+              >
+                <input
+                  className={styles.primaryInput}
+                  type="text"
+                  inputMode="email"
+                  autoComplete="off"
+                  placeholder="Up to 5 emails, separated by commas"
+                  value={emailTo}
+                  onChange={e => setEmailTo(e.target.value)}
+                  disabled={emailSending}
+                  required
+                />
+
+                <input
+                  className={styles.primaryInput}
+                  type="text"
+                  placeholder={subjectLoading ? 'Writing a subject for you…' : 'Subject line'}
+                  value={emailSubject}
+                  onChange={e => { setEmailSubject(e.target.value); setSubjectTouched(true) }}
+                  maxLength={160}
+                  disabled={emailSending}
+                />
+
+                <textarea
+                  className={`${styles.primaryInput} ${styles.primaryTextarea}`}
+                  placeholder="Add a short note (optional)"
+                  value={emailNote}
+                  onChange={e => setEmailNote(e.target.value)}
+                  maxLength={500}
+                  disabled={emailSending}
+                />
+
+                <button type="submit" className={styles.primaryCTA} disabled={emailSending}>
+                  <span className={styles.primaryCTAIcon}><IconPlane size={20} /></span>
+                  <span>{emailSending ? 'Sending…' : 'Send'}</span>
+                </button>
+
+                <AnimatePresence>
+                  {emailErr && (
+                    <motion.p
+                      className={styles.errorText}
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      {emailErr}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </motion.form>
+            )}
+          </AnimatePresence>
         </div>
+
+        {/* ── Section 2: Share link (collapsible) ── */}
+        <div className={`${styles.section} ${linkOpen ? styles.sectionOpen : ''}`}>
+          <button
+            type="button"
+            className={styles.collapseHeader}
+            onClick={() => setLinkOpen(o => !o)}
+            aria-expanded={linkOpen}
+          >
+            <span className={styles.collapseHeaderIcon}><IconLink /></span>
+            <span className={styles.collapseHeaderLabel}>Share link</span>
+            <span className={styles.collapseChevron}><IconChevron /></span>
+          </button>
+
+          <AnimatePresence initial={false}>
+            {linkOpen && (
+              <motion.div
+                key="link-body"
+                className={styles.collapseBody}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                style={{ overflow: 'hidden' }}
+              >
+                {!linkUrl ? (
+                  <button
+                    type="button"
+                    className={styles.linkCreateBtn}
+                    onClick={handleCreateLink}
+                    disabled={creatingLink}
+                  >
+                    {creatingLink ? 'Creating link…' : 'Create a shareable link'}
+                  </button>
+                ) : (
+                  <div className={styles.linkRow}>
+                    <input
+                      className={styles.linkInput}
+                      value={linkUrl}
+                      readOnly
+                      inputMode="none"
+                      onFocus={e => e.target.blur()}
+                    />
+                    <button
+                      type="button"
+                      className={`${styles.copyBtn} ${copied ? styles.copyBtnDone : ''}`}
+                      onClick={handleCopy}
+                      aria-label="Copy link"
+                    >
+                      {copied ? <IconCheck /> : <IconCopy />}
+                      <span>{copied ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+                )}
+
+                <AnimatePresence>
+                  {linkErr && (
+                    <motion.p
+                      className={styles.errorText}
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      {linkErr}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* ── Section 3: Download your image (always expanded, direct
+             action — no nesting). Same .collapseHeader shell so the row
+             height/typography matches the other two. */}
+        <button
+          type="button"
+          className={`${styles.collapseHeader} ${styles.downloadHeader}`}
+          onClick={handlePng}
+          disabled={loadingPng}
+          aria-label="Download your image"
+        >
+          <span className={styles.collapseHeaderIcon}><IconPNG /></span>
+          <span className={styles.collapseHeaderLabel}>
+            {loadingPng                ? 'Preparing your image…' :
+             downloadDone === 'done'   ? 'Saved ✓' :
+             downloadDone === 'ios'    ? 'Long press to save' :
+                                          'Download your image'}
+          </span>
+        </button>
 
       </div>
 
