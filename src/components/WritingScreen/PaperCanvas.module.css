@@ -424,4 +424,34 @@
 }
 
 
+/* ── Read-aloud: currently-spoken word indicator ────────────────────────── */
+/* Soft warm bar that fades under the word being read right now. Positioned
+   absolutely inside the word's wrapper span (which is position: relative). */
+.readingActiveWord {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(214, 138, 70, 0)    0%,
+    rgba(214, 138, 70, 0.75) 22%,
+    rgba(214, 138, 70, 0.85) 50%,
+    rgba(214, 138, 70, 0.75) 78%,
+    rgba(214, 138, 70, 0)    100%
+  );
+  pointer-events: none;
+  animation: readingActiveWordIn 0.28s ease both, readingActiveWordPulse 1.4s ease-in-out infinite;
+}
+@keyframes readingActiveWordIn {
+  from { opacity: 0; transform: scaleX(0.6); }
+  to   { opacity: 1; transform: scaleX(1);   }
+}
+@keyframes readingActiveWordPulse {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 0.45; }
+}
+
 /* Mobile aspect ratio is handled via the inline style (mobileAspect from PAPER_SIZES). */

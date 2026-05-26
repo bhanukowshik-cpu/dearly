@@ -1,8 +1,20 @@
-/* PaperSizePicker — segmented pill above the paper.
-   Quiet translucent dark glass to match the rest of the editor chrome.
-   Hugged content width so it never extends past the paper. */
+/* ──────────────────────────────────────────────────────────────────────────
+   PaperSizePicker — two visual variants share the same component shell.
 
-.root {
+   variant="pill" → floating dark-glass segmented pill that hovers above
+                    the paper. Desktop default. (the original look)
+
+   variant="tabs" → file-folder tabs that sit FLUSH on the paper's top
+                    edge — active tab matches the paper color and merges
+                    into the sheet below. Mobile + iPad.
+   ────────────────────────────────────────────────────────────────────────── */
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PILL VARIANT (desktop)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.pillRoot {
   display: inline-flex;
   align-items: stretch;
   gap: 2px;
@@ -16,12 +28,10 @@
   pointer-events: auto;
   -webkit-user-select: none;
   user-select: none;
-  /* Sit BELOW the bottom of the wrapper that contains us, so the
-     parent can center us above the paper with margin-bottom. */
-  margin: 0 auto 10px;
+  margin: 0 auto 10px;     /* breathing room above the paper */
 }
 
-.seg {
+.pillSeg {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -40,15 +50,75 @@
   -webkit-tap-highlight-color: transparent;
   transition: background 0.16s ease, color 0.16s ease, transform 0.10s ease;
 }
-.seg:hover:not(.segActive) {
+.pillSeg:hover:not(.pillSegActive) {
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.92);
 }
-.seg:active { transform: scale(0.97); }
+.pillSeg:active { transform: scale(0.97); }
 
-.segActive,
-.segActive:hover {
+.pillSegActive,
+.pillSegActive:hover {
   background: rgba(255, 255, 255, 0.96);
   color: #0c1220;
   cursor: default;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TABS VARIANT (mobile + iPad)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.tabsRoot {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  margin: 0 auto -1px;       /* 1px overlap to hide the seam vs paper */
+  padding: 0;
+  pointer-events: auto;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tabSeg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px 9px;
+  min-width: 78px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-bottom: none;
+  background: rgba(12, 18, 32, 0.78);
+  border-radius: 10px 10px 0 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-family: 'Caveat', cursive;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    color      0.18s ease,
+    padding    0.18s ease,
+    box-shadow 0.18s ease;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.22);
+}
+.tabSeg:hover:not(.tabSegActive) {
+  background: rgba(40, 50, 70, 0.88);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.tabSegActive,
+.tabSegActive:hover {
+  background: #FAFAF8;
+  border-color: rgba(0, 0, 0, 0.10);
+  border-bottom: none;
+  color: #2A1F12;
+  padding-top: 10px;
+  padding-bottom: 11px;
+  cursor: default;
+  box-shadow:
+    0 -3px 10px rgba(0, 0, 0, 0.30),
+    0 -1px 0    rgba(255, 250, 240, 0.10) inset;
 }

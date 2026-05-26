@@ -9,7 +9,7 @@ import VoiceNoteRenderer from './VoiceNoteRenderer'
 import DrawingLayer from './DrawingLayer'
 import { TextElementRenderer, TextElementControls } from './TextElementRenderer'
 import { IconClose, IconRotate } from './editorIcons'
-import { getScaledMetrics } from '../../lib/typographyMetadata'
+import { getScaledMetrics, getScaledMetricsForPx } from '../../lib/typographyMetadata'
 import styles from './PaperCanvas.module.css'
 
 const BASE_SIZE = 52
@@ -113,7 +113,7 @@ function buildSegments(text, types, chars) {
    CharPath — single character, drawn via hand-made SVG glyph animation.
    Space chars are plain inline spans so word-wrapping works naturally.
    ───────────────────────────────────────────────────────────────────────── */
-function CharPath({ ch, inkColor, fontWeight, fontSize, size, viewportWidth }) {
+function CharPath({ ch, inkColor, fontWeight, fontSize, size, viewportWidth, customMetrics }) {
   if (ch === ' ') {
     return <span>{' '}</span>
   }
@@ -125,6 +125,7 @@ function CharPath({ ch, inkColor, fontWeight, fontSize, size, viewportWidth }) {
       fontSize={fontSize ?? 'inherit'}
       size={size ?? null}
       viewportWidth={viewportWidth ?? null}
+      customMetrics={customMetrics ?? null}
     />
   )
 }
@@ -148,44 +149,44 @@ function renderWordWrapped(items, renderChar, readingConfig = null, wordStyle = 
   function flushWord() {
     if (!wordItems.length) return
 
-    if (readingConfig) {
-      // Reading mode: word fades + slides up when revealed.
-      // Keep the same key always so React reconciles in place and the CSS
-      // transition fires (no unmount/remount needed).
-      const idx      = localIdx++
-      const revealed = idx < readingConfig.revealedWordIdx
-      const wordText = wordItems.map(w => w.ch).join('')
-      const s        = wordStyle
-      result.push(
+    // Reading mode keeps the hand-drawn glyph rendering and remounts the
+    // inner span on first reveal so each word's stroke-dashoffset animation
+    // re-fires in sync with the TTS audio (the "pen writes the word as it
+    // is spoken" effect). Outside reading mode, innerKey stays 'r' so the
+    // glyphs mount once and never replay.
+    const idx       = localIdx++
+    const revealed  = !readingConfig || idx < readingConfig.revealedWordIdx
+    const isActive  = !!readingConfig && idx === readingConfig.revealedWordIdx - 1
+    const innerKey  = revealed ? 'r' : 'h'
+
+    const outerStyle = readingConfig
+      ? {
+          display:       'inline-block',
+          whiteSpace:    'nowrap',
+          verticalAlign: 'bottom',
+          lineHeight:    0,
+          position:      'relative',
+          opacity:       revealed ? 1 : 0,
+          transition:    'opacity 0.32s ease',
+        }
+      : {
+          display:       'inline-block',
+          whiteSpace:    'nowrap',
+          verticalAlign: 'bottom',
+          lineHeight:    0,
+        }
+
+    result.push(
+      <span key={`w-${wordKey}`} style={outerStyle}>
         <span
-          key={`w-${wordKey}`}
-          style={{
-            display:       'inline-block',
-            verticalAlign: 'bottom',
-            whiteSpace:    'nowrap',
-            fontFamily:    "'Caveat', cursive",
-            fontSize:      s.fontSize,
-            color:         s.inkColor,
-            fontWeight:    s.fontWeight,
-            lineHeight:    1,
-            opacity:       revealed ? 1 : 0,
-            transform:     revealed ? 'translateY(0)' : 'translateY(5px)',
-            transition:    revealed ? 'opacity 0.28s ease, transform 0.28s ease' : 'none',
-          }}
-        >
-          {wordText}
-        </span>
-      )
-    } else {
-      result.push(
-        <span
-          key={`w-${wordKey}`}
-          style={{ display: 'inline-block', whiteSpace: 'nowrap', verticalAlign: 'bottom', lineHeight: 0 }}
+          key={innerKey}
+          style={{ display: 'inline-block', whiteSpace: 'nowrap', lineHeight: 0 }}
         >
           {wordItems.map(({ id, ch }) => renderChar(id, ch))}
         </span>
-      )
-    }
+        {isActive && <span aria-hidden className={styles.readingActiveWord} />}
+      </span>
+    )
 
     wordItems = []
     wordKey   = null
@@ -221,6 +222,21 @@ const GREETING_FS_MAP = {
   lg: 'clamp(30px, 4.0vw, 42px)',
 }
 const GREETING_FS = GREETING_FS_MAP.md
+
+// Px equivalents of the CSS clamps above — used to drive metadata-aware
+// GlyphChar sizing (advance widths + bearings) instead of the legacy em
+// fallback. Each tier mirrors clamp(MIN, VW%, MAX) so the rendered size
+// tracks the same responsive curve as the CSS would.
+const GREETING_PX_MAP = {
+  sm: { min: 18, vwPct: 0.024, max: 26 },
+  md: { min: 24, vwPct: 0.032, max: 34 },
+  lg: { min: 30, vwPct: 0.040, max: 42 },
+}
+function resolveGreetingPx(tier, viewportWidth) {
+  const spec = GREETING_PX_MAP[tier] ?? GREETING_PX_MAP.md
+  const vw   = viewportWidth ?? (typeof window !== 'undefined' ? window.innerWidth : 1024)
+  return Math.max(spec.min, Math.min(spec.vwPct * vw, spec.max))
+}
 
 /* ─────────────────────────────────────────────────────────────────────────
    EditablePaperBody — iPad-only contenteditable that replaces BodyText.
@@ -308,11 +324,22 @@ function EditablePaperBody({ message, onMessageChange, onBlur, resyncKey, inkCol
   )
 }
 
-function GreetingText({ text, inkColor, readingConfig, wordIndexStart = 0 }) {
+function GreetingText({ text, inkColor, readingConfig, wordIndexStart = 0, viewportWidth = null }) {
   const normText = useMemo(() => normalizeMarkup(text), [text])
   const chars = useCharList(normText)
   const types = useMemo(() => computeCharTypes(normText), [normText])
   const segs  = useMemo(() => buildSegments(normText, types, chars), [normText, types, chars])
+
+  // Pre-resolve the three greeting tiers into customMetrics objects so each
+  // segment can pick the right size + get metadata-driven advance widths and
+  // bearings (rather than the loose 0.68em fallback that produced
+  // "D e a r  M a y a" gappy spacing). Memo keyed on viewportWidth so it
+  // re-resolves on responsive breakpoints.
+  const greetingMetrics = useMemo(() => ({
+    sm: getScaledMetricsForPx(resolveGreetingPx('sm', viewportWidth)),
+    md: getScaledMetricsForPx(resolveGreetingPx('md', viewportWidth)),
+    lg: getScaledMetricsForPx(resolveGreetingPx('lg', viewportWidth)),
+  }), [viewportWidth])
 
   // Each segment's wordIndexStart chains from the previous segment's nextIdx.
   // This is a plain variable mutated during render — safe because it's local
@@ -322,7 +349,7 @@ function GreetingText({ text, inkColor, readingConfig, wordIndexStart = 0 }) {
   return (
     <span style={{
       fontFamily: "'Caveat', cursive",
-      fontSize:   GREETING_FS,
+      fontSize:   `${greetingMetrics.md.fontSize}px`,
       fontWeight: 700,
       color:      inkColor,
       lineHeight: 1.5,
@@ -331,13 +358,15 @@ function GreetingText({ text, inkColor, readingConfig, wordIndexStart = 0 }) {
     }}>
       {segs.map(seg => {
         if (seg.type === 'br') return <br key={seg.id} />
-        const segFs = seg.type === 'size-sm' ? GREETING_FS_MAP.sm
-                    : seg.type === 'size-lg' ? GREETING_FS_MAP.lg
-                    : GREETING_FS
+        const segTier    = seg.type === 'size-sm' ? 'sm'
+                         : seg.type === 'size-lg' ? 'lg'
+                         : 'md'
+        const segMetrics = greetingMetrics[segTier]
+        const segFs      = `${segMetrics.fontSize}px`
         const ws  = readingConfig ? { inkColor, fontWeight: 700, fontSize: segFs } : null
         const { els, nextIdx } = renderWordWrapped(seg.items, (id, ch) => (
-          <CharPath key={id} ch={ch} inkColor={inkColor} fontWeight={700} fontSize={segFs} />
-        ), readingConfig, ws, segWordIdx)
+          <CharPath key={id} ch={ch} inkColor={inkColor} fontWeight={700} customMetrics={segMetrics} />
+        ), readingConfig, ws, segWordIdx, segMetrics.wordSpacingPx)
         const allRevealed = !readingConfig || readingConfig.revealedWordIdx >= nextIdx
         segWordIdx = nextIdx
         if (seg.type.startsWith('highlight')) {
@@ -1096,6 +1125,7 @@ export default function PaperCanvas({
                   <GreetingText
                     text={liveRecipient} inkColor={inkColor}
                     readingConfig={readingConfig} wordIndexStart={0}
+                    viewportWidth={viewportWidth}
                   />
                 </div>
               )}

@@ -1496,14 +1496,16 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
             {/* (Text-size picker moved INSIDE the TextPopup so the controls
                 live together — matches the desktop InputPanel pattern.) */}
 
-            {/* Paper size picker (phones only — iPad has its own write-
-                mode UX that locks the paper-size to content). Quiet pill
-                above the paper preview. */}
-            {!isIpad && (
-              <div className={styles.mobileSizePickerRow}>
-                <PaperSizePicker paperConfig={paperConfig} onChangePaper={setPaperConfig} />
-              </div>
-            )}
+            {/* Paper size picker — tabs variant, sits flush on the paper's
+                top edge. Renders on phones AND iPad; desktop uses the
+                pill variant via centerCol below. */}
+            <div className={styles.mobileSizePickerRow}>
+              <PaperSizePicker
+                variant="tabs"
+                paperConfig={paperConfig}
+                onChangePaper={setPaperConfig}
+              />
+            </div>
 
             {/* Paper preview. On iPad in Write mode the paper grows to fill
                 the stage (no panel area below) and scales via zoomLevel. */}

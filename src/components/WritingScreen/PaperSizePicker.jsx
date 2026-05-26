@@ -17,7 +17,14 @@
 import { PAPER_SIZES } from './stylePresets'
 import styles from './PaperSizePicker.module.css'
 
-export default function PaperSizePicker({ paperConfig, onChangePaper }) {
+/**
+ * variant = 'pill' (default) — floating dark-glass segmented pill that
+ *           hovers above the paper. Used on desktop.
+ * variant = 'tabs' — file-folder tabs that sit FLUSH on the paper's
+ *           top edge (active tab is paper-colored and merges into the
+ *           sheet below). Used on mobile + iPad.
+ */
+export default function PaperSizePicker({ paperConfig, onChangePaper, variant = 'pill' }) {
   const current = paperConfig?.size ?? 'postcard'
 
   function pick(size) {
@@ -25,15 +32,19 @@ export default function PaperSizePicker({ paperConfig, onChangePaper }) {
     onChangePaper?.({ ...paperConfig, size })
   }
 
+  const rootClass = variant === 'tabs' ? styles.tabsRoot : styles.pillRoot
+  const segClass  = variant === 'tabs' ? styles.tabSeg  : styles.pillSeg
+  const activeClass = variant === 'tabs' ? styles.tabSegActive : styles.pillSegActive
+
   return (
-    <div className={styles.root} role="radiogroup" aria-label="Paper size">
+    <div className={rootClass} role="radiogroup" aria-label="Paper size">
       {Object.entries(PAPER_SIZES).map(([id, data]) => {
         const active = current === id
         return (
           <button
             key={id}
             type="button"
-            className={`${styles.seg} ${active ? styles.segActive : ''}`}
+            className={`${segClass} ${active ? activeClass : ''}`}
             onClick={() => pick(id)}
             role="radio"
             aria-checked={active}
