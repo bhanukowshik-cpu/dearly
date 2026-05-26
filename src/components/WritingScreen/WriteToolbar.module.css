@@ -1,70 +1,149 @@
-/* WriteToolbar — floating iPad bottom toolbar.
-   Sits just above the bottom tab nav with inset padding on left/right/bottom.
-   Hugged content width — flex inline so the pill is only as wide as needed. */
+/* WriteToolbar — iPad floating bottom-right FAB + popover.
+   The wrap anchors to the bottom-right corner above the bottom tab nav;
+   the FAB is always there, and the popover floats to its LEFT when open.
 
-/* Centering: use left/right 0 + margin auto on a fit-content width so the
-   toolbar is always horizontally centered regardless of its content size
-   (translateX(-50%) approach drifted when the toolbar got wider than half
-   the viewport on narrower iPads). */
-.root {
+   Why bottom-right + small footprint: when a tool is armed, the user's
+   palm rests across the bottom of the screen. The old wide-center pill
+   sat directly under that palm zone, causing accidental button taps
+   that fought with the Pencil. A 56px FAB in one corner has zero
+   collision area for a palm that's centred on the paper. */
+
+.wrap {
   position: absolute;
-  /* Clear the bottom nav AND the "Designed by" attribution pill that
-     sits between the toolbar and the tab bar (~30px tall + gap). */
-  bottom: calc(100% + 56px);
-  left: 0;
-  right: 0;
-  margin: 0 auto;
-  width: fit-content;
-  max-width: calc(100vw - 32px);
+  /* Clear the bottom nav (~64px) + the designer attribution row above
+     it. Bottom-right corner, with a small inset so the FAB doesn't kiss
+     the screen edge. */
+  bottom: calc(100% + 24px);
+  right: 20px;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 12px;
+  pointer-events: auto;
+  z-index: 30;
+  -webkit-tap-highlight-color: transparent;
+  /* Block iOS text-selection / callout on the FAB area entirely. */
+  -webkit-user-select: none;
+          user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+/* ── FAB (always visible) ────────────────────────────────────────────────
+   Compact disc showing the active tool. The illustration is anchored at
+   the bottom and clipped (overflow:hidden) so only the tool's tip /
+   nose shows — same visual language as the popover tool tiles. */
+
+.fab {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: inline-block;
+  border: 1.5px solid rgba(255, 255, 255, 0.32);
+  background: rgba(12, 18, 32, 0.92);
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.40),
+    0 2px 6px  rgba(0, 0, 0, 0.20);
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.fab:hover {
+  border-color: rgba(255, 255, 255, 0.55);
+}
+.fab:active {
+  transform: scale(0.94);
+}
+.fabOpen {
+  border-color: rgba(255, 255, 255, 0.72);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.48),
+    0 3px 8px   rgba(0, 0, 0, 0.24);
+}
+
+/* Active tool illustration inside the FAB — same anchored-at-bottom +
+   overflow-clip recipe as the tool tiles in the popover. */
+.fabIcon {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 56px;
+  height: 92px;                   /* 1.65× the FAB → bottom 40% clipped */
+  transform: translateX(-50%) translateY(40%);
+  transform-origin: 50% 100%;
+  pointer-events: none;
+}
+
+/* Small coloured dot in the upper-right of the FAB indicates the active
+   ink colour without needing the user to expand the popover to check. */
+.fabDot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(12, 18, 32, 0.92);
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.30);
+  pointer-events: none;
+}
+
+/* ── Popover (expanded toolbar) ──────────────────────────────────────────
+   Sits to the LEFT of the FAB. Same dark glass styling as the FAB so
+   they read as one unit. Inline-flex so the popover hugs its content. */
+
+.popover {
   display: inline-flex;
   align-items: center;
   gap: 14px;
-  padding: 12px 20px;
+  padding: 10px 16px;
   background: rgba(12, 18, 32, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
-  pointer-events: auto;
-  z-index: 30;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.40);
   white-space: nowrap;
+  transform-origin: right center;
 }
 
-/* Each grouped cluster (tool radio / colors / paper toggles) */
+/* Each grouped cluster (tool radio / colours / thickness) */
 .section {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
 .divider {
   width: 1px;
-  height: 36px;
+  height: 32px;
   background: rgba(255, 255, 255, 0.14);
   flex-shrink: 0;
 }
 
-/* ── Tool buttons (pen / highlighter / eraser) ─────────────────────────────
-   Each tile is a "holder". The hand-drawn illustration sits absolutely
-   inside, anchored to the holder's bottom edge, and is intentionally
-   taller than the tile — the bottom ~40% extends past the tile and is
-   CLIPPED by overflow:hidden, so only the top ~60% (pen tip, marker
-   nose) is visible. Reads like the tool is parked nose-up in the
-   holder with its grip hidden inside. Mirrors DrawingPanel's tray. */
+/* ── Tool tiles (pen / highlighter / eraser) ─────────────────────────────
+   Slightly smaller than before since the popover is denser now. */
 
 .toolBtn {
   position: relative;
-  width: 76px;
-  height: 72px;
+  width: 60px;
+  height: 56px;
   display: inline-block;
   border: 1.5px solid rgba(255, 255, 255, 0.32);
   background: rgba(255, 255, 255, 0.06);
-  border-radius: 18px;
+  border-radius: 14px;
   cursor: pointer;
   padding: 0;
-  overflow: hidden;               /* clip the bottom 40% of the illustration */
+  overflow: hidden;
   -webkit-tap-highlight-color: transparent;
   transition:
     background 0.18s ease,
@@ -78,24 +157,18 @@
 }
 .toolBtnActive,
 .toolBtnActive:hover {
-  /* Selected: solid white tile, clearly distinct from outlined unselected. */
   background: #ffffff;
   border-color: #ffffff;
   transform: translateY(-2px);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.40);
 }
 
-/* Illustration sized at ~167% of the tile height so a translateY(40%)
-   pushes the bottom 40% past the tile bottom (where overflow:hidden
-   clips it). The visible top 60% = pen tip / marker nose — what the
-   user needs to recognize the tool. Active tool lifts a few px so the
-   tip rises just slightly. */
 .toolIcon {
   position: absolute;
   left: 50%;
   bottom: 0;
-  width: 72px;
-  height: 120px;                  /* 1.67× tile height (72) → 40% extends below */
+  width: 56px;
+  height: 94px;                   /* 1.68× tile height (56) → 40% clipped */
   transform: translateX(-50%) translateY(40%);
   transform-origin: 50% 100%;
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
@@ -109,11 +182,11 @@
   transform: translateX(-50%) translateY(32%);
 }
 
-/* ── Color swatches (shared between pen colors + paper colors) ─────────── */
+/* ── Colour swatches ───────────────────────────────────────────────────── */
 
 .swatch {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   border: 2px solid transparent;
   background: transparent;
@@ -130,22 +203,18 @@
   border-color: rgba(255, 255, 255, 0.90);
 }
 .swatchDot {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: var(--swatch, currentColor);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.10);
 }
 
-/* ── Thickness picker — three dots of varying sizes ─────────────────────
-   Active dot uses the live ink color so the user sees a preview of what
-   their next stroke will look like at that thickness. */
-/* Inactive button: translucent white bg (visible against dark toolbar) +
-   dark dot. Active button: solid white + same dark dot. The contrast on
-   inactive used to be too faint (4% white) so the dots disappeared. */
+/* ── Thickness picker — three dots of varying sizes ───────────────────── */
+
 .thickBtn {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   border: 1.5px solid rgba(255, 255, 255, 0.30);
   background: rgba(255, 255, 255, 0.28);
@@ -171,7 +240,3 @@
   display: block;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.10);
 }
-
-/* Drop the align-self override I added in the previous round — both
-   tiles + swatches are center-aligned via .root and .section's
-   align-items: center now. */
