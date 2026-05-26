@@ -44,11 +44,16 @@ export const PEN = {
   freehand: {
     thinning:           0.55,
     // smoothing tames the *outline* between sample points; streamline
-    // damps the input itself. Lowered both — high streamline made the
-    // rendered line lag/cut corners vs the actual pen movement, which
-    // read as "snapping" to a smoother curve than the user drew.
-    smoothing:          0.35,
-    streamline:         0.18,
+    // damps the input itself. Bumped from the earlier 0.35 / 0.18 to
+    // 0.55 / 0.32 because the previous values produced visibly bumpy
+    // strokes — the live-preview fix landed and we no longer need the
+    // ultra-low values that were tuned for the React-SVG path lag.
+    // These sit just above perfect-freehand's defaults (0.5 / 0.5)
+    // for smoothing, but well below default streamline so the line
+    // still tracks the Pencil tip closely without "snapping" to an
+    // idealised curve. Apple-Notes-style feel.
+    smoothing:          0.55,
+    streamline:         0.32,
     simulatePressure:   true,
     easing:             (t) => Math.sin((t * Math.PI) / 2),
     last:               true,
