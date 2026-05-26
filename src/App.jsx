@@ -130,6 +130,7 @@ export default function App() {
               message={recipientData.message}
               paperConfig={recipientData.paperConfig}
               stickers={recipientData.stickers}
+              textElements={recipientData.textElements}
               showRecipient={recipientData.showRecipient}
               textSize={recipientData.textSize}
               onWriteOwn={() => setScreen('writing')}
@@ -156,6 +157,7 @@ export default function App() {
               message={previewData.message}
               paperConfig={previewData.paperConfig}
               stickers={previewData.stickers}
+              textElements={previewData.textElements}
               showRecipient={previewData.showRecipient}
               textSize={previewData.textSize}
               onWriteOwn={() => setPreviewData(null)}
