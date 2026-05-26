@@ -8,8 +8,11 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 0 80px;
-  gap: 18px;
+  /* Tightened from 48/80 → 24/32 + smaller gap so the full stack
+     (hero + carousel + CTA + meta) fits inside 900 px viewport on
+     desktop with no scroll, and inside 812 px on mobile too. */
+  padding: 20px 0 24px;
+  gap: 10px;
 }
 
 /* ── background ──────────────────────────────────────────────────────────── */
@@ -385,8 +388,13 @@
 .carousel {
   position: relative;
   z-index: 1;
-  /* Bumped 720 → 864 (+20%) so letter images render larger on launch */
-  width: min(864px, 92vw);
+  /* Scaled the desktop cap down from 720 → 640 px so the letter image
+     feels less dominant and the whole stack breathes more on wide
+     viewports. Mobile/iPad stay capped by 92vw so they're unaffected.
+     The fixed-aspect slot below reserves consistent vertical space so
+     cycling between postcard (3:2) and strip (4:1) doesn't jump the
+     layout. */
+  width: min(640px, 92vw);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -395,14 +403,16 @@
 }
 
 .slide {
-  /* Letter image stacked above the reply banner. Generous 36 px gap so
-     the reply reads as a clear second beat ("pause… response"), not as
-     a footer attached to the letter. */
+  /* Letter image stacked above the reply banner. 10 px gap pulls the
+     two halves of each exchange close together so they read as one
+     paired beat (letter sent ⇆ reply received) instead of two
+     separate UI blocks. Applies to ALL slides — postcards and Mai's
+     strip alike. */
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 36px;
+  gap: 10px;
 }
 
 .slideEyebrow {
@@ -453,23 +463,23 @@
    keeps it centered when narrower than the carousel for any reason. */
 .slideMeta {
   width: 100%;
-  margin: 4px auto 0;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   gap: 14px;
 }
 
-/* Reply pill — solid translucent DARK background. position: relative
-   so the .slideProgress child can absolute-position to its bottom edge
-   (Instagram-stories style timer). overflow: hidden so the bar respects
-   the banner's border-radius without bleeding past the rounded corners.
-   padding-bottom is bumped to leave room for the 3 px bar. */
+/* Reply pill — solid translucent DARK background. Centered content
+   (name + role + reply text) so the response reads as a typed message
+   floating in the banner, not a left-anchored signature block. */
 .replyBanner {
   position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  align-items: center;       /* center child blocks horizontally */
+  text-align: center;        /* center wrapped text inside each block */
   gap: 6px;
   padding: 16px 20px 22px;
   background: rgba(15, 22, 36, 0.55);
@@ -481,10 +491,13 @@
 
 /* Name + role header — name in Caveat (handwritten, intimate), role in
    small Inter parenthetical (system, factual). The contrast in fonts
-   reinforces "this is a person, with a clarifying role". */
+   reinforces "this is a person, with a clarifying role". justify-content:
+   center pairs with the banner's text-align: center so this row's two
+   inline-flex children stay clustered in the middle, not left-aligned. */
 .replyHeader {
   display: flex;
   align-items: baseline;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 8px;
   line-height: 1;

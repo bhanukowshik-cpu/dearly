@@ -447,7 +447,9 @@ async function init() {
     // 3. Typing channel — a Gain we route per-slice Tone.Players through.
     //    Each slice is a transient Player created on demand (cheap), so we
     //    don't keep one Player tied up; we just keep the channel mixer.
-    state.typingGain = new Tone.Gain(1).connect(state.masterGain)
+    //    Pinned to 0.5 (≈ -6dB) — user feedback was the previous full-
+    //    strength typing channel was too loud over the master mix.
+    state.typingGain = new Tone.Gain(0.5).connect(state.masterGain)
 
     // 4. Drawing channel — one persistent looping Player → Filter → Gain.
     //    Loop boundaries follow the auto-detected loud region so the loop

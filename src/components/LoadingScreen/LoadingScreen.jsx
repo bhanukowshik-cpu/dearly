@@ -146,7 +146,7 @@ export default function LoadingScreen({ onCta = () => {} }) {
               fontSizePx={HERO_PX}
               lineHeightMultiplier={1.05}
               spacingMultiplier={0.42}
-              kerningPairsPx={{ 'rl': -8, 'ly': -6 }}
+              kerningPairsPx={{ 'rl': -2, 'ly': -6 }}
               fontWeight={700}
               inkColor="#ffffff"
               msPerChar={PACE_HERO}
