@@ -81,9 +81,9 @@
   border-radius: 999px;
   backdrop-filter: blur(22px) saturate(140%);
   -webkit-backdrop-filter: blur(22px) saturate(140%);
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.36),
-    0 1px 0    rgba(255, 255, 255, 0.05) inset;
+  /* No drop shadow on the pill — user reported the cast shadow read
+     as a "weird halo" on the dark background. The blurred-glass border
+     alone provides enough lift. */
   pointer-events: auto;
   -webkit-user-select: none;
   user-select: none;
