@@ -69,6 +69,10 @@ export default function DrawingLayer({
   strokes           = [],
   onStrokeComplete  = () => {},
   onEraseStrokes    = () => {},      // called with array of stroke ids to remove
+  /* Fires with true on pen pointerdown (pen stroke starts), false on
+     pen pointerup / cancel. Lets the parent know a stroke is in flight
+     so it can lock other UI (e.g. bottom nav) against palm taps. */
+  onStrokeActiveChange = () => {},
   /* toolFilter: when set ('pen' | 'highlighter'), only render persisted
      strokes that match that tool. Used by PaperCanvas to split highlighter
      strokes (behind text) from pen strokes (above text) into two layers. */
@@ -273,6 +277,10 @@ export default function DrawingLayer({
     pointerIdRef.current = e.pointerId
     try { el.setPointerCapture(e.pointerId) } catch { /* fine */ }
 
+    // Tell the parent a stroke is starting — used to lock other UI
+    // (bottom nav) against palm taps while the pen is on the paper.
+    onStrokeActiveChange(true)
+
     // Eraser branch — short-circuits the drawing/audio path entirely.
     if (activeTool === 'eraser') {
       setEraserCursor({ x: e.clientX - rect.left, y: e.clientY - rect.top })
@@ -447,6 +455,7 @@ export default function DrawingLayer({
       if (e.pointerId === pointerIdRef.current) {
         pointerIdRef.current = null
         try { el?.releasePointerCapture?.(e.pointerId) } catch { /* fine */ }
+        onStrokeActiveChange(false)
       }
       return
     }
@@ -472,7 +481,9 @@ export default function DrawingLayer({
     // Clear the canvas — the committed stroke takes over via the SVG
     // persistedPaths layer on the next React render of `strokes`.
     clearLiveCanvas()
-  }, [activeTool, onStrokeComplete, penOnly])
+    // Stroke ended — release the nav lock (parent debounces if it wants).
+    onStrokeActiveChange(false)
+  }, [activeTool, onStrokeComplete, penOnly, onStrokeActiveChange])
 
   // Defensive panic on unmount — kills any in-flight scratch slices
   // during HMR or the panel closing rather than letting them ring out.

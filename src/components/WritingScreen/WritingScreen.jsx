@@ -163,6 +163,34 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   // the toolbar selection but only "activates" when the Draw side-panel is
   // open, so the overlay doesn't swallow pointer events on other tabs.
   const [strokes,            setStrokes]            = useState([])
+  /* True while a pen stroke is in flight (and for 300 ms after lift).
+     Used to lock the bottom nav so palm-rest taps don't switch tabs
+     mid-stroke or right at the moment the user finishes a letter.
+     The debounce window catches palm contacts that linger past the
+     pen-up event by a fraction of a second. */
+  const [strokeActive,       setStrokeActive]       = useState(false)
+  const strokeReleaseTimerRef = useRef(null)
+  const handleStrokeActiveChange = useCallback((active) => {
+    if (active) {
+      if (strokeReleaseTimerRef.current) {
+        clearTimeout(strokeReleaseTimerRef.current)
+        strokeReleaseTimerRef.current = null
+      }
+      setStrokeActive(true)
+    } else {
+      // Debounced release — keeps the nav locked for 300 ms after the
+      // pen lifts. Without this, a palm that touches the nav as the
+      // user finishes the last stroke of a word would fire a tab swap.
+      if (strokeReleaseTimerRef.current) clearTimeout(strokeReleaseTimerRef.current)
+      strokeReleaseTimerRef.current = setTimeout(() => {
+        setStrokeActive(false)
+        strokeReleaseTimerRef.current = null
+      }, 300)
+    }
+  }, [])
+  useEffect(() => () => {
+    if (strokeReleaseTimerRef.current) clearTimeout(strokeReleaseTimerRef.current)
+  }, [])
   // Default to the pen so the user can start drawing the instant they open
   // the Draw tab — no "pick a tool first" friction. The effect below also
   // re-applies this default whenever the user returns to the Draw tab.
@@ -1121,6 +1149,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       drawingThickness={strokeThickness}
       onAddStroke={addStroke}
       onEraseStrokes={eraseStrokes}
+      onStrokeActiveChange={handleStrokeActiveChange}
     />
   )
 
@@ -1435,7 +1464,18 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
             {/* Bottom tab bar — same tool set + order as desktop EditorToolbar.
                 On iPad the paper is contenteditable so Write also lets you
                 type via the panel below as a secondary input. */}
-            <nav className={styles.mobileTabBar} aria-label="Editor tools">
+            <nav
+              className={`${styles.mobileTabBar} ${strokeActive ? styles.mobileTabBarLocked : ''}`}
+              aria-label="Editor tools"
+              // Hard-block all pointer events while a pen stroke is in
+              // flight (and for 300 ms after lift). Without this, the
+              // user's palm — which naturally rests on the bottom of
+              // the iPad while writing — would tap nav tabs and switch
+              // tools mid-letter. The lock is invisible (no opacity
+              // change) so the user doesn't see the nav "going away"
+              // every time they draw.
+              style={strokeActive ? { pointerEvents: 'none' } : undefined}
+            >
               {/* Floating Write toolbar (iPad-only). Hidden while the user
                   is actively typing — the drawing tools have no use mid-
                   text-entry and the toolbar took up canvas room next to

@@ -731,6 +731,10 @@ export default function PaperCanvas({
   drawingThickness = 'md',
   onAddStroke = null,
   onEraseStrokes = null,
+  /* Bubbled from the interactive DrawingLayer; true when a pen stroke
+     is in flight. WritingScreen uses this to lock the bottom nav so
+     palm taps can't switch tabs mid-stroke. */
+  onStrokeActiveChange = null,
 }) {
   const { type = 'minimal', color = '#FAFAF8', size = 'postcard', showRuler = true, showZigzag = false } = paperConfig ?? {}
   const typeData = PAPER_TYPES[type] ?? PAPER_TYPES.minimal
@@ -1162,6 +1166,7 @@ export default function PaperCanvas({
               toolFilter="pen"
               onStrokeComplete={onAddStroke ?? (() => {})}
               onEraseStrokes={onEraseStrokes ?? (() => {})}
+              onStrokeActiveChange={onStrokeActiveChange ?? (() => {})}
             />
 
             {/* Selection controls — outside the scale context, handles stay fixed pixel size */}

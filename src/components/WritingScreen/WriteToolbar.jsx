@@ -205,10 +205,15 @@ export default function WriteToolbar({
 
       {/* FAB — always visible. Shows the active tool's illustration with
           a small coloured dot in the corner indicating the active ink
-          colour. Tap to toggle the popover. */}
+          colour. Tap to toggle the popover.
+
+          When a drawing tool is armed (which on iPad in Write mode is
+          always true), the FAB switches to the "active" white-fill
+          variant — same visual recipe as the selected tile inside the
+          popover, so "you're in drawing mode" reads at a glance. */}
       <button
         type="button"
-        className={`${styles.fab} ${open ? styles.fabOpen : ''}`}
+        className={`${styles.fab} ${open ? styles.fabOpen : ''} ${drawingTool ? styles.fabActive : ''}`}
         onClick={() => setOpen(o => !o)}
         aria-label={open ? 'Close writing tools' : `Writing tools (${effectiveTool})`}
         aria-expanded={open}
