@@ -18,7 +18,7 @@ import { getScaledMetrics, typographyMetadata } from '../../lib/typographyMetada
 // sizes outside the sm/md/lg token scale — used by AnimatedGlyphText so
 // hero/display text gets per-glyph advance widths instead of the legacy
 // fixed-0.68em-per-char fallback (which spaces characters way too wide).
-export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = 'inherit', size = null, viewportWidth = null, customMetrics = null, strokeSpeedMultiplier = 1, extraDelaySec = 0 }) {
+export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = 'inherit', size = null, viewportWidth = null, customMetrics = null, strokeSpeedMultiplier = 1, extraDelaySec = 0, kerningLeftPx = 0 }) {
   const containerRef = useRef(null)
   const glyphSvg = hasGlyph(ch) ? getGlyphSvg(ch) : null
   // Metric resolution priority:
@@ -168,6 +168,10 @@ export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = '
           color:         inkColor,
           flexShrink:    0,
           marginRight:   `${minLetterGap}px`,
+          /* Per-pair kerning override from AnimatedGlyphText (negative px
+             pulls this char LEFT toward its predecessor, tightening the
+             optical gap that the universal side-bearings can't fix). */
+          ...(kerningLeftPx ? { marginLeft: `${kerningLeftPx}px` } : {}),
         }}
       >
         <span ref={containerRef} style={{ display: 'block', width: '100%', height: '100%' }} />

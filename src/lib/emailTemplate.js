@@ -133,49 +133,56 @@ export function buildEmailHtml({
   /* Mobile-first base sizes; @media bumps them on larger viewports.
      Email clients that ignore @media (Outlook desktop) fall back to
      mobile sizes, which still look fine in a narrow pane. */
-  .em-wrap     { padding-top: 80px; padding-bottom: 56px; }
-  .em-h1       { font-size: 28px; line-height: 1.15; }
-  .em-h2       { font-size: 16px; line-height: 1.5; padding: 0 28px 32px; max-width: 380px; }
+  .em-wrap     { padding-top: 72px; padding-bottom: 56px; }
+  .em-h1       { font-size: 56px; line-height: 1.1; }
+  .em-h2       { font-size: 32px; line-height: 1.35; padding: 0 24px 36px; max-width: 460px; }
   .em-env      { max-width: 280px; padding: 8px 24px 36px; }
   .em-cta-svg  { width: 240px; }
   .em-cta-lbl  { font-size: 18px; gap: 10px; }
   .em-cta-arr  { width: 18px; height: 9px; }
   .em-cta-wrap { padding: 0 24px 72px; }
   .em-divider  { width: 44px; }
-  .em-brand    { font-size: 20px; }
-  .em-tagline  { font-size: 12px; }
-  .em-credit   { font-size: 11px; }
+  /* Footer — two-piece "Made with Dearly" / "A product by Bhanu Kowshik".
+     Stacks vertically on phones, sits as 2 columns on iPad+. */
+  .em-foot-row { padding: 0 24px 24px; }
+  .em-foot     { font-size: 14px; line-height: 1.4; }
+  .em-foot-l, .em-foot-r {
+    display: block; text-align: center; padding: 4px 0;
+  }
 
   /* iPad / wide tablet / Gmail web reading-pane at moderate width */
   @media only screen and (min-width: 520px) {
-    .em-wrap     { padding-top: 104px; padding-bottom: 72px; }
-    .em-h1       { font-size: 38px; }
-    .em-h2       { font-size: 19px; padding: 0 36px 40px; max-width: 480px; }
+    .em-wrap     { padding-top: 96px; padding-bottom: 72px; }
+    .em-h1       { font-size: 76px; }
+    .em-h2       { font-size: 38px; padding: 0 32px 44px; max-width: 600px; }
     .em-env      { max-width: 380px; padding: 12px 24px 44px; }
     .em-cta-svg  { width: 300px; }
     .em-cta-lbl  { font-size: 22px; gap: 12px; }
     .em-cta-arr  { width: 22px; height: 11px; }
     .em-cta-wrap { padding: 0 24px 88px; }
     .em-divider  { width: 56px; }
-    .em-brand    { font-size: 24px; }
-    .em-tagline  { font-size: 13px; }
-    .em-credit   { font-size: 12px; }
+    .em-foot-row { padding: 0 36px 32px; }
+    .em-foot     { font-size: 15px; }
+    .em-foot-l, .em-foot-r {
+      display: table-cell; width: 50%; padding: 0;
+    }
+    .em-foot-l { text-align: left; }
+    .em-foot-r { text-align: right; }
   }
 
   /* Desktop Gmail, full-width preview */
   @media only screen and (min-width: 760px) {
-    .em-wrap     { padding-top: 128px; padding-bottom: 88px; }
-    .em-h1       { font-size: 48px; }
-    .em-h2       { font-size: 22px; padding: 0 48px 48px; max-width: 560px; }
+    .em-wrap     { padding-top: 120px; padding-bottom: 88px; }
+    .em-h1       { font-size: 96px; line-height: 1.05; }
+    .em-h2       { font-size: 44px; line-height: 1.3; padding: 0 32px 52px; max-width: 720px; }
     .em-env      { max-width: 460px; padding: 16px 24px 56px; }
     .em-cta-svg  { width: 360px; }
     .em-cta-lbl  { font-size: 26px; gap: 14px; }
     .em-cta-arr  { width: 26px; height: 13px; }
     .em-cta-wrap { padding: 0 24px 104px; }
     .em-divider  { width: 64px; }
-    .em-brand    { font-size: 28px; }
-    .em-tagline  { font-size: 14px; }
-    .em-credit   { font-size: 13px; }
+    .em-foot-row { padding: 0 48px 40px; }
+    .em-foot     { font-size: 16px; }
   }
 
   /* Ink-dissolve fade on the trailing edge of the context line.
@@ -211,7 +218,7 @@ export function buildEmailHtml({
       <!-- Content column -->
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
              class="em-wrap"
-             style="max-width:640px;position:relative;z-index:1;">
+             style="max-width:780px;position:relative;z-index:1;">
 
         <!-- H1 — "Hi Marcus," — Caveat, big, intimate -->
         <tr><td align="center" style="padding:0 32px 10px;">
@@ -265,36 +272,31 @@ export function buildEmailHtml({
           </a>
         </td></tr>
 
-        <!-- Hairline divider -->
+        <!-- Hairline divider — separates content from the footer -->
         <tr><td align="center" style="padding:0 24px 18px;">
           <hr class="em-divider"
               style="margin:0 auto;border:0;border-top:1px solid ${RULE};"/>
         </td></tr>
 
-        <!-- Brand wordmark — "Dearly". Dropped off the bright ink onto
-             the soft ink so it sits at the same loudness as the rest of
-             the footer — recognisable, not a second headline. -->
-        <tr><td align="center" style="padding:0 24px 2px;">
-          <p class="em-brand"
-             style="margin:0;font-family:${FF};font-weight:700;line-height:1;color:${INK};letter-spacing:0.01em;">
-            Dearly
-          </p>
-        </td></tr>
-
-        <!-- Tagline -->
-        <tr><td align="center" style="padding:2px 24px 6px;">
-          <p class="em-tagline"
-             style="margin:0;font-family:${FF};font-weight:500;line-height:1.25;color:${INK_SOFT};">
-            Letters people actually keep
-          </p>
-        </td></tr>
-
-        <!-- Designer credit -->
-        <tr><td align="center" style="padding:0 24px 20px;">
-          <p class="em-credit"
-             style="margin:0;font-family:${FF};font-weight:500;line-height:1.5;color:${INK_SOFT};opacity:0.78;">
-            Designed by Bhanu Kowshik &middot; The Thoughtful Designer
-          </p>
+        <!-- Footer — "Made with Dearly" left, "A product by Bhanu Kowshik"
+             right at iPad+. On mobile the two pieces stack and centre.
+             Implemented as a nested table so the responsive switch from
+             stacked → side-by-side just toggles td display via @media.
+             Brand words use font-weight 700 against weight 500 prefix so
+             the eye finds them without needing a size change. -->
+        <tr><td class="em-foot-row">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td class="em-foot-l em-foot"
+                  style="font-family:${FF};color:${INK_SOFT};">
+                <span style="font-weight:500;">Made with </span><span style="font-weight:700;color:${INK};">Dearly</span>
+              </td>
+              <td class="em-foot-r em-foot"
+                  style="font-family:${FF};color:${INK_SOFT};">
+                <span style="font-weight:500;">A product by </span><span style="font-weight:700;color:${INK};">Bhanu Kowshik</span>
+              </td>
+            </tr>
+          </table>
         </td></tr>
 
       </table>

@@ -9,7 +9,7 @@
   align-items: center;
   justify-content: center;
   padding: 48px 0 80px;
-  gap: 10px;
+  gap: 18px;
 }
 
 /* ── background ──────────────────────────────────────────────────────────── */
@@ -54,6 +54,44 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='2.8' intercept='-0.9'/%3E%3CfeFuncG type='linear' slope='2.8' intercept='-0.9'/%3E%3CfeFuncB type='linear' slope='2.8' intercept='-0.9'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 140px 140px;
   animation: grainFloat 4.5s ease-in-out infinite;
+}
+
+/* ── Contextual top-left badge ──────────────────────────────────────────────
+   Hand-drawn arrow + Caveat caption fixed to the page corner. Sits above
+   most content (z-index 5) but BELOW the film-grain noise layer (z 999)
+   so it stays in the brand atmosphere rather than punching through. The
+   label swaps via AnimatePresence as the carousel rotates. */
+.contextBadge {
+  position: fixed;
+  top: 16px;
+  left: 18px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  pointer-events: none;
+  user-select: none;
+  max-width: 240px;
+}
+
+.contextLabel {
+  font-family: 'Caveat', cursive;
+  font-size: 19px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  /* The label is the FIRST element visually — sits ABOVE the arrow,
+     which curves from below the label toward the carousel. Reading
+     order: label → arrow → paper. */
+}
+
+.contextArrow {
+  width: 56px;
+  height: 60px;
+  margin-left: 28px;   /* nudge the arrow start away from the label's left edge */
+  display: block;
 }
 
 /* ── hero ─────────────────────────────────────────────────────────────────── */
@@ -347,16 +385,12 @@
 .carousel {
   position: relative;
   z-index: 1;
-  width: min(720px, 92vw);
+  /* Bumped 720 → 864 (+20%) so letter images render larger on launch */
+  width: min(864px, 92vw);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
-  /* Clip slides during the x-translate swipe transition so an exiting
-     card doesn't bleed past the carousel edges (and trigger a horizontal
-     scrollbar on narrow viewports). overflow-x: clip > hidden — it
-     doesn't establish a new scrolling context, so the carousel doesn't
-     hijack page-level scroll behavior. */
   overflow-x: clip;
 }
 
@@ -381,20 +415,33 @@
   text-align: center;
 }
 
+/* Fixed-height slot for the letter image — sized for the TALLEST aspect
+   (postcard 3:2) so all slides reserve the same vertical space. When the
+   strip (4:1, much shorter) cycles in, it floats vertically centered
+   inside the slot — leaves empty paper-bg-tinted space above and below
+   instead of collapsing the carousel height and yanking the reply
+   banner upward. Layout stays rock-still across slide changes. */
+.slideImageSlot {
+  width: 100%;
+  /* Height = carousel width × (2/3) for postcard aspect, used as the
+     reservation for ALL slides. aspect-ratio on the slot makes the
+     height responsive to the carousel's actual rendered width. */
+  aspect-ratio: 3 / 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Letter image — pre-rendered PNG of the paper at 3× DPI. Sized via
-   width: 100% so it fills the carousel container, with aspect-ratio set
-   inline per slide (postcard 3:2 or strip 4:1) so the layout reserves
-   the right vertical space before the image loads → no jump on first
-   paint. object-fit: contain guards against any aspect-ratio mismatch
-   between the inline value and the source image's actual ratio. */
+   width: 100% so it fills the slot width; height auto + aspect-ratio
+   from inline style preserves the natural 3:2 (postcard) or 4:1
+   (strip) shape. The slot wrapper above handles vertical centering. */
 .slideImage {
   width: 100%;
   height: auto;
+  max-height: 100%;   /* never overflow the slot vertically */
   display: block;
   object-fit: contain;
-  /* Subtle floor shadow so the image lifts off the dark page background
-     even though the PNG itself ends at the deckled paper edge. */
-  filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.28));
   user-select: none;
 }
 
@@ -412,24 +459,24 @@
   gap: 14px;
 }
 
-/* Reply pill — solid translucent DARK background instead of glassmorphic
-   white-with-blur. The backdrop-filter version was rendering as a giant
-   white pill in screenshots (and inconsistently across browsers) because
-   backdrop-filter on a light-tinted element blurs the warm cream paper
-   above into the banner's bounds. Solid dark fill at low opacity gives
-   the same "anchored card" reading without depending on a CSS feature
-   that's notorious for poor cross-tool compatibility. */
+/* Reply pill — solid translucent DARK background. position: relative
+   so the .slideProgress child can absolute-position to its bottom edge
+   (Instagram-stories style timer). overflow: hidden so the bar respects
+   the banner's border-radius without bleeding past the rounded corners.
+   padding-bottom is bumped to leave room for the 3 px bar. */
 .replyBanner {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 16px 20px;
+  padding: 16px 20px 22px;
   background: rgba(15, 22, 36, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 18px;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
 }
 
 /* Name + role header — name in Caveat (handwritten, intimate), role in
@@ -468,18 +515,20 @@
   letter-spacing: 0.005em;
 }
 
-/* ── Progress bar — full-width strip clipped to the carousel's bottom
-   edge. Translucent track so the fill reads as light against the dark
-   page bg without competing with the letter content above. The
-   carousel's overflow-x: clip already keeps the bar from extending
-   past the carousel's horizontal bounds. */
+/* ── Progress bar — pinned flush to the bottom edge of the reply banner,
+   no border-radius on the bar itself so it sits as a clean horizontal
+   line attached to the banner's bottom. The banner's overflow: hidden
+   + border-radius takes care of cleanly clipping the bar's left/right
+   ends to the banner's rounded bottom corners. Slightly taller (4 px)
+   and brighter track so it reads at a glance without crowding. */
 .slideProgress {
-  width: 100%;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
+  position: absolute;
+  bottom: 0;
+  left:   0;
+  right:  0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.18);
   overflow: hidden;
-  margin-top: 4px;
 }
 
 @keyframes slideProgressFill {
@@ -490,8 +539,14 @@
 .slideProgressFill {
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.85);
-  border-radius: 999px;
+  /* Subtle off-white fill — the bar is supplementary information (timer),
+     not a primary action, so it should read as a quiet ambient indicator
+     not a screaming progress UI. 0.50 ≈ matches the role-label text
+     opacity below it so the two visually rhyme. */
+  background: rgba(255, 255, 255, 0.50);
+  /* No border-radius — the fill is a flat rectangle. The banner's
+     overflow: hidden + its own border-radius takes care of clipping
+     the bar's left/right ends to the rounded bottom corners cleanly. */
   transform-origin: left center;
   transform: scaleX(0);
   /* animation-duration set inline from SLIDE_INTERVAL_MS so the bar

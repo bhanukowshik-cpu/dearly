@@ -111,6 +111,12 @@ export default function AnimatedGlyphText({
   // (used on hero text where the default 1.0 spreads big letters too far
   // apart visually); 1 = baseline (matches the editor body text).
   spacingMultiplier = 1.0,
+  // Per-pair kerning overrides — keyed by the two-char sequence, value
+  // in pixels applied as negative marginLeft on the SECOND char. Useful
+  // for tightening specific optical-gap pairs (e.g. 'rl', 'ly' on the
+  // hero) that the universal side-bearings can't fix without crushing
+  // every other pair. Example: { 'rl': -8, 'ly': -6 }
+  kerningPairsPx = null,
   // CSS string fontSize for callers that don't want metric-driven sizing
   // (kept for backwards compat; uses GlyphChar's legacy em path → wider gaps).
   fontSize     = 'inherit',
@@ -207,6 +213,7 @@ export default function AnimatedGlyphText({
     viewportWidth,
     wordSpacingPx,
     strokeSpeedMultiplier,
+    kerningPairsPx,
     // Per-char stroke delay sequencer — only active in typewriter mode.
     // Each char gets extraDelaySec = (charIndex × msPerChar)/1000 + startDelayMs/1000
     // so the wrapper width is fixed but strokes draw in left-to-right order.
@@ -245,7 +252,14 @@ export default function AnimatedGlyphText({
 //     between groups as a break-opportunity for the browser to wrap on.
 //   • Each '\n' becomes a <br/>.
 function renderWordGroups(chars, opts) {
-  const { inkColor, fontWeight, fontSize, size, customMetrics, viewportWidth, wordSpacingPx, strokeSpeedMultiplier, perCharDelaySec = 0, startDelaySec = 0 } = opts
+  const { inkColor, fontWeight, fontSize, size, customMetrics, viewportWidth, wordSpacingPx, strokeSpeedMultiplier, kerningPairsPx, perCharDelaySec = 0, startDelaySec = 0 } = opts
+  // Lookup helper: returns negative px to apply as marginLeft on `ch`
+  // when the immediately preceding glyph was `prevCh`. Pair keys are
+  // case-sensitive ("rl" ≠ "rL"). Returns 0 for any pair not listed.
+  const kernFor = (prevCh, ch) => {
+    if (!kerningPairsPx || !prevCh) return 0
+    return kerningPairsPx[prevCh + ch] || 0
+  }
   const out = []
   let word = []
   // Global index across ALL chars in the text (incl. spaces) — drives the
@@ -269,20 +283,29 @@ function renderWordGroups(chars, opts) {
           lineHeight:    1,
         }}
       >
-        {wordChars.map(({ id, ch, charIndex }) => (
-          <GlyphChar
-            key={id}
-            ch={ch}
-            inkColor={inkColor}
-            fontWeight={fontWeight}
-            fontSize={fontSize}
-            size={size}
-            viewportWidth={viewportWidth}
-            customMetrics={customMetrics}
-            strokeSpeedMultiplier={strokeSpeedMultiplier}
-            extraDelaySec={startDelaySec + charIndex * perCharDelaySec}
-          />
-        ))}
+        {wordChars.map(({ id, ch, charIndex }, idx) => {
+          // Look at the preceding glyph IN THE SAME WORD for kerning.
+          // (Cross-word kerning would also need to consider the prior
+          // word's last char — but our word groups are separated by
+          // spacers, so cross-word visual gap is already controlled by
+          // wordSpacingPx and doesn't need pair tuning.)
+          const prevCh = idx > 0 ? wordChars[idx - 1].ch : null
+          return (
+            <GlyphChar
+              key={id}
+              ch={ch}
+              inkColor={inkColor}
+              fontWeight={fontWeight}
+              fontSize={fontSize}
+              size={size}
+              viewportWidth={viewportWidth}
+              customMetrics={customMetrics}
+              strokeSpeedMultiplier={strokeSpeedMultiplier}
+              extraDelaySec={startDelaySec + charIndex * perCharDelaySec}
+              kerningLeftPx={kernFor(prevCh, ch)}
+            />
+          )
+        })}
       </span>
     )
     word = []

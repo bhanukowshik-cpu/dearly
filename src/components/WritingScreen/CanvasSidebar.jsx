@@ -74,7 +74,7 @@ function Toggle({ icon, label, active, onClick }) {
      • Paper style     (Default / Color / Vintage  + color swatches)
      • Toggles         (Ruler, Zig-zag)
    ───────────────────────────────────────────────────────────────────────── */
-export default function CanvasSidebar({ paperConfig, onChangePaper }) {
+export default function CanvasSidebar({ paperConfig, onChangePaper, sizeLocked = false }) {
   const { size = 'postcard', type, color, showRuler, showZigzag } = paperConfig
 
   function set(patch) { onChangePaper({ ...paperConfig, ...patch }) }
@@ -90,14 +90,21 @@ export default function CanvasSidebar({ paperConfig, onChangePaper }) {
             <button
               key={id}
               type="button"
-              className={`${styles.sizePill} ${size === id ? styles.sizePillActive : ''}`}
-              onClick={() => set({ size: id })}
+              className={`${styles.sizePill} ${size === id ? styles.sizePillActive : ''} ${sizeLocked && size !== id ? styles.sizePillLocked : ''}`}
+              onClick={() => { if (!sizeLocked) set({ size: id }) }}
               aria-pressed={size === id}
+              aria-disabled={sizeLocked && size !== id}
+              title={sizeLocked && size !== id ? 'Undo the content on the page to change paper size' : sizeData.label}
             >
               {sizeData.label}
             </button>
           ))}
         </div>
+        {sizeLocked && (
+          <p className={styles.sizeLockHint}>
+            Locked while there's content on the page — undo to change size.
+          </p>
+        )}
       </section>
 
       {/* ── Paper style (type + color swatches) ────────────────────────── */}

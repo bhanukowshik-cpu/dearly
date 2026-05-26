@@ -459,7 +459,13 @@ function StickerIcon({ sticker, isSelected, onSelect, paperRef, onMove, paperSca
       style={{
         left:   `${sticker.x}%`,
         top:    `${sticker.y}%`,
-        zIndex: isSelected ? 15 : 5,
+        // Sit above the interactive DrawingLayer (z-index 12). Without
+        // this, the layer (which has pointer-events:auto whenever a
+        // drawing tool is armed) eats finger taps before they reach the
+        // sticker, so you can't select/drag stickers on iPad. Selected
+        // stickers go higher still (z-15) so their controls stack above
+        // any in-flight stroke preview.
+        zIndex: isSelected ? 15 : 13,
       }}
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: sticker.scale * paperScale, rotate: sticker.rotation, opacity: 1 }}

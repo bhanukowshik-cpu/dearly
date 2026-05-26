@@ -66,7 +66,7 @@ const SLIDES = [
     aspect:    '1520 / 1014',        // postcard 3:2
     alt:       'A handwritten postcard thanking Marcus for his mentorship',
     replyFrom: 'Marcus',
-    replyRole: 'manager',
+    replyRole: 'your manager',
     reply:     "Made my day. You're one of the kindest folks I've worked with. 💛🙏",
   },
   {
@@ -75,7 +75,7 @@ const SLIDES = [
     aspect:    '1520 / 380',         // strip 4:1
     alt:       'A paper strip with a voice note for Mai, an old friend',
     replyFrom: 'Mai',
-    replyRole: 'best friend',
+    replyRole: 'my best friend',
     reply:     "😭 Crying. Calling you in five. 💌🥹",
   },
 ]
@@ -137,25 +137,16 @@ export default function LoadingScreen({ onCta = () => {} }) {
       <div className={styles.bgTint}  aria-hidden />
       <div className={styles.bgNoise} aria-hidden />
 
-      {/* ── Hero — starts centered, slides up when carousel appears ────── */}
-      <motion.div
-        layout="position"
-        className={styles.hero}
-        transition={{ layout: { duration: reducedMotion ? 0 : 0.72, ease: [0.22, 1, 0.36, 1] } }}
-      >
+      {/* ── Hero — Dearly + tagline ──────────────────────────────────── */}
+      <div className={styles.hero}>
         <div className={styles.heroTitle}>
           {writeStarted && (
             <AnimatedGlyphText
               text="Dearly,"
               fontSizePx={HERO_PX}
               lineHeightMultiplier={1.05}
-              /* Hero text reads cramped when the body's 1.0 spacing
-                 multiplier is applied at this size — what's an airy
-                 letter-gap at 20 px font is a wide chasm at 82 px.
-                 0.72 tightens both letterSpacing + side bearings so
-                 "Dearly," lands as a confident signature, not a
-                 spaced-out D-E-A-R-L-Y. */
-              spacingMultiplier={0.55}
+              spacingMultiplier={0.42}
+              kerningPairsPx={{ 'rl': -8, 'ly': -6 }}
               fontWeight={700}
               inkColor="#ffffff"
               msPerChar={PACE_HERO}
@@ -174,14 +165,9 @@ export default function LoadingScreen({ onCta = () => {} }) {
         >
           Letters people actually keep.
         </motion.p>
-      </motion.div>
+      </div>
 
-      {/* ── Carousel: pre-rendered letter images ─────────────────────────
-         Each slide is a static PNG exported from the editor at 3× DPI.
-         No live PaperCanvas, no scaling math, no glyph re-animation —
-         just an <img>. The aspect-ratio attribute reserves vertical space
-         per slide so the layout doesn't jump when a postcard (3:2)
-         transitions to a strip (4:1) and vice versa. */}
+      {/* ── Carousel — fixed-height slot, image + reply banner stacked ── */}
       {ctaVisible && (
         <motion.div
           className={styles.carousel}
@@ -189,12 +175,6 @@ export default function LoadingScreen({ onCta = () => {} }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Premium transition — soft cross-fade with subtle scale.
-              Outgoing card scales 1 → 0.96 + fades; incoming card scales
-              0.96 → 1 + fades in. Reads as "letter being placed gently
-              on the table" — matches Dearly's hand-crafted aesthetic
-              without the aggressive swipe motion. mode="wait" sequences
-              the two so the layout never has both slides in flow. */}
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={SLIDES[slideIdx].id}
@@ -204,18 +184,23 @@ export default function LoadingScreen({ onCta = () => {} }) {
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
             >
-              <img
-                src={SLIDES[slideIdx].img}
-                alt={SLIDES[slideIdx].alt}
-                className={styles.slideImage}
-                style={{ aspectRatio: SLIDES[slideIdx].aspect }}
-                loading="eager"
-                decoding="async"
-                draggable={false}
-              />
+              {/* Image slot — fixed height across all slides so the carousel
+                  doesn't jump when the strip (4:1) cycles in after a
+                  postcard (3:2). The strip floats vertically centered
+                  inside the slot; postcards fill it. */}
+              <div className={styles.slideImageSlot}>
+                <img
+                  src={SLIDES[slideIdx].img}
+                  alt={SLIDES[slideIdx].alt}
+                  className={styles.slideImage}
+                  style={{ aspectRatio: SLIDES[slideIdx].aspect }}
+                  loading="eager"
+                  decoding="async"
+                  draggable={false}
+                />
+              </div>
 
-              {/* Reply banner — recipient's response with emoji, beneath
-                  the letter. Closes the conversational loop. */}
+              {/* Reply banner — recipient's response + bottom-pinned timer */}
               <div className={styles.slideMeta}>
                 <div className={styles.replyBanner}>
                   <div className={styles.replyHeader}>
@@ -223,28 +208,22 @@ export default function LoadingScreen({ onCta = () => {} }) {
                     <span className={styles.replyRole}>({SLIDES[slideIdx].replyRole})</span>
                   </div>
                   <span className={styles.replyText}>{SLIDES[slideIdx].reply}</span>
+
+                  <div className={styles.slideProgress} role="progressbar" aria-label="Auto-advancing slide timer">
+                    <div
+                      key={SLIDES[slideIdx].id}
+                      className={styles.slideProgressFill}
+                      style={{ animationDuration: `${SLIDE_INTERVAL_MS}ms` }}
+                    />
+                  </div>
                 </div>
               </div>
             </motion.div>
           </AnimatePresence>
-
-          {/* Progress bar — sibling of AnimatePresence so it doesn't get
-              swept up in the slide transition. Pinned to the carousel's
-              bottom edge, full-width, clipped by the carousel container.
-              Resets cleanly on every slide change via React key →
-              keyframe restarts from 0. Same component on every device
-              because CSS animations run on the compositor. */}
-          <div className={styles.slideProgress} role="progressbar" aria-label="Auto-advancing slide timer">
-            <div
-              key={SLIDES[slideIdx].id}
-              className={styles.slideProgressFill}
-              style={{ animationDuration: `${SLIDE_INTERVAL_MS}ms` }}
-            />
-          </div>
         </motion.div>
       )}
 
-      {/* ── CTA + meta ────────────────────────────────────────────────── */}
+      {/* ── CTA + meta ─────────────────────────────────────────────────── */}
       {ctaVisible && (
         <>
           <motion.button
@@ -256,9 +235,6 @@ export default function LoadingScreen({ onCta = () => {} }) {
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
           >
-            {/* Hand-drawn crooked SVG fill, mirroring the writing-screen
-                Share-note button so the landing CTA visually belongs to
-                the same brand chrome family. Caveat label on top. */}
             <svg
               className={styles.ctaBg}
               viewBox="0 0 340 62"
