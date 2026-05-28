@@ -221,3 +221,45 @@ export function getVoiceNoteUrl(id) {
   const { data } = supabase.storage.from(VOICE_BUCKET).getPublicUrl(id)
   return data.publicUrl
 }
+
+/**
+ * Upload a media-frame image to Supabase Storage so it survives the
+ * share-link jump. Without this, the saved letter's mediaFrames
+ * contain `blob:` URLs that only exist on the sender's browser —
+ * recipient sees a broken-image placeholder.
+ *
+ * Uses the same `voice-notes` bucket to avoid making the user create
+ * + configure a second bucket; storage paths just get a `media-` prefix
+ * so the two media types stay browsable separately in the dashboard.
+ *
+ * @param {Blob} blob — image blob (JPEG/PNG/GIF/WebP from the file picker)
+ * @returns {Promise<{id: string, url: string} | null>}
+ */
+export async function uploadMediaFrame(blob) {
+  // Pick a sensible extension from the blob's MIME so the file is
+  // browsable in the Supabase dashboard and served with the right
+  // Content-Type.
+  const ext = blob.type.includes('jpeg') || blob.type.includes('jpg') ? 'jpg'
+            : blob.type.includes('png')  ? 'png'
+            : blob.type.includes('gif')  ? 'gif'
+            : blob.type.includes('webp') ? 'webp'
+            : 'bin'
+  const id   = shortId()
+  const path = `media-${id}.${ext}`
+
+  const { error } = await supabase.storage
+    .from(VOICE_BUCKET)
+    .upload(path, blob, {
+      contentType: blob.type || 'application/octet-stream',
+      cacheControl: '31536000',
+      upsert: false,
+    })
+
+  if (error) {
+    console.error('[dearly] uploadMediaFrame failed:', error.message)
+    return null
+  }
+
+  const { data } = supabase.storage.from(VOICE_BUCKET).getPublicUrl(path)
+  return { id: path, url: data.publicUrl }
+}

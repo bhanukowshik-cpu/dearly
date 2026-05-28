@@ -1,5 +1,5 @@
 import { toPng } from 'html-to-image'
-import { uploadVoiceNote, saveNote } from './supabase'
+import { uploadVoiceNote, uploadMediaFrame, saveNote } from './supabase'
 import { renderVoiceBarcodeSVG } from './voiceBarcode'
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -116,29 +116,43 @@ async function prepareVoiceBarcodes(paperEl, noteData) {
   }))
 
   // Step 3 — if the caller passed noteData, persist the WHOLE letter so the
-  // QR can deep-link into it. Replace any blob: voice URLs with the
-  // permanent Storage URLs we just minted.
-  //
-  // The QR encodes the *canonical* share URL (`/api/share?id=...&r=...&s=...`)
-  // — same shape produced by the "Create link" button in ShareSheet. That
-  // endpoint:
-  //   • renders OG / iMessage / Twitter preview metadata so when the link
-  //     is forwarded the recipient sees a card with "Hi {them}, you have a
-  //     note from {sender}" instead of a raw URL,
-  //   • then auto-redirects to `/?id=<uuid>` which the SPA picks up and
-  //     mounts RecipientScreen with the personalised greeting.
-  // Scanning a QR usually opens the URL directly (no social preview step),
-  // but using the same canonical URL keeps QR-shared and link-shared
-  // letters indistinguishable from the user's perspective.
+  // QR can deep-link into it. We also need to upload any media-frame
+  // images so their blob: URLs (sender-only) get replaced with permanent
+  // Storage URLs before saving — otherwise the recipient sees broken
+  // image placeholders where photos should be.
   let shareUrlBase = null
   if (noteData) {
     try {
+      // Upload every media frame's image in parallel (alongside the voice
+      // uploads we already did up top). Each frame's mediaUrl is a blob:
+      // URL that we resolve back to a blob via fetch, then push to Storage.
+      const uploadedFramesById = new Map()
+      const frames = noteData.mediaFrames || []
+      await Promise.all(frames.map(async (frame) => {
+        if (!frame?.mediaUrl) return
+        // Skip frames that already point to a real URL (shared letter
+        // being re-exported, etc.).
+        if (!/^blob:/.test(frame.mediaUrl)) return
+        try {
+          const blob   = await fetch(frame.mediaUrl).then(r => r.blob())
+          const upload = await uploadMediaFrame(blob)
+          if (upload) uploadedFramesById.set(frame.id, upload)
+        } catch (err) {
+          console.warn('[dearly] media upload failed for', frame.id, err)
+        }
+      }))
+
       const persistable = {
         ...noteData,
         voiceNotes: (noteData.voiceNotes || []).map(v => {
           const up = uploadedById.get(v.id)
           if (!up) return v
           return { ...v, audioUrl: up.url, storagePath: up.id }
+        }),
+        mediaFrames: frames.map(f => {
+          const up = uploadedFramesById.get(f.id)
+          if (!up) return f
+          return { ...f, mediaUrl: up.url, storagePath: up.id }
         }),
       }
       const noteId = await saveNote(persistable)
