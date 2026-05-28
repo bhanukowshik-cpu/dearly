@@ -217,17 +217,17 @@ function swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId) {
     ? `${escapeHtml(rawSender)}${/s$/i.test(rawSender) ? '&rsquo;' : '&rsquo;s'}`
     : 'this'
 
-  const originals = []
+  // Overlay strategy (not innerHTML swap): the original wavesurfer canvas
+  // and React-managed children stay untouched, we just position an opaque
+  // export card on top during capture. Removing the overlay after capture
+  // returns the editor to its exact prior state — waveform pixels, canvas
+  // refs, React reconciliation all intact.
+  const overlays = []
   nodes.forEach(node => {
     const id  = node.getAttribute('data-voice-note-id')
     const qrSvg = barcodeByVoiceId.get(id)
     if (!qrSvg) return  // upload failed — leave voice pill as-is
-    originals.push({ node, html: node.innerHTML })
 
-    // Sizes derived from the wrapper's actual rendered pixels so type and
-    // bars stay visually proportional across Strip / Postcard / A4. We
-    // intentionally undersize the caption a touch so the QR can claim
-    // more room in the layout without the text feeling oversized.
     const rect = node.getBoundingClientRect()
     const captionPx = Math.max(8, Math.round(rect.height * 0.14))
 
@@ -242,14 +242,18 @@ function swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId) {
     if (!waveform) waveform = new Array(36).fill(0.35)
 
     const waveformHTML = renderWaveformBars(waveform)
-    // Force the QR svg to scale inside its container box and preserve its
-    // 1:1 aspect ratio. Without an explicit preserveAspectRatio, some
-    // browsers fall back to the SVG's intrinsic 300px width and overflow
-    // the container — which is what made the QR look "zoomed in" before.
     const qrPrepared = qrSvg
       .replace('<svg ', '<svg preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block" ')
 
-    node.innerHTML = `
+    const overlay = document.createElement('div')
+    overlay.setAttribute('data-voice-note-export-overlay', '')
+    overlay.style.cssText = [
+      'position:absolute',
+      'inset:0',
+      'z-index:100',
+      'pointer-events:none',
+    ].join(';')
+    overlay.innerHTML = `
       <div style="
         position:absolute;inset:0;
         display:flex;flex-direction:row;align-items:stretch;
@@ -289,11 +293,7 @@ function swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId) {
           ">Scan to listen to ${ownerPhrase} note</div>
         </div>
 
-        <!-- ── Right column (~32%) — QR ────────────────────────────────
-             Pill aspect-ratio is 3.1:1, so a 32% wide column at full
-             height is almost exactly square — no aspect-ratio CSS needed
-             (which was over-sizing the SVG from its intrinsic 300px
-             width). Inner padding gives the QR a clear quiet zone. ─── -->
+        <!-- ── Right column (~32%) — QR ──────────────────────────────── -->
         <div style="
           flex:0 0 32%;
           display:flex;align-items:center;justify-content:center;
@@ -309,9 +309,12 @@ function swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId) {
         </div>
       </div>
     `
+    node.appendChild(overlay)
+    overlays.push(overlay)
   })
+
   return function restore() {
-    originals.forEach(({ node, html }) => { node.innerHTML = html })
+    overlays.forEach(o => o.remove())
   }
 }
 

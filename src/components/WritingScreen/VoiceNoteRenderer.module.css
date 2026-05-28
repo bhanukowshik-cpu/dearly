@@ -96,7 +96,9 @@
 /* ── Selection overlay (rotates with body) ─────────────────────────────── */
 .selFrame {
   position: absolute;
-  inset: -4px;
+  /* Sit flush against the card edge — the previous -4px breathing room
+     read as awkward "extra space" inside the selection. */
+  inset: 0;
   border: 1.5px dashed rgba(100, 150, 255, 0.78);
   border-radius: 6px;
   pointer-events: none;
