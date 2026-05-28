@@ -82,6 +82,103 @@ function PreviewButton({ onClick }) {
   )
 }
 
+/* ── Preview nudge ──────────────────────────────────────────────────────────
+   A thought-bubble that drops down from the Preview button when the user
+   tries to preview their letter without filling in either name. Contains
+   two inputs bound to the real senderName / recipientName state plus a
+   "Preview anyway" CTA. The pointer at the top is a small CSS triangle
+   that visually attaches the bubble to the Preview button above it.
+
+   Renders inline next to the Preview button; uses absolute positioning
+   so it overlays the page rather than reflowing the layout. AnimatePresence
+   in the parent handles the open/close transition.
+   ─────────────────────────────────────────────────────────────────────────── */
+function PreviewNudge({ side, senderName, recipientName, onSenderChange, onRecipientChange, onPreviewAnyway, onClose }) {
+  /* CTA copy is conditional:
+     - both names filled  → "Preview →" (user supplied data, no skipping)
+     - either name empty  → "Preview anyway →" (signals they're proceeding
+       without one or both names)
+     `.trim()` so whitespace-only inputs still count as empty. */
+  const bothNamesFilled = senderName.trim() !== '' && recipientName.trim() !== ''
+  const ctaLabel = bothNamesFilled ? 'Preview →' : 'Preview anyway →'
+
+  return (
+    <motion.div
+      className={`${styles.previewNudge} ${side === 'left' ? styles.previewNudgeLeft : styles.previewNudgeRight}`}
+      initial={{ opacity: 0, y: -8, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{    opacity: 0, y: -8, scale: 0.96 }}
+      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <span className={styles.previewNudgePointer} aria-hidden />
+
+      <p className={styles.previewNudgeTitle}>
+        Sender's and recipient's name not found
+      </p>
+
+      <label className={styles.previewNudgeField}>
+        <span className={styles.previewNudgeLabel}>Your name</span>
+        <input
+          type="text"
+          autoFocus
+          placeholder="e.g. Maya"
+          value={senderName}
+          onChange={e => onSenderChange(e.target.value)}
+          maxLength={40}
+          className={styles.previewNudgeInput}
+        />
+      </label>
+
+      <label className={styles.previewNudgeField}>
+        <span className={styles.previewNudgeLabel}>Recipient's name</span>
+        <input
+          type="text"
+          placeholder="e.g. Leo"
+          value={recipientName}
+          onChange={e => onRecipientChange(e.target.value)}
+          maxLength={40}
+          className={styles.previewNudgeInput}
+        />
+      </label>
+
+      {/* Crooked filled-pill CTA — same hand-drawn shape language as the
+          "Write a Dearly Letter" button on the landing page. The SVG
+          path is stretched via preserveAspectRatio="none" so the wobble
+          adapts to the button's width. */}
+      <button
+        type="button"
+        className={styles.previewNudgeCta}
+        onClick={onPreviewAnyway}
+      >
+        <svg
+          className={styles.previewNudgeCtaBg}
+          viewBox="0 0 340 62"
+          preserveAspectRatio="none"
+          fill="none"
+          aria-hidden
+        >
+          <path
+            d="M 14,8 C 95,4 245,5 326,8 C 330,22 331,40 326,54 C 245,58 95,57 14,54 C 10,40 10,22 14,8 Z"
+            fill="#2a1d0a"
+          />
+        </svg>
+        <span className={styles.previewNudgeCtaLabel}>
+          {ctaLabel}
+        </span>
+      </button>
+
+      {/* Plain text close link under the CTA — quieter than a corner ✕ */}
+      <button
+        type="button"
+        className={styles.previewNudgeCloseLink}
+        onClick={onClose}
+      >
+        Close
+      </button>
+    </motion.div>
+  )
+}
+
 /* ── Sticker slot positions (% of paper) ────────────────────────────────── */
 const STICKER_SLOTS = [
   { x: 80, y: 12 }, { x: 72, y: 70 }, { x: 84, y: 42 },
@@ -511,7 +608,30 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     setShowShare(v => !v)
   }, [isEmpty, showToast])
 
+  /* Preview-nudge state. Most users skip the sender/recipient fields and
+     hit Preview anyway, which produces an unsigned, unaddressed letter.
+     When that happens we don't silently let them through — we pop a
+     small thought-bubble below the Preview button with two inputs and a
+     "Preview anyway" CTA. The inputs are bound directly to the existing
+     senderName / recipientName state, so whatever they type updates the
+     real note (and the From/To labels on the envelope) before the
+     preview opens. */
+  const [nudgeOpen, setNudgeOpen] = useState(false)
+  const namesMissing = !senderName.trim() || !recipientName.trim()
+
   const handlePreview = useCallback(() => {
+    if (namesMissing) {
+      setNudgeOpen(open => !open)
+      return
+    }
+    if (onPreview) onPreview(getNoteData())
+  }, [namesMissing, onPreview, getNoteData])
+
+  // "Preview anyway" — close the nudge, then proceed with whatever
+  // values are currently in senderName / recipientName (could still be
+  // blank if the user chose to skip).
+  const handlePreviewAnyway = useCallback(() => {
+    setNudgeOpen(false)
     if (onPreview) onPreview(getNoteData())
   }, [onPreview, getNoteData])
 
@@ -578,7 +698,11 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       // uses pixelRatio: 3 internally, so they're already 3× the natural
       // paper size — display them as-is).
       const result = await exportPaperAsPng({ filename: `${baseName}.png` })
-      showToast(`Paper exported as PNG — downloaded ${result.filename} (${result.width}×${result.height}).`)
+      if (result.isGif) {
+        showToast(`Paper exported as animated GIF — downloaded ${result.filename} (${result.width}×${result.height}, ${result.frames} frames).`)
+      } else {
+        showToast(`Paper exported as PNG — downloaded ${result.filename} (${result.width}×${result.height}).`)
+      }
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[exportPng] failed', err)
@@ -1342,16 +1466,32 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       <header className={styles.topBar}>
         <div className={styles.topBarLeft}>
           {isMobile ? (
-            <motion.button
-              className={styles.previewNavBtn}
-              onClick={handlePreview}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
-              transition={{ duration: 0.1 }}
-            >
-              <IconEye size={13} />
-              <span>{recipientName ? `${recipientName.length > 14 ? recipientName.slice(0, 14) + '…' : recipientName}'s view` : "Preview"}</span>
-            </motion.button>
+            <div className={styles.previewBtnWrap}>
+              <motion.button
+                className={styles.previewNavBtn}
+                onClick={handlePreview}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ duration: 0.1 }}
+              >
+                <IconEye size={13} />
+                <span>{recipientName ? `${recipientName.length > 14 ? recipientName.slice(0, 14) + '…' : recipientName}'s view` : "Preview"}</span>
+              </motion.button>
+              <AnimatePresence>
+                {nudgeOpen && (
+                  <PreviewNudge
+                    key="nudge-left"
+                    side="left"
+                    senderName={senderName}
+                    recipientName={recipientName}
+                    onSenderChange={setSenderName}
+                    onRecipientChange={setRecipient}
+                    onPreviewAnyway={handlePreviewAnyway}
+                    onClose={() => setNudgeOpen(false)}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
           ) : (
             <>
               <span className={styles.topBarBrand}>dearly</span>
@@ -1362,16 +1502,32 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
         </div>
         <div className={styles.topBarRight}>
           {!isMobile && (
-            <motion.button
-              className={styles.previewNavBtn}
-              onClick={handlePreview}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
-              transition={{ duration: 0.1 }}
-            >
-              <IconEye size={13} />
-              <span>Preview</span>
-            </motion.button>
+            <div className={styles.previewBtnWrap}>
+              <motion.button
+                className={styles.previewNavBtn}
+                onClick={handlePreview}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ duration: 0.1 }}
+              >
+                <IconEye size={13} />
+                <span>Preview</span>
+              </motion.button>
+              <AnimatePresence>
+                {nudgeOpen && (
+                  <PreviewNudge
+                    key="nudge-right"
+                    side="right"
+                    senderName={senderName}
+                    recipientName={recipientName}
+                    onSenderChange={setSenderName}
+                    onRecipientChange={setRecipient}
+                    onPreviewAnyway={handlePreviewAnyway}
+                    onClose={() => setNudgeOpen(false)}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
           )}
           {/* Dev-only: export current note state as portable JSON. Hidden
              in production builds (IS_DEV gate) — this is a designer

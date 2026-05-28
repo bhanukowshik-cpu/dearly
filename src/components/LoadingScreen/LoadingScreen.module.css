@@ -70,7 +70,7 @@
   min-height: clamp(540px, 88vh, 880px);
   isolation: isolate;
   /* (No background fallback — the videos are served locally from
-     /videos/, so they start playing immediately on page load. No
+     /loops/, so they start playing immediately on page load. No
      intermediate gradient needed.) */
   animation: panelSlideInLeft 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -305,6 +305,9 @@
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
+  /* Left padding pulled in (was up to 32px) so the right column hugs the
+     left panel rather than floating off in a sea of white. Right side
+     keeps more breathing room to anchor the text block. */
   /* Left padding pulled in (was up to 32px) so the right column hugs the
      left panel rather than floating off in a sea of white. Right side
      keeps more breathing room to anchor the text block. */
