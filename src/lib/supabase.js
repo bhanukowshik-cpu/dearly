@@ -164,14 +164,16 @@ function shortId() {
  * Upload a voice-note audio blob to Supabase Storage.
  *
  * Transcodes any browser-native recording (typically webm/opus from
- * Chrome's MediaRecorder) to WAV before upload. Reason: iOS Safari can't
- * decode webm at all, so a letter recorded on Chrome and opened on an
- * iPhone via the QR landing page would have a silent voice pill. WAV
- * plays on every browser — bigger file (~1MB / 30s) but universal.
+ * Chrome's MediaRecorder) to MP3 before upload. Two reasons:
+ *   1. iOS Safari can't decode webm/opus at all — recipients on iPhone
+ *      would have a silent voice pill if we shipped the original blob.
+ *   2. MP3 at 64 kbps mono is ~6× smaller than the equivalent WAV
+ *      (~240 KB / 30 s vs ~1.4 MB), which makes a huge difference on
+ *      Supabase's egress quota when letters are scanned repeatedly.
  *
- * If transcoding fails for any reason, falls back to uploading the
- * original blob — preserves the existing behavior on the sender's
- * device even if the cross-browser case is degraded.
+ * If transcoding fails, falls back to uploading the original blob —
+ * preserves sender-side playback even if the cross-browser case is
+ * degraded.
  *
  * @param {Blob} blob — audio blob (typically webm/opus from MediaRecorder)
  * @returns {Promise<{id: string, url: string} | null>}
@@ -181,11 +183,11 @@ export async function uploadVoiceNote(blob) {
   let ext = 'webm'
 
   try {
-    const { transcodeToWav } = await import('./audio/transcodeToWav')
-    finalBlob = await transcodeToWav(blob)
-    ext = 'wav'
+    const { transcodeToMp3 } = await import('./audio/transcodeToMp3')
+    finalBlob = await transcodeToMp3(blob)
+    ext = 'mp3'
   } catch (err) {
-    console.warn('[dearly] voice transcode to WAV failed — uploading original blob (may not play on iOS Safari)', err)
+    console.warn('[dearly] voice transcode to MP3 failed — uploading original blob (may not play on iOS Safari)', err)
     // Recover original extension hint from the source blob's MIME.
     ext = blob.type.includes('mp4')  ? 'mp4'
         : blob.type.includes('mpeg') ? 'mp3'
@@ -199,7 +201,7 @@ export async function uploadVoiceNote(blob) {
   const { error } = await supabase.storage
     .from(VOICE_BUCKET)
     .upload(path, finalBlob, {
-      contentType: finalBlob.type || 'audio/wav',
+      contentType: finalBlob.type || 'audio/mpeg',
       cacheControl: '31536000',  // 1 year — the file is immutable
       upsert: false,
     })
