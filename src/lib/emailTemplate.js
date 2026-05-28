@@ -82,7 +82,7 @@ export function buildEmailHtml({
   // generic envelope graphic. Trimmed + fades out at the bottom so it
   // reads as "there's more, come read it."
   excerpt = '',
-  assetOrigin = 'https://bhanu-dearly.vercel.app',
+  assetOrigin = 'https://dearlynotes.app',
 }) {
   const senderFirst = firstName(fromName) || ''
   const recipFirst  = firstName(recipientName)
@@ -253,15 +253,12 @@ export function buildEmailHtml({
          style="background:#0e0a05;min-height:100vh;">
     <tr><td align="center" valign="top" style="padding:0;position:relative;">
 
-      <!--[if !mso]><!-->
-      <!-- Blurred bg image + warm dark tint. Atmosphere only. Outlook
-           desktop falls back to the solid bg colour. -->
-      <div style="position:absolute;inset:0;z-index:0;overflow:hidden;">
-        <img src="${esc(bgUrl)}" alt="" width="100%" height="100%"
-             style="display:block;width:110%;height:110%;object-fit:cover;opacity:0.78;filter:blur(34px) saturate(102%);transform:scale(1.10);"/>
-        <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 38%,rgba(8,10,18,0.42) 0%,rgba(4,5,10,0.92) 100%);"></div>
-      </div>
-      <!--<![endif]-->
+      <!-- Atmosphere is the solid #0e0a05 body color. The previous design
+           used a blurred bg.jpg behind everything via position:absolute, but
+           Gmail strips position:absolute and the image collapsed into a
+           sharp inline strip at the top. Removed entirely — the dark warmth
+           reads correctly without it. -->
+      ${''}
 
       <!-- Content column -->
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
@@ -299,30 +296,16 @@ export function buildEmailHtml({
           </div>
         </td></tr>
 
-        <!-- CTA — exact white wavy pill from the landing screen.
-             SVG pill stretches via preserveAspectRatio="none"; the label
-             + arrow sit on top, flex-centred, so they stay aligned at
-             every viewport regardless of label length. -->
+        <!-- CTA — bulletproof rounded button. The previous version used
+             an inline SVG pill with an absolute-positioned label overlay,
+             which Gmail stripped down to a plain blue link. This version
+             uses a styled <a> with background-color + border-radius +
+             padding — every major mail client respects those. -->
         <tr><td align="center" class="em-cta-wrap">
-          <a href="${esc(shareUrl)}" target="_blank" class="em-cta-link"
-             style="position:relative;display:inline-block;text-decoration:none;-webkit-tap-highlight-color:transparent;">
-            <svg class="em-cta-svg"
-                 viewBox="0 0 340 62" preserveAspectRatio="none"
-                 width="340" height="62"
-                 xmlns="http://www.w3.org/2000/svg"
-                 style="display:block;width:100%;max-width:360px;height:auto;filter:drop-shadow(0 8px 22px rgba(0,0,0,0.24)) drop-shadow(0 2px 4px rgba(0,0,0,0.14));">
-              <path d="${ctaPillPath}" fill="#ffffff"/>
-            </svg>
-            <span class="em-cta-lbl"
-                  style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:${FF};font-weight:700;color:${CTA_INK};letter-spacing:0.01em;line-height:1;user-select:none;">
-              ${esc(ctaLabel)}
-              <svg class="em-cta-arr"
-                   viewBox="0 0 29 15" fill="none"
-                   xmlns="http://www.w3.org/2000/svg"
-                   aria-hidden="true" style="display:inline-block;flex-shrink:0;">
-                <path d="${ctaArrowPath}" fill="${CTA_INK}"/>
-              </svg>
-            </span>
+          <a href="${esc(shareUrl)}" target="_blank"
+             class="em-cta-btn"
+             style="display:inline-block;background:#ffffff;color:${CTA_INK};font-family:${FF};font-weight:700;font-size:22px;line-height:1;letter-spacing:0.01em;text-decoration:none;padding:16px 36px;border-radius:999px;box-shadow:0 8px 22px rgba(0,0,0,0.24),0 2px 4px rgba(0,0,0,0.14);-webkit-tap-highlight-color:transparent;mso-padding-alt:0;">
+            ${esc(ctaLabel)} &nbsp;→
           </a>
         </td></tr>
 

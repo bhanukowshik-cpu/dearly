@@ -119,7 +119,7 @@ export default async function handler(req, res) {
 
   // Asset origin for the blurred bg image. Production deploys default to
   // the canonical URL; can be overridden per-deploy via PUBLIC_ORIGIN.
-  const assetOrigin = (process.env.PUBLIC_ORIGIN || 'https://bhanu-dearly.vercel.app').replace(/\/$/, '')
+  const assetOrigin = (process.env.PUBLIC_ORIGIN || 'https://dearlynotes.app').replace(/\/$/, '')
 
   // Build the bodies once (identical content per recipient — only the
   // `to` field changes). Pre-building avoids re-doing the HTML/text work
