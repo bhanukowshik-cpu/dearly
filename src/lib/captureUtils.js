@@ -273,64 +273,79 @@ function swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId) {
       'z-index:100',
       'pointer-events:none',
     ].join(';')
+    // Card layout: a hand-drawn wobbly SVG paints the cream paper +
+    // crooked outline behind the columns (same shape family as the live
+    // voice pill — that's the "master frame" we're matching). No CSS
+    // border, no border-radius, no drop shadow. The two flex columns
+    // sit on top in a higher z-index layer.
     overlay.innerHTML = `
       <div style="
         position:absolute;inset:0;
-        display:flex;flex-direction:row;align-items:stretch;
-        background:#FFFBF2;
-        border:1px solid rgba(60,40,20,0.10);
-        border-radius:12px;
-        box-shadow:
-          0 1px 0 rgba(255,255,255,0.5) inset,
-          0 2px 8px rgba(45,30,15,0.08);
-        overflow:hidden;
         font-family: 'Caveat', ui-serif, Georgia, 'Times New Roman', serif;
       ">
-        <!-- ── Left column (~64%) — waveform + caption ──────────────── -->
-        <div style="
-          flex:0 0 64%;
-          min-width:0;
-          display:flex;flex-direction:column;
-          padding:6% 4% 4% 6%;
-          gap:4%;
-        ">
-          <div style="
-            flex:1 1 auto;min-height:0;
-            display:flex;align-items:center;justify-content:flex-start;
-          ">
-            ${waveformHTML}
-          </div>
-          <div style="
-            flex:0 0 auto;
-            font-family: 'Caveat', ui-serif, Georgia, serif;
-            font-size:${captionPx}px;
-            line-height:1.05;
-            color:#5a4632;
-            letter-spacing:0.005em;
-            white-space:nowrap;
-            overflow:hidden;
-            text-overflow:ellipsis;
-          ">Scan to listen to ${ownerPhrase} note</div>
-        </div>
+        <!-- Hand-drawn wobbly card body (same path as VoiceNoteRenderer) -->
+        <svg
+          viewBox="0 0 200 60"
+          preserveAspectRatio="none"
+          style="position:absolute;inset:0;width:100%;height:100%;display:block;"
+          aria-hidden="true"
+        >
+          <path
+            d="M 5,7 C 60,3 140,5 195,6 C 198,20 199,40 195,54 C 140,58 60,56 5,55 C 2,40 1,20 5,7 Z"
+            fill="#FFFBF2"
+            stroke="rgba(120,80,30,0.30)"
+            stroke-width="0.6"
+          />
+        </svg>
 
-        <!-- ── Right column (~36%) — QR ────────────────────────────────
-             Wider than the spec's 25% because the QR has to claim enough
-             physical pixels to scan reliably. No inner padding — the
-             qr-code-styling renderer already adds an 8-module quiet zone
-             internally, doubling it up just steals modules' worth of
-             scannable area. -->
+        <!-- Columns sit ON TOP of the wobbly background -->
         <div style="
-          flex:0 0 36%;
-          display:flex;align-items:center;justify-content:center;
-          padding:0;
-          border-left:1px dashed rgba(120,80,30,0.18);
-          background:#FFFFFF;
-          box-sizing:border-box;
+          position:absolute;inset:0;
+          display:flex;flex-direction:row;align-items:stretch;
+          z-index:1;
         ">
+          <!-- ── Left column (~64%) — waveform + caption ──────────────── -->
           <div style="
-            width:100%;height:100%;
+            flex:0 0 64%;
+            min-width:0;
+            display:flex;flex-direction:column;
+            padding:8% 4% 6% 8%;
+            gap:6%;
+          ">
+            <div style="
+              flex:1 1 auto;min-height:0;
+              display:flex;align-items:center;justify-content:flex-start;
+            ">
+              ${waveformHTML}
+            </div>
+            <div style="
+              flex:0 0 auto;
+              font-family: 'Caveat', ui-serif, Georgia, serif;
+              font-size:${captionPx}px;
+              line-height:1.05;
+              color:#5a4632;
+              letter-spacing:0.005em;
+              white-space:nowrap;
+              overflow:hidden;
+              text-overflow:ellipsis;
+            ">Scan to listen to ${ownerPhrase} note</div>
+          </div>
+
+          <!-- ── Right column (~36%) — QR sits flush, the wobbly bg
+               peeks around its corners. The QR PNG has its own solid
+               white quiet zone baked in so it always scans cleanly. -->
+          <div style="
+            flex:0 0 36%;
             display:flex;align-items:center;justify-content:center;
-          ">${qrPrepared}</div>
+            padding:6% 8% 6% 0;
+            border-left:1px dashed rgba(120,80,30,0.22);
+            box-sizing:border-box;
+          ">
+            <div style="
+              width:100%;height:100%;
+              display:flex;align-items:center;justify-content:center;
+            ">${qrPrepared}</div>
+          </div>
         </div>
       </div>
     `
@@ -347,25 +362,55 @@ function swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId) {
 }
 
 /**
- * Render the waveform as soft, rounded orange bars. Mirrors the look of
- * the live waveform but in a deterministic, capture-friendly SVG form so
- * the export doesn't depend on the live canvas-based renderer.
+ * Render the waveform as airy, varied-height orange capsules. Goals:
+ *
+ *   - Bar count low (~22) and gap wide (~50% of bar width) so the bars
+ *     read as individual marks rather than a solid bristle. Reads like
+ *     a hand-sketched audio waveform on stationery.
+ *   - Heights genuinely vary across the strip — even when the recorded
+ *     waveformData is flat (very quiet recordings), we mix in a
+ *     deterministic sine/cosine ripple so the visual always feels alive.
+ *   - Soft fully-rounded capsule ends.
  */
-function renderWaveformBars(values) {
+function renderWaveformBars(rawValues) {
   const W = 200
   const H = 60
-  const barCount = values.length
-  const gap = 1.4
-  const barW = (W - gap * (barCount - 1)) / barCount
-  const rx = Math.min(barW / 2, 2)
-  const cy = H / 2
+  const barCount = 22
 
-  const bars = values.map((vRaw, i) => {
-    // Clamp + apply a gentle floor so quiet samples still read as bars,
-    // and a soft ceiling so loud samples don't punch outside the box.
-    const v = Math.min(0.95, Math.max(0.18, Number(vRaw) || 0))
+  // Downsample to barCount: take averages over each segment of the input.
+  const src = Array.isArray(rawValues) && rawValues.length ? rawValues : [0.3]
+  const downsampled = []
+  for (let i = 0; i < barCount; i++) {
+    const start = Math.floor((i / barCount) * src.length)
+    const end   = Math.max(start + 1, Math.floor(((i + 1) / barCount) * src.length))
+    let sum = 0, n = 0
+    for (let j = start; j < end && j < src.length; j++) {
+      sum += Number(src[j]) || 0
+      n++
+    }
+    downsampled.push(n ? sum / n : 0)
+  }
+
+  // Aesthetic curve — mix the recorded amplitudes with a deterministic
+  // sine/cosine ripple. 40% data / 60% decoration so the strip always
+  // has visible rhythm, even for near-silent recordings whose raw values
+  // would otherwise produce a flat line.
+  const heights = downsampled.map((v, i) => {
+    const fromData = Math.min(0.95, Math.max(0, v))
+    const ripple   = 0.5 + 0.45 * Math.sin(i * 0.65) * Math.cos(i * 0.35 + 0.7)
+    const mixed    = fromData * 0.4 + Math.abs(ripple) * 0.6
+    return Math.max(0.22, Math.min(0.92, mixed))
+  })
+
+  // Wide gap → airy strip. Bar width = ~50% of slot width.
+  const slot   = W / barCount
+  const barW   = slot * 0.52
+  const rx     = barW / 2  // full capsule ends
+  const cy     = H / 2
+
+  const bars = heights.map((v, i) => {
     const h = v * H
-    const x = i * (barW + gap)
+    const x = i * slot + (slot - barW) / 2
     const y = cy - h / 2
     return `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}" height="${h.toFixed(2)}" rx="${rx.toFixed(2)}" ry="${rx.toFixed(2)}" fill="#E37033" />`
   }).join('')
