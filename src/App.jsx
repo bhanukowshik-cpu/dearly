@@ -31,9 +31,22 @@ class ErrorBoundary extends Component {
   componentDidCatch(error, info) {
     // Surface the actual error to the console so prod crashes ("Something
     // went wrong") can be diagnosed via Safari Web Inspector / Chrome
-    // remote devtools instead of being a black box.
+    // remote devtools instead of being a black box. Also dump in a more
+    // copy-friendly format because Safari's console sometimes truncates
+    // structured logs.
     console.error('[dearly] ErrorBoundary caught:', error)
+    console.error('[dearly] error.message:', error?.message)
+    console.error('[dearly] error.stack:', error?.stack)
     if (info?.componentStack) console.error('[dearly] component stack:', info.componentStack)
+    // Also stash on window for inspect-via-bookmarklet on phones where
+    // dev tools aren't easily reachable.
+    if (typeof window !== 'undefined') {
+      window.__dearlyLastError = {
+        message: error?.message,
+        stack:   error?.stack,
+        componentStack: info?.componentStack,
+      }
+    }
   }
   render() {
     if (this.state.error) {
@@ -45,6 +58,31 @@ class ErrorBoundary extends Component {
           fontFamily: 'Inter, sans-serif', padding: 32, textAlign: 'center',
         }}>
           <p style={{ fontSize: 18, margin: 0 }}>Something went wrong.</p>
+          {/* Visible error details so phone users without dev tools can
+              read what crashed and report it. Plain pre-wrap for easy
+              copy/paste. Removed on the next deploy once we've isolated
+              the cause. */}
+          {this.state.error?.message && (
+            <pre style={{
+              maxWidth: '90vw',
+              maxHeight: '40vh',
+              overflow: 'auto',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              fontSize: 11,
+              lineHeight: 1.4,
+              padding: 12,
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              borderRadius: 8,
+              color: 'rgba(255,255,255,0.55)',
+              textAlign: 'left',
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            }}>
+              {String(this.state.error.message)}
+              {this.state.error.stack ? '\n\n' + this.state.error.stack : ''}
+            </pre>
+          )}
           <button
             onClick={() => { this.setState({ error: null }); window.location.href = '/' }}
             style={{
