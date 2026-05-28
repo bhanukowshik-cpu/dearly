@@ -1,345 +1,371 @@
-/* ── root — justify-content: center so hero alone sits in the middle ─────── */
+/* ═══ root — white page, no fixed viewport background ═════════════════════ */
 
 .root {
   position: relative;
-  /* `100vh` on mobile Safari includes/excludes the URL bar
-     inconsistently, which made Dearly land off-centre between the
-     intro frame and the moment the URL bar collapses. `100dvh` (dynamic
-     viewport height) always tracks the current visible area, so Dearly
-     is truly viewport-centred at any moment — across all devices and
-     all browsers that support dvh (every modern one). Plain 100vh
-     stays as a fallback for older WebKit. */
   min-height: 100vh;
   min-height: 100dvh;
   width: 100%;
-  /* Grid for clean row pinning + place-content: center to keep the WHOLE
-     stack tight and vertically centered as a block on the page. All four
-     rows are auto-sized, so the stack hugs its content; the carousel
-     row below has a FIXED height (= tallest slide) so cycling between
-     postcards (tall) and Mai's strip (short) does NOT change the stack
-     height — hero and CTA stay pinned, only the carousel's interior
-     repositions Mai vs postcards. */
-  display: grid;
-  grid-template-rows: auto auto auto auto;
-  place-content: center;
-  justify-items: center;
-  padding: 20px 16px;
-  row-gap: 14px;
-}
-
-/* ── background ──────────────────────────────────────────────────────────── */
-
-/* Layer 2 — frosted glass: backdrop-filter sits above the video */
-.bgBlur {
-  position: fixed;
-  inset: 0;
-  z-index: -3;
-  backdrop-filter: blur(18px) saturate(115%);
-  -webkit-backdrop-filter: blur(18px) saturate(115%);
-}
-
-/* Layer 3 — warm nature color wash + cinematic vignette */
-.bgTint {
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  background:
-    radial-gradient(circle at 30% 20%, rgba(255, 238, 200, 0.14), transparent 40%),
-    radial-gradient(circle at 70% 80%, rgba(190, 220, 180, 0.10), transparent 45%),
-    radial-gradient(ellipse at 50% 50%, transparent 25%, rgba(4, 9, 20, 0.58) 100%),
-    linear-gradient(rgba(5, 12, 24, 0.22), rgba(5, 12, 24, 0.22));
-}
-
-/* Layer 4 — film grain: topmost layer, above all UI content */
-@keyframes grainFloat {
-  0%   { background-position:   0px   0px; opacity: 0.09; }
-  20%  { background-position:  22px -14px; opacity: 0.11; }
-  45%  { background-position: -16px  10px; opacity: 0.08; }
-  70%  { background-position:   8px  22px; opacity: 0.10; }
-  100% { background-position:   0px   0px; opacity: 0.09; }
-}
-
-.bgNoise {
-  position: fixed;
-  inset: 0;
-  z-index: 999;
-  pointer-events: none;
-  mix-blend-mode: soft-light;
-  /* High-contrast noise: slope 2.8 stretches mid-gray toward black/white */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='2.8' intercept='-0.9'/%3E%3CfeFuncG type='linear' slope='2.8' intercept='-0.9'/%3E%3CfeFuncB type='linear' slope='2.8' intercept='-0.9'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 140px 140px;
-  animation: grainFloat 4.5s ease-in-out infinite;
-}
-
-/* ── Contextual top-left badge ──────────────────────────────────────────────
-   Hand-drawn arrow + Caveat caption fixed to the page corner. Sits above
-   most content (z-index 5) but BELOW the film-grain noise layer (z 999)
-   so it stays in the brand atmosphere rather than punching through. The
-   label swaps via AnimatePresence as the carousel rotates. */
-.contextBadge {
-  position: fixed;
-  top: 16px;
-  left: 18px;
-  z-index: 5;
+  background: #ffffff;
+  padding: clamp(16px, 2.2vw, 28px);
+  box-sizing: border-box;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  pointer-events: none;
-  user-select: none;
-  max-width: 240px;
-}
-
-.contextLabel {
-  font-family: 'Caveat', cursive;
-  font-size: 19px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.78);
-  line-height: 1.15;
-  letter-spacing: 0.01em;
-  /* The label is the FIRST element visually — sits ABOVE the arrow,
-     which curves from below the label toward the carousel. Reading
-     order: label → arrow → paper. */
-}
-
-.contextArrow {
-  width: 56px;
-  height: 60px;
-  margin-left: 28px;   /* nudge the arrow start away from the label's left edge */
-  display: block;
-}
-
-/* ── hero ─────────────────────────────────────────────────────────────────── */
-
-.hero {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.heroTitle {
-  display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   justify-content: center;
-  min-height: 80px;
-  isolation: isolate;
 }
 
-.heroSub {
-  font-family: 'Caveat', cursive;
-  font-weight: 400;
-  font-size: clamp(15px, 2vw, 20px);
-  color: rgba(255, 255, 255, 0.50);
-  margin: 6px 0 0;
-  letter-spacing: 0.02em;
-  line-height: 1.4;
+/* ═══ grid — 3:1 split (left panel : right panel) ══════════════════════════
+   Two columns sized 3fr : 1fr so the left panel occupies ~75% of the row.
+   The gap is small (the panels read as two halves of the same composition,
+   not separate cards floating in space). On tablet/mobile this collapses
+   to a single column — see the responsive section at the bottom.
+   ───────────────────────────────────────────────────────────────────────── */
+.grid {
+  width: 100%;
+  /* 1480 → 1680: the prior cap left ~220 px of dead whitespace on each
+     side of a 1920 viewport. 1680 brings that down to ~120 px which
+     still keeps the page from sprawling on 4K monitors but stops the
+     wide-screen "page is floating in a sea of white" feel. */
+  max-width: 1680px;
+  display: grid;
+  /* minmax(380px, 1fr) on the RIGHT column = floor below which it
+     cannot shrink, so the 320 px CTA + its 10/24 internal padding
+     always fit. This fixes the cutoff between 980-1200 px where the
+     pure 3fr/1fr ratio was crushing the right column. Above ~1520 px
+     the natural 3:1 ratio kicks in again since 1fr exceeds the 380 px
+     floor. */
+  grid-template-columns: minmax(0, 3fr) minmax(380px, 1fr);
+  /* Gap clamp upper bound 20 → 48: at 1920 viewport the gap now opens
+     up to a real breathing space between panels instead of jamming
+     them shoulder-to-shoulder. */
+  gap: clamp(16px, 2vw, 48px);
+  align-items: stretch;
 }
 
-/* ── postcard — 3:2 ratio on tablet+, content-height on mobile ───────────── */
-
-.card {
-  position: relative; /* explicit containing block so stickers position against the card, not an ancestor */
-  z-index: 1;
-  /* Premium size: feels like a real postcard, not a banner */
-  width: min(660px, 92vw);
-  display: flex;
-  flex-direction: column;
-
-  /* Warm cream paper with ruled lines every 20px (matches text line-height) */
-  background-color: #F2E8CC;
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent,
-    transparent 19px,
-    rgba(155, 125, 70, 0.20) 19px,
-    rgba(155, 125, 70, 0.20) 20px
-  );
-  /* offset aligns rulers with text baselines across greeting + body */
-  background-position: 0 9px;
-  border: none;
-  border-radius: 0;
-
-  /* Subtle natural deckled edges */
-  clip-path: polygon(
-    0% 0.5%,  3.5% 0%,    6% 0.7%,   9.5% 0.1%,  13% 0.8%,
-    16% 0.2%, 19.5% 0.6%, 23% 0%,    26.5% 0.7%, 30% 0.2%,
-    33% 0.5%, 37% 0%,     40.5% 0.6%, 44% 0.1%,  47.5% 0.7%,
-    51% 0.2%, 54.5% 0.5%, 58% 0%,    61.5% 0.6%, 65% 0.1%,
-    68% 0.5%, 72% 0%,     75.5% 0.6%, 79% 0.2%,  82.5% 0.5%,
-    86% 0%,   89.5% 0.6%, 93% 0.1%,  96.5% 0.5%, 100% 0.2%,
-    99.7% 5%,  100% 10%,  99.5% 15%, 100% 20%,
-    99.7% 25%, 100% 30%,  99.4% 35%, 100% 40%,
-    99.7% 45%, 100% 50%,  99.5% 55%, 100% 60%,
-    99.6% 65%, 100% 70%,  99.4% 75%, 100% 80%,
-    99.7% 85%, 100% 90%,  99.5% 95%, 100% 98%,
-    96.5% 99.8%, 93% 100%,   89.5% 99.5%, 86% 100%,
-    82.5% 99.7%, 79% 100%,   75.5% 99.4%, 72% 100%,
-    68% 99.7%,   65% 100%,   61.5% 99.5%, 58% 100%,
-    54.5% 99.7%, 51% 100%,   47.5% 99.4%, 44% 100%,
-    40.5% 99.7%, 37% 100%,   33% 99.5%,   30% 100%,
-    26.5% 99.7%, 23% 100%,   19.5% 99.4%, 16% 100%,
-    13% 99.7%,   9.5% 100%,  6% 99.5%,    3.5% 100%, 0% 99.7%,
-    0.4% 95%,  0% 90%,   0.5% 85%, 0% 80%,
-    0.4% 75%,  0% 70%,   0.5% 65%, 0% 60%,
-    0.4% 55%,  0% 50%,   0.5% 45%, 0% 40%,
-    0.4% 35%,  0% 30%,   0.5% 25%, 0% 20%,
-    0.4% 15%,  0% 10%,   0.5% 5%
-  );
-
-  filter:
-    drop-shadow(0 2px 6px rgba(0,0,0,0.10))
-    drop-shadow(0 10px 30px rgba(0,0,0,0.20))
-    drop-shadow(0 28px 60px rgba(0,0,0,0.16));
-
+/* ═══ LEFT PANEL — nature image + letter + audience chips ══════════════════
+   `position: relative` so the brand wordmark, nature image, letter slot,
+   and chip row can stack on top of each other via absolute / z-index. The
+   panel itself is a rounded rectangle that clips its children, so the
+   nature image fills it edge-to-edge without bleeding into the page.
+   ───────────────────────────────────────────────────────────────────────── */
+.leftPanel {
+  position: relative;
+  border-radius: 28px;
   overflow: hidden;
+  min-height: clamp(540px, 88vh, 880px);
+  isolation: isolate;
+  /* (No box-shadow — per design direction, the frame sits flat on the
+     white page rather than floating. Keeps the eye on the letter, not
+     the container.) */
 }
 
+/* Nature image — full-bleed background. object-fit: cover keeps it filling
+   the panel at any aspect; object-position favors the upper third so the
+   sky/horizon stays visible behind the letter rather than getting cropped. */
+.natureBg {
+  position: absolute;
+  /* Negative inset + scale = let the blur halo fall OUTSIDE the panel's
+     visible area. Without it, blur() leaves a feathered transparent edge
+     against the panel's rounded border, which looks like a bug. */
+  inset: -40px;
+  width: calc(100% + 80px);
+  height: calc(100% + 80px);
+  object-fit: cover;
+  object-position: 50% 40%;
+  z-index: 0;
+  user-select: none;
+  filter: blur(14px) saturate(108%);
+  transform: scale(1.04);
+}
 
-/* ── aged paper stains ───────────────────────────────────────────────────── */
-
-.stains {
+/* Soft overlay on top of the nature image — keeps the chips and letter
+   readable when the image gets bright (sky/water). Very gentle so the
+   image's colors still come through. */
+.natureOverlay {
   position: absolute;
   inset: 0;
-  pointer-events: none;
+  z-index: 1;
   background:
-    radial-gradient(ellipse 100px 60px at 70% 16%, rgba(140, 100, 45, 0.06) 0%, transparent 100%),
-    radial-gradient(ellipse 130px 80px at 12% 75%, rgba(130, 90, 40, 0.05) 0%, transparent 100%),
-    radial-gradient(ellipse 80px 100px at 88% 70%, rgba(145, 105, 48, 0.05) 0%, transparent 100%),
-    radial-gradient(ellipse 55px 45px at 38% 20%, rgba(150, 110, 50, 0.04) 0%, transparent 100%);
+    linear-gradient(to bottom,
+      rgba(0, 0, 0, 0.08) 0%,
+      rgba(0, 0, 0, 0.00) 35%,
+      rgba(0, 0, 0, 0.00) 60%,
+      rgba(0, 0, 0, 0.42) 100%);
+  pointer-events: none;
 }
 
-/* ── letter wrap — fills card on desktop, auto-height on mobile ──────────── */
+/* (Previously a top-centered "Dearly" wordmark sat here. The brand now
+   lives inside the introSentence — "With Dearly you can write" — right
+   above the chip row, integrating the logo into the page's narrative
+   rather than floating it as a separate badge.) */
 
-.letterWrap {
-  position: relative;
-  z-index: 1;
-  box-sizing: border-box;
-  width: 100%;
-  overflow: hidden;
-  padding: clamp(14px, 3.2%, 22px) clamp(18px, 4%, 30px);
-}
-
-.letter {
+/* Letter slot — centers the letter PNG inside the panel. The slot occupies
+   the panel's middle band (vertically between the wordmark and the chip
+   row) so the letter sits comfortably without colliding with either. */
+.letterSlot {
+  position: absolute;
+  /* Top inset smaller now that the Dearly wordmark no longer sits above
+     it; bottom inset increased to clear the bottomStack (intro sentence
+     + chip row) without overlapping. */
+  inset: clamp(40px, 5vh, 80px) clamp(40px, 6vw, 100px) clamp(200px, 28vh, 300px);
+  z-index: 2;
   display: flex;
-  flex-direction: column;
-  /* 20px gap = one ruler interval, keeps paragraph starts on the grid */
-  gap: 20px;
+  align-items: center;
+  justify-content: center;
 }
 
-.greeting {
-  font-family: 'Caveat', cursive;
-  font-weight: 700;
-  font-size: clamp(24px, 3.2vw, 34px);
-  color: #1A2A3A;
-  /* flex-end pins Tegaki canvas bottom to the ruler line at 40px */
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-  min-height: 40px;    /* 2× ruler interval */
-  line-height: 1;
-  margin: 0;
+/* The letter PNG — limited to 70% of the slot width on desktop so it
+   reads as one keepsake, not a billboard. drop-shadow gives it weight
+   against the nature image; border-radius rounds the slight tilt. */
+.letterImage {
+  width: min(640px, 78%);
+  height: auto;
+  max-height: 100%;
+  display: block;
+  object-fit: contain;
+  border-radius: 6px;
+  /* (No drop-shadow — the letter sits flush against the blurred video
+     atmosphere rather than floating above it with a cast shadow.) */
+  user-select: none;
 }
 
-.para {
-  font-family: 'Caveat', cursive;
-  font-weight: 500;
-  font-size: clamp(15px, 1.95vw, 20px);
-  color: #2E3D4E;
-  line-height: 20px;
-  margin: 0;
-}
-
-.closing {
-  font-family: 'Caveat', cursive;
-  font-weight: 400;
-  font-size: clamp(15px, 1.95vw, 19px);
-  color: #1A2A3A;
-  line-height: 20px;
-  margin: 0;
-}
-
-/* ── letter annotations ─────────────────────────────────────────────────── */
-
-/*
-  Hand-drawn double strikethrough — two slightly-wavy SVG lines as a
-  background-image. No text-decoration so the font weight stays identical.
-*/
-.strikethrough {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 6' preserveAspectRatio='none'%3E%3Cpath d='M0,3 C18,2 36,4 54,3 C72,2 90,4 108,3 C126,2 144,4 162,3 C180,2 196,3.8 200,3' stroke='rgba(58,44,28,0.78)' stroke-width='1.3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-size: 100% 6px;
-  background-position: 0 50%;
-}
-
-/* Highlighter mark — bold yellow, like a real highlighter pass */
-.highlight {
-  background: rgba(255, 198, 0, 0.62);
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-  padding: 1px 5px;
-  border-radius: 3px;
-  margin: 0 -1px;
-  color: inherit;
-  font-weight: 600;
-}
-
-/* Soft blue/sage highlight for variety */
-.highlightBlue {
-  background: rgba(100, 190, 255, 0.35);
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-  padding: 1px 5px;
-  border-radius: 3px;
-  margin: 0 -1px;
-  color: inherit;
-  font-weight: 600;
-}
-
-
-/* ── CTA group — wraps the button + meta caption as one grid row so the
-   14 px grid row-gap doesn't apply between them. Internal gap is tight
-   (6 px) so the "No signup required" line reads as a caption hugging
-   the button rather than a separate paragraph floating below it. */
-.ctaGroup {
-  position: relative;
-  z-index: 1;
+/* ── Bottom stack — intro sentence + audience chips ─────────────────────
+   Single absolute-positioned column hugging the panel's bottom. The
+   sentence and chip row sit tight together (16px gap) so they read as
+   one block: "With Dearly you can write → [audience options]".
+   ───────────────────────────────────────────────────────────────────── */
+.bottomStack {
+  position: absolute;
+  left:  clamp(20px, 3vw, 48px);
+  right: clamp(20px, 3vw, 48px);
+  bottom: clamp(28px, 3.5vw, 48px);
+  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 18px;
 }
 
-/* ── CTA — outside card, centered ───────────────────────────────────────── */
+/* Intro sentence — Caveat at 20px, white over the blurred video. The
+   colon at the end sets up the chips below as the answer/list. */
+.introSentence {
+  font-family: 'Caveat', cursive;
+  font-weight: 500;
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.94);
+  letter-spacing: 0.005em;
+  line-height: 1.1;
+  margin: 0;
+  text-align: center;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.32);
+}
 
-/* ── CTA — Caveat label on a hand-drawn crooked white SVG fill ───────────
-   Mirrors the writing-screen "Share this note" button: same wobbly closed
-   path filled white, same Caveat dark-on-light text. Carries the brand's
-   hand-drawn visual language from landing → editor instead of breaking
-   into a slick pill on the way in.
-   ────────────────────────────────────────────────────────────────────── */
+/* "Dearly" inside the sentence — heavier weight so it still reads as the
+   brand mark even though it's now inline. */
+.brandInline {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  /* Gap bumped 10 → 11 (+10%) for slightly more air between chips. */
+  gap: 11px;
+}
+
+/* Each chip — rounded-rectangle button with a progress rail at its bottom
+   edge. Sized bigger than the previous pills so the audience labels read
+   as real CTAs rather than tags. Inactive chips are translucent white
+   over the blurred video; active chip fills to full white so the
+   audience pops. */
+.chip {
+  position: relative;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.40);
+  /* Rounded-rectangle chips with consistent 10×15 padding (vertical ×
+     horizontal). Switched from a fully-rounded pill (999px) to a 12px
+     corner radius so the chips read as deliberate rounded rectangles. */
+  border-radius: 12px;
+  padding: 10px 15px;
+  color: rgba(255, 255, 255, 0.95);
+  font-family: 'Caveat', cursive;
+  /* Responsive chip type: 25 px at desktop (≥1135 viewport), scales
+     down linearly via 2.2vw, floored at 15 px on mobile so the chips
+     don't get unreadably small on phones. The clamp removes the need
+     for a separate font-size override in the mobile media query. */
+  font-size: clamp(15px, 2.2vw, 25px);
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  line-height: 1.05;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  overflow: hidden;
+  transition:
+    background 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    transform 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+.chip:hover {
+  background: rgba(255, 255, 255, 0.30);
+  transform: translateY(-1px);
+}
+
+/* Active chip — pure white with dark navy text. While the chip is active,
+   the bottom-of-panel progress bar animates from 0→100% across the full
+   10s. A user can click any other chip at any point to interrupt and
+   make THAT one active — React's `key={slideIdx}` on the progress fill
+   remounts it on every selection so the bar restarts from 0, and the
+   auto-rotate setInterval also re-seeds (its useEffect depends on
+   slideIdx), so the new chip gets a fresh full 10s window. */
+.chip[data-active="true"] {
+  background: #ffffff;
+  color: #15243a;
+  border-color: #ffffff;
+}
+
+.chip:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 2px;
+}
+
+/* ── Panel-bottom progress bar — single 3px rail spanning the entire
+   left panel's bottom edge. Resets and re-fills every time a new chip
+   becomes active (driven by React's `key` on the fill element). This
+   replaces the previous per-chip liquid fill / mix-blend-mode setup.
+   ───────────────────────────────────────────────────────────────────── */
+/* Bar is flush to the panel's bottom edge (left: 0, right: 0, bottom: 0).
+   The panel's overflow:hidden + 28px border-radius naturally clip the
+   bar's left/right ends to the corner curve. Track is dark translucent
+   so the themed-accent fill reads vividly against it. */
+.panelProgress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 4;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+@keyframes panelProgressFill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* Fill color = --accent, set inline on .leftPanel from JSX. Falls back to
+   white if the variable isn't present (e.g. snapshot tests without state).
+   The themed fill creates a through-line with the CTA on the right which
+   uses the same accent — both pieces sing in the same color per video. */
+.panelProgressFill {
+  position: absolute;
+  inset: 0;
+  background: var(--accent, #ffffff);
+  transform-origin: left center;
+  transform: scaleX(0);
+  animation-name: panelProgressFill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  animation-iteration-count: 1;
+  will-change: transform;
+}
+
+/* ═══ RIGHT PANEL — 1/4 width ══════════════════════════════════════════════
+   Calm, white background, big serif headline + CTA. No image, no
+   competing animation. Stack is centered vertically so the CTA aligns
+   with the letter's vertical midpoint on desktop.
+   ───────────────────────────────────────────────────────────────────────── */
+.rightPanel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  /* Left padding pulled in (was up to 32px) so the right column hugs the
+     left panel rather than floating off in a sea of white. Right side
+     keeps more breathing room to anchor the text block. */
+  padding: clamp(24px, 3vw, 48px) clamp(16px, 2vw, 32px) clamp(24px, 3vw, 48px) clamp(8px, 0.8vw, 14px);
+  gap: 28px;
+  min-width: 0;
+}
+
+/* ── Content block — shared column for headline + CTA ──────────────────
+   Both the headline and the CTA group are direct children of this
+   block, with align-items: stretch so they fill its full width. That
+   guarantees they share the same left AND right edges across viewports
+   instead of the prior setup where the headline ran out to its natural
+   16ch wrap and the CTA was a fixed 320px (the two right edges almost
+   never matched up). */
+.contentBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 28px;
+  width: 100%;
+  /* 340 caps the block so the CTA doesn't stretch into a billboard on
+     wide right columns. At narrower right columns the 100% width takes
+     over and both elements shrink together. */
+  max-width: 340px;
+}
+
+.serifCaption {
+  font-family: 'Instrument Serif', 'Times New Roman', serif;
+  font-weight: 400;
+  font-style: normal;
+  /* Bumped 30% from the prior clamp(30, 3vw, 46) → clamp(39, 3.9vw, 60).
+     All three stops scaled by the same 1.3× factor so the proportions
+     hold across viewports. */
+  /* Floor bumped 39 → 48 — at mobile viewports the headline was floored
+     at 39 (and then further crushed to 28 in the mobile media query
+     below). User wants this kept big across all screens, so 48 px is
+     the new minimum. Desktop max stays at 60. */
+  font-size: clamp(48px, 3.9vw, 60px);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: #1a2540;
+  margin: 0;
+  /* No max-width here anymore — the parent .contentBlock controls how
+     wide this can grow, keeping it in lockstep with the CTA below. */
+}
+
+.serifCaption em {
+  font-style: italic;
+  color: #2a3a5a;
+}
+
+/* ── CTA — crooked Caveat pattern, themed to the active video accent ──
+   Mirrors the V1 "Share this note" button: a hand-drawn wobbly SVG path
+   filled with the accent color, with Caveat text floating on top. Inline
+   --accent CSS variable on the button drives both the shadow tone and
+   the focus ring so the button reads as one cohesive themed element.
+   ───────────────────────────────────────────────────────────────────── */
 .cta {
   position: relative;
-  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 340px;
-  height: 62px;
+  /* CTA fills its container (.contentBlock, capped at 340px) so its
+     right edge aligns with the headline's right edge — they share one
+     column. Was a fixed 320px which left the headline's wrap edge
+     misaligned with the CTA's edge across viewports. */
+  width: 100%;
+  height: 64px;
   background: none;
   border: none;
   padding: 0 22px;
   cursor: pointer;
   outline: none;
   -webkit-tap-highlight-color: transparent;
-  /* Soft floor-shadow on the SVG fill via filter so the shadow follows
-     the crooked path edge instead of clipping to a rectangle. */
-  filter:
-    drop-shadow(0 8px 22px rgba(0, 0, 0, 0.24))
-    drop-shadow(0 2px 4px  rgba(0, 0, 0, 0.14));
-  transition: transform 0.18s ease, filter 0.18s ease;
+  /* (No drop-shadow on the CTA — the colored shape sits flat on the
+     white right panel rather than appearing to float above it.) */
+  transition: transform 0.18s ease;
 }
 
 .ctaBg {
@@ -351,345 +377,210 @@
 }
 
 .cta:hover {
-  filter:
-    drop-shadow(0 14px 32px rgba(0, 0, 0, 0.28))
-    drop-shadow(0 2px 4px   rgba(0, 0, 0, 0.18));
+  transform: translateY(-1px);
 }
 
 .cta:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.85);
-  outline-offset: 4px;
+  outline: 2px solid var(--accent, #15243a);
+  outline-offset: 6px;
   border-radius: 12px;
 }
 
+/* Label color is WHITE (not dark navy) — across the four themed accents
+   (sage, dusk indigo, sunset orange, warm gold) only white text passes
+   AA contrast on all of them. Dark navy looked OK on the warm tones but
+   collapsed to ~2.3:1 on the indigo accent. White + a soft dark text-
+   shadow keeps the label crisp on the lighter accents (orange/gold) too
+   without darkening their feel. */
+/* Caveat 28/700 — restored after a brief detour to Instrument Serif. The
+   handwritten label on the hand-drawn wobbly pill matches the brand
+   voice from V1's "Share this note" button. White on the themed accent
+   passes WCAG AA contrast on all four accents (sage, indigo, orange,
+   gold) so no shadow is needed. */
 .ctaLabel {
   position: relative;
   z-index: 1;
   font-family: 'Caveat', cursive;
-  font-size: 24px;
+  /* 22px (was 28) — the longer "Write a Dearly Letter" label was
+     overflowing/crowding the wobbly pill at 28px. 22px sits comfortably
+     within a 320px button with the arrow icon. */
+  font-size: 22px;
   font-weight: 700;
-  color: #1A2A3A;
+  color: #ffffff;
   letter-spacing: 0.01em;
   user-select: none;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   transition: color 0.2s ease;
 }
 
 .ctaLabel svg {
-  color: #1A2A3A;
+  color: #ffffff;
   transition: transform 0.2s ease;
 }
 
-.cta:hover .ctaLabel     { color: #000000; }
-.cta:hover .ctaLabel svg { transform: translateX(5px); color: #000000; }
-
-/* ── meta text ───────────────────────────────────────────────────────────── */
-
-.meta {
-  position: relative;
-  z-index: 1;
-  font-family: 'Inter', sans-serif;
-  font-weight: 400;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.42);
-  letter-spacing: 0.04em;
-  margin: 0;
+.cta:hover .ctaLabel svg {
+  transform: translateX(5px);
 }
 
-/* (The .designerCredit pill rules were removed alongside the JSX —
-   no attribution credit on the landing for now. The postcard's
-   "With passion, Bhanu Kowshik" signature carries the personal
-   touch on its own. If a real signature/handle is added back,
-   restore this block.) */
-
-/* ── Carousel — sits inside the postcard frame ──────────────────────────────
-   Single visible slide at any time (AnimatePresence cross-fades them) so the
-   image/text pair reads as one focused beat per persona instead of competing
-   for attention. Width pinned to the card's content area; height is auto so
-   slides with longer notes don't get clipped.
-   ─────────────────────────────────────────────────────────────────────────── */
-.carousel {
-  position: relative;
-  z-index: 1;
-  /* Width capped to 640 on desktop, 92vw on smaller. */
-  width: min(640px, 92vw);
-  /* FIXED height = tallest slide content (postcard at 3:2 + slide gap +
-     reply-banner up-to-2-lines). Calc keeps it responsive: image height
-     = carousel width × (2/3); add ~120 px for banner + 10 px slide-gap.
-     This locks the carousel's outer height so cycling between postcards
-     (which fill the cell) and Mai's strip (which centers in the empty
-     extra space) NEVER changes the stack height — hero and CTA stay
-     pinned exactly where they were. */
-  height: calc(min(640px, 92vw) * 2 / 3 + 120px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  overflow-x: clip;
-}
-
-.slide {
-  /* Letter image stacked above the reply banner. 10 px gap pulls the
-     two halves of each exchange close together so they read as one
-     paired beat (letter sent ⇆ reply received) instead of two
-     separate UI blocks. Applies to ALL slides — postcards and Mai's
-     strip alike. */
-  width: 100%;
+/* ── CTA + meta group — tight column, meta centered under the CTA ──────
+   The wrapper shrinks to its widest child (the 290px CTA), so the meta
+   below — text-align: center inside that 290px — sits centered under
+   the CTA's horizontal center. 10px internal gap (tight) reads as
+   "caption to the button", not a separate paragraph. */
+.ctaGroup {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
 }
 
-.slideEyebrow {
+.meta {
   font-family: 'Inter', sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(21, 36, 58, 0.70);
+  letter-spacing: 0.02em;
+  margin: 0;
   text-align: center;
 }
 
-/* Slot wraps the letter image at its NATURAL height — postcards land at
-   ~3:2, Mai's strip lands at ~4:1 (much shorter). The carousel block
-   therefore resizes per slide, and the root's `justify-content: center`
-   pulls the whole stack back to the middle of the viewport on every
-   transition — so Mai ends up centered on the page rather than pinned
-   below an empty reservation. The user accepted this small layout shift
-   in exchange for proper per-slide composition. */
-.slideImageSlot {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* ═══ RESPONSIVE ═══════════════════════════════════════════════════════════
+   Below 980 px the 3:1 desktop split collapses to a single column: left
+   panel first (with the chips), then the right panel below. The serif
+   caption recenters on small viewports so it reads as the "headline" of
+   the stacked layout rather than a leftover sidebar fragment.
+   ───────────────────────────────────────────────────────────────────────── */
+/* ── Wide desktop (≥ 1700 px) ──────────────────────────────────────────
+   At 1920 px the prior 3:1 column ratio left the right column ~410 px
+   wide, which forced "Some words deserve more than just a text." to
+   wrap to 3 lines instead of 2. Loosen the grid: bump max-width 1680 →
+   1800 (smaller page gutters), shift the ratio 3:1 → 2.4:1 (right
+   column grows from ~410 → ~500), and let the contentBlock stretch up
+   to 460 px so the headline can break at "deserve more than just /
+   a text." on two clean lines. Below 1700 nothing changes — the 1515
+   layout the user said was perfect stays exactly as it was. */
+@media (min-width: 1700px) {
+  .grid {
+    max-width: 1800px;
+    grid-template-columns: minmax(0, 2.4fr) minmax(380px, 1fr);
+  }
+
+  .contentBlock {
+    max-width: 460px;
+  }
 }
 
-/* Letter image — pre-rendered PNG of the paper at 3× DPI. Sized via
-   width: 100% so it fills the slot width; height auto + aspect-ratio
-   from inline style preserves the natural 3:2 (postcard) or 4:1
-   (strip) shape. The slot wrapper above handles vertical centering. */
-.slideImage {
-  width: 100%;
-  height: auto;
-  max-height: 100%;   /* never overflow the slot vertically */
-  display: block;
-  object-fit: contain;
-  user-select: none;
+/* ── Tablet (≤ 980 px) ──────────────────────────────────────────────── */
+@media (max-width: 980px) {
+  .grid {
+    grid-template-columns: 1fr;
+    max-width: 720px;
+  }
+
+  /* Tablet leftPanel — was clamp(520, 85vh, 760). Compressed so the
+     right-column headline + CTA stay visible inside one viewport
+     without scrolling on portrait tablets / large phones. */
+  .leftPanel {
+    min-height: clamp(420px, 58vh, 560px);
+  }
+
+  /* Tighter bottom inset on tablet too since the chip stack is shorter
+     than the desktop letterSlot's clearance assumed. */
+  .letterSlot {
+    inset: clamp(32px, 4vh, 56px) clamp(20px, 3vw, 48px) clamp(150px, 22vh, 200px);
+  }
+
+  .rightPanel {
+    align-items: center;
+    text-align: center;
+    padding: 20px 8px 8px;
+    gap: 16px;
+  }
+
+  /* contentBlock centers on mobile/tablet so the headline + CTA stack
+     reads as a centered column rather than a left-anchored sidebar. */
+  .contentBlock {
+    align-items: center;
+    text-align: center;
+    gap: 20px;
+  }
+
+  .serifCaption {
+    text-align: center;
+    max-width: 18ch;
+  }
 }
 
-/* ── Slide meta row — reply banner under the letter ──────────────────────
-   Width tracks the carousel container so it visually pairs with the
-   scaled paper above. Since the paper now upscales to fill the carousel
-   on wider viewports (up to MAX_SCALE), the banner doesn't need its own
-   cap — the carousel's own max-width is the natural ceiling. margin auto
-   keeps it centered when narrower than the carousel for any reason. */
-.slideMeta {
-  width: 100%;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-/* Reply pill — solid translucent DARK background. Centered content
-   (name + role + reply text) so the response reads as a typed message
-   floating in the banner, not a left-anchored signature block. */
-.replyBanner {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;       /* center child blocks horizontally */
-  text-align: center;        /* center wrapped text inside each block */
-  gap: 6px;
-  padding: 16px 20px 22px;
-  background: rgba(15, 22, 36, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 18px;
-  /* No drop-shadow on the banner — the soft halo it cast onto the
-     blurred video background was reading as a leftover artifact (a
-     vestige of the old "white pill" progress-bar bug). The translucent
-     dark fill is enough lift on its own. */
-  overflow: hidden;
-}
-
-/* Name + role header — name in Caveat (handwritten, intimate), role in
-   small Inter parenthetical (system, factual). The contrast in fonts
-   reinforces "this is a person, with a clarifying role". justify-content:
-   center pairs with the banner's text-align: center so this row's two
-   inline-flex children stay clustered in the middle, not left-aligned. */
-.replyHeader {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  line-height: 1;
-}
-
-.replyName {
-  font-family: 'Caveat', cursive;
-  font-size: 22px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.98);
-  letter-spacing: 0.005em;
-}
-
-.replyRole {
-  font-family: 'Inter', sans-serif;
-  font-size: 12.5px;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.58);
-  letter-spacing: 0.01em;
-}
-
-.replyText {
-  font-family: 'Caveat', cursive;
-  font-size: 22px;
-  font-weight: 500;
-  line-height: 1.28;
-  color: rgba(255, 255, 255, 0.94);
-  letter-spacing: 0.005em;
-}
-
-/* ── Progress bar — pinned flush to the bottom edge of the reply banner,
-   no border-radius on the bar itself so it sits as a clean horizontal
-   line attached to the banner's bottom. The banner's overflow: hidden
-   + border-radius takes care of cleanly clipping the bar's left/right
-   ends to the banner's rounded bottom corners. Slightly taller (4 px)
-   and brighter track so it reads at a glance without crowding. */
-.slideProgress {
-  position: absolute;
-  bottom: 0;
-  left:   0;
-  right:  0;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.18);
-  overflow: hidden;
-}
-
-@keyframes slideProgressFill {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
-}
-
-.slideProgressFill {
-  position: absolute;
-  inset: 0;
-  /* Subtle off-white fill — the bar is supplementary information (timer),
-     not a primary action, so it should read as a quiet ambient indicator
-     not a screaming progress UI. 0.50 ≈ matches the role-label text
-     opacity below it so the two visually rhyme. */
-  background: rgba(255, 255, 255, 0.50);
-  /* No border-radius — the fill is a flat rectangle. The banner's
-     overflow: hidden + its own border-radius takes care of clipping
-     the bar's left/right ends to the rounded bottom corners cleanly. */
-  transform-origin: left center;
-  transform: scaleX(0);
-  /* animation-duration set inline from SLIDE_INTERVAL_MS so the bar
-     always matches the actual timer; if we tune SLIDE_INTERVAL_MS in
-     JS, the bar follows automatically. */
-  animation-name: slideProgressFill;
-  animation-timing-function: linear;
-  animation-fill-mode: forwards;
-  animation-iteration-count: 1;
-  will-change: transform;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   RESPONSIVE OVERRIDES — must live after all base rules so same-specificity
-   media-query selectors actually win the cascade.
-   ──────────────────────────────────────────────────────────────────────────── */
-
-/* ── Mobile ──────────────────────────────────────────────────────────────── */
+/* ── Small mobile (≤ 539 px) ───────────────────────────────────────────
+   Phone-portrait viewport. The leftPanel is constrained tightly here so
+   the user lands on a viewport that shows BOTH the panel (letter +
+   chips + brand sentence) AND the right-column headline + CTA without
+   any scroll on iPhone 13/14/15 (812 px tall) and above. */
 @media (max-width: 539px) {
   .root {
-    padding: 32px 0 60px;
+    padding: 12px;
+  }
+
+  /* leftPanel: was 580 fixed → 440. The 220-px reduction matches the
+     space needed below to show the right column inside an 812-px
+     viewport (440 panel + ~16 gap + ~280 right column ≈ 736 px). */
+  .leftPanel {
+    min-height: 440px;
+    border-radius: 22px;
+  }
+
+  /* Tighter letter slot — top 50, bottom 140 leaves ~250 vertical px
+     for the letter image, plenty for both 3:2 postcards (scaled to
+     ~190 tall at 280 wide) and Mai's 4:1 strip (~70 tall). */
+  .letterSlot {
+    inset: 50px 18px 140px;
+  }
+
+  .letterImage {
+    width: min(280px, 86%);
+  }
+
+  .chipRow {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    gap: 6px;
+  }
+
+  /* Mobile chip — font-size is now driven by the clamp on the default
+     .chip rule (floors at 15px so we don't need to override here).
+     Padding and radius are still mobile-specific. */
+  .chip {
+    padding: 6px 11px;
+    border-radius: 10px;
+  }
+
+  .introSentence {
+    font-size: 17px;
+  }
+
+  /* (Mobile headline font-size override removed — the default clamp's
+     48 px floor now handles small screens. The user wants this text to
+     stay big across viewports, so we no longer compress it on mobile.) */
+
+  /* Tighter contentBlock so headline + CTA + meta cluster occupies
+     ~220-240 px instead of 280-300 px. */
+  .contentBlock {
     gap: 14px;
+    max-width: 300px;
   }
 
-  .card { width: 94vw; }
+  .ctaGroup {
+    gap: 6px;
+  }
 
-  /* CTA button — full width on very small screens for easy tap */
   .cta {
-    width: min(94vw, 340px);
-  }
-
-  .ctaLabel {
-    font-size: 15px;
-  }
-
-  /* Ensure hero title doesn't clip on narrow screens */
-  .heroTitle {
-    min-height: 64px;
-  }
-
-  /* Carousel on mobile — use more of the viewport so the scaled-down
-     paper has more pixels to land on (less aggressive scale-down = bigger
-     readable text inside the rendered letter). */
-  .carousel {
-    width: 96vw;
-    gap: 12px;
-  }
-  .slideEyebrow {
-    font-size: 11px;
-    letter-spacing: 0.08em;
-  }
-  /* Meta row stays as a single column on mobile (just the banner now —
-     per-slide CTA was removed). Banner padding tightens up slightly to
-     fit comfortably on narrow viewports. */
-  .slideMeta {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-  }
-  .replyBanner {
-    padding: 14px 16px;
-    gap: 5px;
-    border-radius: 16px;
-  }
-  .replyName  { font-size: 20px; }
-  .replyRole  { font-size: 11.5px; }
-  .replyText  { font-size: 19px; line-height: 1.3; }
-
-  /* CTA — same Caveat + crooked SVG on mobile, slightly more compact
-     so it doesn't dominate the bottom of the viewport. */
-  .cta {
-    width: min(94vw, 320px);
     height: 56px;
   }
+
   .ctaLabel {
-    font-size: 21px;
+    font-size: 20px;
   }
-
-  /* (Designer credit mobile override removed alongside the JSX/desktop
-     rules — no attribution pill on the landing for now.) */
-}
-
-/* ── Tablet+ : content-height card, 24px ruler grid ─────────────────────── */
-@media (min-width: 540px) {
-  .card {
-    background-image: repeating-linear-gradient(
-      to bottom,
-      transparent,
-      transparent 23px,
-      rgba(155, 125, 70, 0.18) 23px,
-      rgba(155, 125, 70, 0.18) 24px
-    );
-    background-position: 0 0;
-  }
-
-  /* Scale text line-height to match the 24px ruler interval */
-  .para, .closing { line-height: 24px; }
-
-  /* letter gap = 1 ruler interval; greeting = 2 ruler intervals */
-  .letter   { gap: 24px; }
-  .greeting { min-height: 48px; }
-
-  /* Align first text baseline to ruler grid (24px × 4 = 96px = greeting PT+height+gap) */
-  .letterWrap { padding-top: 24px; }
 }

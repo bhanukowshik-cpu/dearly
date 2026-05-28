@@ -7,7 +7,7 @@
     <meta name="description" content="Turn what you write into something worth sending." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;700&family=Inter:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
     <!--
       Safari fix: Tegaki calls new FontFace(family, url, { featureSettings: "'calt' 0, 'liga' 0" })
       Safari rejects that featureSettings with SyntaxError. Use a Proxy construct-trap
@@ -41,6 +41,18 @@
         window.gtag = function() { window.dataLayer.push(arguments); };
         window.gtag('js', new Date());
         window.gtag('config', id, { send_page_view: false });
+      })();
+    </script>
+    <!-- Microsoft Clarity (only loads when VITE_CLARITY_ID is set) -->
+    <script>
+      (function() {
+        var id = '%VITE_CLARITY_ID%';
+        if (!id || id === 'VITE_CLARITY_ID' || id.indexOf('VITE_') === 0) return;
+        (function(c,l,a,r,i,t,y){
+          c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+          t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+          y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window, document, "clarity", "script", id);
       })();
     </script>
   </head>

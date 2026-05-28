@@ -373,8 +373,9 @@ function RecipientBox({ value, onChange, onHide, shakeKey }) {
   const [boxScope, animateBox] = useAnimate()
   const prevShakeKey = useRef(0)
 
-  // Pencil-scratch sound on each typed character (recipient field)
-  useTypingSound(editorRef)
+  // No pencil-scratch sound on the recipient field — typing a name is
+  // setup, not the act of writing the letter. The sound stays on the
+  // body editor (MessageBox below) where it belongs.
 
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [selActive, setSelActive] = useState(false)
