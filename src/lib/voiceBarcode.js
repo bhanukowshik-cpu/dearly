@@ -44,10 +44,12 @@ export async function renderVoiceBarcodeSVG(payload) {
     margin: 8,
     data: payload,
     qrOptions: {
-      // 'L' = ~7% error correction. Lower than M but enough for a clean
-      // printed/exported image, and produces fewer modules so each one
-      // is bigger in the final PNG.
-      errorCorrectionLevel: 'L',
+      // 'M' = ~15% error correction. With the now-shorter `/?id=<uuid>`
+      // URL the module count stays low (33×33), so M doesn't push us
+      // into a denser grid — and the extra redundancy means scanners
+      // still decode reliably even if rasterisation softens a few
+      // modules at the rendered size.
+      errorCorrectionLevel: 'M',
     },
     dotsOptions: {
       color: QR_INK,

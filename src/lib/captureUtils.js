@@ -143,12 +143,15 @@ async function prepareVoiceBarcodes(paperEl, noteData) {
       }
       const noteId = await saveNote(persistable)
       if (noteId) {
-        const params = new URLSearchParams({
-          id: noteId,
-          r: noteData.recipientName || '',
-          s: noteData.senderName    || '',
-        })
-        shareUrlBase = `${origin}/api/share?${params.toString()}`
+        // Use the bare `?id=<uuid>` URL — same final destination as
+        // `/api/share?id=...&r=...&s=...` (the share endpoint just
+        // redirects there after injecting OG metadata for link
+        // previews). For a QR, OG metadata is irrelevant — phones
+        // don't render previews from camera scans. The shorter URL
+        // means fewer modules in the QR (33×33 instead of 37×37 or
+        // 41×41), which is the single biggest factor in scannability
+        // at the small physical sizes voice notes ship at.
+        shareUrlBase = `${origin}/?id=${noteId}`
         console.log('[dearly:export] QR will encode share URL →', shareUrlBase)
       } else {
         console.warn('[dearly:export] saveNote returned null — QR falls back to voice-only URL. Check the [dearly] saveNote ... logs above for the underlying error.')
