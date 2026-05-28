@@ -3,75 +3,72 @@
  * mp4/aac, ogg, etc.) to a WAV Blob that EVERY browser can play.
  *
  * Background: MediaRecorder on Chrome desktop records to webm/opus by
- * default. iOS Safari's HTMLAudioElement and decodeAudioData can't decode
- * webm/opus at all (as of iOS 17). So a letter recorded on Chrome and
- * shared via the QR landing page on an iPhone results in a silent voice
- * pill — the play button does nothing because the audio source never
- * loaded.
+ * default. iOS Safari's HTMLAudioElement can't decode webm/opus, so a
+ * letter recorded on Chrome and shared via the QR landing page on an
+ * iPhone has a silent voice pill — the play button does nothing because
+ * the audio source never loaded.
  *
  * Strategy:
- *   1. AudioContext.decodeAudioData on the SENDER (running Chrome,
- *      which CAN decode webm) → AudioBuffer of raw PCM samples
- *   2. Downmix multi-channel to mono (voice notes don't need stereo,
- *      saves ~half the file size)
- *   3. Resample to 16 kHz (telephony-grade, still natural for voice,
- *      shrinks WAV ~3x vs 44.1 kHz)
- *   4. Encode as 16-bit PCM WAV — universal format every browser plays
+ *   1. AudioContext.decodeAudioData on the sender (Chrome, which CAN
+ *      decode webm) → AudioBuffer of raw PCM samples
+ *   2. Resample + downmix to mono 24 kHz via OfflineAudioContext, which
+ *      uses the browser's built-in *anti-aliased* resampler. An earlier
+ *      version used a hand-rolled linear-interpolation downsample to
+ *      16 kHz with no low-pass filter — that produced audible aliasing
+ *      artifacts (the recipient heard "noise" over the voice). The
+ *      OfflineAudioContext path is the standards-blessed way to resample
+ *      cleanly.
+ *   3. Encode as 16-bit PCM WAV — universal format every browser plays
  *
- * Size budget: 30s mono 16 kHz 16-bit WAV ≈ 960 KB. Bigger than the
- * source webm (~200 KB) but plays everywhere and doesn't require any
- * server-side transcoding pipeline.
+ * Why 24 kHz instead of 16 kHz: 16 kHz is telephony-grade but cuts off
+ * everything above 8 kHz, which makes sibilants ("s", "sh") sound dull.
+ * 24 kHz preserves up to 12 kHz, captures the full speech band including
+ * the fricatives that make voices sound natural. The file size hit is
+ * ~50 % (1.4 MB / 30s instead of 960 KB) — worth it for clarity.
  */
 
-const TARGET_RATE = 16000  // 16 kHz mono — speech-quality, small file
+// 24 kHz mono — preserves the full speech band (up to ~12 kHz) for
+// crisp consonants without the bandwidth of music-grade audio.
+const TARGET_RATE = 24000
 
 /**
  * @param {Blob} blob — any audio blob the browser can decode
- * @returns {Promise<Blob>} a `audio/wav` blob playable on every browser
+ * @returns {Promise<Blob>} an `audio/wav` blob playable on every browser
  *                          including iOS Safari
  */
 export async function transcodeToWav(blob) {
   const arrayBuffer = await blob.arrayBuffer()
 
-  // AudioContext for decoding. Safari needs the prefixed name on old
-  // versions; we don't run this on Safari (the sender is Chrome) but
-  // keep the fallback for safety.
+  // First decode — full source rate / channel count.
   const Ctx = window.AudioContext || window.webkitAudioContext
-  const ctx = new Ctx()
-  let buffer
+  const decodeCtx = new Ctx()
+  let sourceBuffer
   try {
-    buffer = await ctx.decodeAudioData(arrayBuffer)
+    sourceBuffer = await decodeCtx.decodeAudioData(arrayBuffer)
   } finally {
-    // Close the context so we don't leak it. decodeAudioData doesn't
-    // start playback so closing immediately is safe.
-    try { await ctx.close() } catch { /* ignore */ }
+    try { await decodeCtx.close() } catch { /* ignore */ }
   }
 
-  // Downmix to mono by averaging channels.
-  const sourceRate = buffer.sampleRate
-  const sourceLen  = buffer.length
-  const channels   = buffer.numberOfChannels
-  const monoSource = new Float32Array(sourceLen)
-  for (let ch = 0; ch < channels; ch++) {
-    const data = buffer.getChannelData(ch)
-    for (let i = 0; i < sourceLen; i++) monoSource[i] += data[i] / channels
-  }
+  // Resample to mono TARGET_RATE via OfflineAudioContext. The browser's
+  // implementation runs a proper low-pass filter so high-frequency
+  // content gets cleanly removed instead of folding back as aliasing
+  // noise (which is what the old linear-interp implementation did).
+  const durationSec = sourceBuffer.duration
+  const targetLen   = Math.max(1, Math.ceil(durationSec * TARGET_RATE))
+  const Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext
+  const offline = new Offline(1 /* mono */, targetLen, TARGET_RATE)
 
-  // Resample to TARGET_RATE using linear interpolation. Browsers have an
-  // OfflineAudioContext that does this more cleanly but linear is fine
-  // for speech and avoids the extra async complexity.
-  const ratio   = TARGET_RATE / sourceRate
-  const newLen  = Math.round(sourceLen * ratio)
-  const resampled = new Float32Array(newLen)
-  for (let i = 0; i < newLen; i++) {
-    const srcIndex = i / ratio
-    const i0 = Math.floor(srcIndex)
-    const i1 = Math.min(sourceLen - 1, i0 + 1)
-    const frac = srcIndex - i0
-    resampled[i] = monoSource[i0] * (1 - frac) + monoSource[i1] * frac
-  }
+  const node = offline.createBufferSource()
+  node.buffer = sourceBuffer
+  // Mono mixdown happens automatically because the destination has 1
+  // channel and Web Audio applies the standard down-mix coefficients.
+  node.connect(offline.destination)
+  node.start(0)
 
-  return encodeWav16(resampled, TARGET_RATE)
+  const rendered = await offline.startRendering()
+  const mono = rendered.getChannelData(0)
+
+  return encodeWav16(mono, TARGET_RATE)
 }
 
 /**
