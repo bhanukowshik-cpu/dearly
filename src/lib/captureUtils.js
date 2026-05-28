@@ -524,7 +524,7 @@ async function buildFontEmbedCSS() {
  * blob and trigger their own downloads (web share, anchor download,
  * iOS overlay long-press, etc).
  */
-export async function captureCanvas(refOrElement, { noteData, swapVoiceForBarcode = false } = {}) {
+export async function captureCanvas(refOrElement, { noteData, swapVoiceForBarcode = false, pixelRatio = 3 } = {}) {
   // Unbox ref-or-element so callers can pass whatever they have.
   const containerEl = (refOrElement && 'current' in refOrElement)
     ? refOrElement.current
@@ -564,7 +564,7 @@ export async function captureCanvas(refOrElement, { noteData, swapVoiceForBarcod
     }
 
     const opts = {
-      pixelRatio: 3,
+      pixelRatio,
       backgroundColor: bgColor,
       ...(fontEmbedCSS ? { fontEmbedCSS } : {}),
     }

@@ -306,8 +306,29 @@ export function pickJsonFile() {
  * surface in the app (this button, ShareSheet, RecipientScreen) goes
  * through one tested path.
  */
-export async function exportPaperAsPng({ filename } = {}) {
+export async function exportPaperAsPng({ filename, onProgress } = {}) {
   const { captureCanvasAsPng } = await import('./captureUtils')
+
+  // GIF auto-route: if the paper contains an animated GIF the static PNG
+  // would freeze whatever frame the live <img> was on. Switch to the
+  // animated-GIF pipeline so the downloaded file plays back with the same
+  // motion the editor shows. The caller's .png filename is rewritten to
+  // .gif so the resulting toast and Downloads entry reflect what landed.
+  const paperEl = document.querySelector('[data-paper-canvas]')
+  if (paperEl) {
+    const { findGifFrames, captureCanvasAsAnimatedGif } = await import('./exportAnimatedGif')
+    const gifTargets = await findGifFrames(paperEl)
+    if (gifTargets.length > 0) {
+      const gifName = (filename || `dearly-letter-${Date.now()}.png`).replace(/\.png$/i, '.gif')
+      const res = await captureCanvasAsAnimatedGif({
+        filename: gifName,
+        gifTargets,
+        onProgress,
+      })
+      return { ...res, isGif: true }
+    }
+  }
+
   return captureCanvasAsPng({
     filename: filename || `dearly-letter-${Date.now()}.png`,
   })
