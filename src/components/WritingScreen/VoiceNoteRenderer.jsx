@@ -113,16 +113,22 @@ function tintCardForVintage(hex) {
    Playback uses an HTMLAudioElement registered with the single-play module
    so only one voice note plays at a time across the canvas + panel.
    ───────────────────────────────────────────────────────────────────────── */
+// NOOP fallback for handlers — used when the renderer is mounted in
+// read-only contexts (RecipientScreen, Preview) where there's no
+// edit-state plumbing. Calling an undefined function on a pointer event
+// would otherwise crash the React tree.
+const NOOP = () => {}
+
 export default function VoiceNoteRenderer({
   note,
   isSelected,
   paperRef,
   paperBg = '#FAFAF8',
-  onSelect,
-  onMove,
-  onResize,
-  onRotate,
-  onRemove,
+  onSelect = NOOP,
+  onMove   = NOOP,
+  onResize = NOOP,
+  onRotate = NOOP,
+  onRemove = NOOP,
 }) {
   // Adaptive palette — derive everything from the paper colour so the
   // voice pill harmonises with whichever paper is selected.

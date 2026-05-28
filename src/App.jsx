@@ -28,6 +28,13 @@ class ErrorBoundary extends Component {
   static getDerivedStateFromError(error) {
     return { error }
   }
+  componentDidCatch(error, info) {
+    // Surface the actual error to the console so prod crashes ("Something
+    // went wrong") can be diagnosed via Safari Web Inspector / Chrome
+    // remote devtools instead of being a black box.
+    console.error('[dearly] ErrorBoundary caught:', error)
+    if (info?.componentStack) console.error('[dearly] component stack:', info.componentStack)
+  }
   render() {
     if (this.state.error) {
       return (

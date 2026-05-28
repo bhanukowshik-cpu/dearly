@@ -13,17 +13,22 @@ import styles from './MediaFrameRenderer.module.css'
    selected. Frame-style / filter / replace / remove controls live in
    MediaFramePicker (the side panel), so the canvas stays uncluttered.
    ───────────────────────────────────────────────────────────────────────── */
+// NOOP fallback for handlers — used in read-only renders (RecipientScreen,
+// Preview) where no edit-state is wired up. Avoids "undefined is not a
+// function" crashes on pointer events.
+const NOOP = () => {}
+
 export default function MediaFrameRenderer({
   frame,
   isSelected,
   paperRef,
-  onSelect,
-  onMove,
-  onResize,
-  onRotate,
-  onRemove,
-  onUpdate,
-  onInvalidFile,
+  onSelect   = NOOP,
+  onMove     = NOOP,
+  onResize   = NOOP,
+  onRotate   = NOOP,
+  onRemove   = NOOP,
+  onUpdate   = NOOP,
+  onInvalidFile = NOOP,
 }) {
   const inputRef     = useRef(null)
   const cleanupRef   = useRef(null)
