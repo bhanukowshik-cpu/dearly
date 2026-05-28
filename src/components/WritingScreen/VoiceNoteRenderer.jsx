@@ -162,6 +162,11 @@ export default function VoiceNoteRenderer({
   const [isPlaying,  setIsPlaying]  = useState(false)
   const [progress,   setProgress]   = useState(0)
   const [livePlayhead, setLivePlayhead] = useState(0)
+  /* Visible playback error — surfaced when tapping play fails or when the
+     <audio> element fires an error event. iOS Safari rejects webm/opus
+     silently otherwise; we want the recipient to SEE why playback didn't
+     start instead of just tapping a dead button. */
+  const [playbackError, setPlaybackError] = useState(null)
 
   /* NOTE: blob URL revocation lives in WritingScreen.removeVoiceNote, not
      here. React StrictMode's double mount/unmount in dev would otherwise
@@ -192,7 +197,22 @@ export default function VoiceNoteRenderer({
       setProgress(Math.min(1, a.currentTime / d))
     }
     function onError() {
-      console.error('[VoiceNote] audio decode error', a.error?.code, a.error?.message)
+      // MediaError.code → human label so the visible message reads
+      // clearly. 4 = MEDIA_ERR_SRC_NOT_SUPPORTED, which is what iOS
+      // Safari throws on webm/opus.
+      const codes = {
+        1: 'aborted',
+        2: 'network',
+        3: 'decode',
+        4: 'format not supported by browser',
+      }
+      const code  = a.error?.code
+      const label = codes[code] || `code ${code}`
+      const detail = a.error?.message
+      const url   = a.currentSrc || note.audioUrl
+      const text = `Audio: ${label}${detail ? ' — ' + detail : ''}\nURL: ${url}`
+      console.error('[VoiceNote] audio error', code, detail, url)
+      setPlaybackError(text)
     }
     a.addEventListener('play',  onPlay)
     a.addEventListener('pause', onPause)
@@ -218,11 +238,15 @@ export default function VoiceNoteRenderer({
     e?.stopPropagation()
     const a = audioRef.current
     if (!a) return
+    // Clear any previous error — fresh tap, fresh attempt.
+    setPlaybackError(null)
     if (a.paused) {
       const p = a.play()
       if (p && typeof p.then === 'function') {
         p.catch(err => {
-          console.error('[VoiceNote] play failed:', err.name, err.message)
+          const text = `Play failed: ${err.name} — ${err.message}\nURL: ${a.currentSrc || note.audioUrl}`
+          console.error('[VoiceNote] play failed:', err.name, err.message, 'url:', a.currentSrc)
+          setPlaybackError(text)
         })
       }
     } else {
@@ -414,7 +438,51 @@ export default function VoiceNoteRenderer({
         </span>
       </div>
 
-      <audio ref={audioRef} src={note.audioUrl || undefined} preload="auto" />
+      <audio
+        ref={audioRef}
+        src={note.audioUrl || undefined}
+        preload="auto"
+        /* Mobile browsers benefit from these — playsInline keeps audio
+           inline (no full-screen takeover on iOS), and crossOrigin
+           anonymous prevents tainted state when the audio is served
+           from Supabase Storage (separate origin). */
+        playsInline
+        crossOrigin="anonymous"
+      />
+
+      {/* Visible playback error — appears below the pill if the audio
+          fails to load (e.g. iOS Safari can't decode webm). Lets the
+          recipient see *why* nothing happened when they tapped play
+          instead of getting a silent dead button. Tap dismisses. */}
+      {playbackError && (
+        <div
+          onClick={(e) => { e.stopPropagation(); setPlaybackError(null) }}
+          onPointerDown={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            marginTop: 6,
+            padding: '8px 10px',
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            fontSize: 11,
+            lineHeight: 1.35,
+            color: '#fff',
+            background: 'rgba(140, 30, 30, 0.92)',
+            borderRadius: 6,
+            boxShadow: '0 6px 16px rgba(0,0,0,0.30)',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            zIndex: 30,
+            cursor: 'pointer',
+            pointerEvents: 'auto',
+          }}
+        >
+          {playbackError}
+          <div style={{ marginTop: 6, opacity: 0.7, fontSize: 10 }}>tap to dismiss</div>
+        </div>
+      )}
 
       {isSelected && (
         <>
