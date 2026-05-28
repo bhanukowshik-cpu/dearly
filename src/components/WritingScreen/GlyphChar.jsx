@@ -18,7 +18,7 @@ import { getScaledMetrics, typographyMetadata } from '../../lib/typographyMetada
 // sizes outside the sm/md/lg token scale — used by AnimatedGlyphText so
 // hero/display text gets per-glyph advance widths instead of the legacy
 // fixed-0.68em-per-char fallback (which spaces characters way too wide).
-export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = 'inherit', size = null, viewportWidth = null, customMetrics = null, strokeSpeedMultiplier = 1, extraDelaySec = 0, kerningLeftPx = 0 }) {
+export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = 'inherit', size = null, viewportWidth = null, customMetrics = null, strokeSpeedMultiplier = 1, extraDelaySec = 0, kerningLeftPx = 0, strokeWidthMultiplier = 1 }) {
   const containerRef = useRef(null)
   const glyphSvg = hasGlyph(ch) ? getGlyphSvg(ch) : null
   // Metric resolution priority:
@@ -73,7 +73,13 @@ export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = '
     //   md (20px font) → 1.5× — the design "anchor"
     //   lg (30px font) → 1.125× — light bump; large text already reads bold
     const STROKE_MULT_BY_SIZE = { sm: 1.6, md: 1.5, lg: 1.125 }
-    const strokeMult = (size && STROKE_MULT_BY_SIZE[size]) || 1
+    // Final stroke multiplier composes the size-tier mult (sm/md/lg readability
+    // boost) with the caller-supplied override. Hero/display callers (e.g. the
+    // RecipientScreen greeting) pass strokeWidthMultiplier=2 to fatten the
+    // pen-stroke so it reads at clamp(42-72px) without looking spindly. Default
+    // of 1 keeps body text untouched.
+    const sizeMult   = (size && STROKE_MULT_BY_SIZE[size]) || 1
+    const strokeMult = sizeMult * (strokeWidthMultiplier || 1)
     paths.forEach((path, i) => {
       path.style.transition = 'none'
       if (strokeMult !== 1) {
@@ -118,21 +124,32 @@ export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = '
       // starts drawing simultaneously on mount.
       const drawSec = (0.18 / strokeSpeedMultiplier).toFixed(3)
       const lagSec  = (((i * 0.09) / strokeSpeedMultiplier) + extraDelaySec).toFixed(3)
-      path.style.transition = `stroke-dashoffset ${drawSec}s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${lagSec}s`
 
-      // Kick the transition on the NEXT frame (not immediately after the
-      // reflow read) so the browser has a clean paint commit before we
-      // start animating. Without this rAF, the transition occasionally
-      // starts mid-paint and the first ~30ms drops frames — visible as
-      // a jump at the start of each stroke.
+      // Double-rAF is load-bearing — do NOT collapse to a single rAF.
+      //
+      // The sequence we need the browser to observe is:
+      //   frame N    → commit (transition:none, dashoffset:len)   [done via getBoundingClientRect above]
+      //   frame N+1  → commit (transition:0.18s, dashoffset:len)  [first rAF: set transition only]
+      //   frame N+2  → commit (transition:0.18s, dashoffset:0)    [second rAF: kick value → animates]
+      //
+      // Setting `transition` and `strokeDashoffset` inside the SAME rAF puts
+      // both changes in one style-flush, and Blink (Chrome) sporadically uses
+      // the OLD transition (`none`) to evaluate the property change — the
+      // stroke snaps from len → 0 with no animation. React 19's stricter
+      // effect timing made this fire reliably for us; previously it was
+      // a flaky once-in-a-while glitch. Two rAFs guarantee the new transition
+      // is committed in its own frame before the value change kicks.
       requestAnimationFrame(() => {
-        path.style.strokeDashoffset = '0'
+        path.style.transition = `stroke-dashoffset ${drawSec}s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${lagSec}s`
+        requestAnimationFrame(() => {
+          path.style.strokeDashoffset = '0'
+        })
       })
     })
 
     // Reset on cleanup so StrictMode's double-invoke re-triggers the animation
     return () => { container.innerHTML = '' }
-  }, [svgForRender, size, strokeSpeedMultiplier, extraDelaySec])
+  }, [svgForRender, size, strokeSpeedMultiplier, extraDelaySec, strokeWidthMultiplier])
 
   // Caveat fallback for punctuation, emoji, unknown chars
   if (!glyphSvg) {

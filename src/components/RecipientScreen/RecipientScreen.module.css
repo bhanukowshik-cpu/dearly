@@ -60,7 +60,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 13px;
+  /* Was 13px — tightened to 4px so the "Bhanu wrote something for you"
+     subtitle sits just under the hero greeting instead of floating loosely
+     beneath it. Reads as a single hierarchical block now. */
+  gap: 4px;
   text-align: center;
   margin-bottom: 20px;
 }
@@ -69,7 +72,11 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  min-height: 80px;
+  /* min-height: 80px removed — was reserving canvas space for the old
+     TegakiRenderer (which mounted async and needed a placeholder height to
+     avoid layout shift). AnimatedGlyphText is synchronous and self-sizing,
+     so reserving space was just baking a fixed ~80px gap between the hero
+     and the subtitle below it. */
   isolation: isolate;
   transform: translateZ(0);
 }
@@ -122,6 +129,12 @@
     0 2px 8px rgba(30, 18, 4, 0.14),
     0 12px 40px rgba(20, 10, 2, 0.24),
     0 36px 80px rgba(10, 5, 0, 0.16);
+  /* Container query root for the corner labels (.foldFor, .foldName).
+     Labels use cqi units that scale with the card's actual inline-size
+     so "From / To" + recipient names shrink proportionally on narrower
+     viewports without us needing a chain of @media breakpoints. */
+  container-type: inline-size;
+  container-name: foldcard;
 }
 
 .foldPaper {
@@ -238,6 +251,24 @@
   pointer-events: none;
 }
 
+/* From label — mirrors .foldLabel diagonally. Sits in the top-LEFT
+   quadrant of the envelope so the composition reads like a real piece
+   of mail. Same column layout but anchored top-left instead of
+   bottom-right. */
+.foldFromLabel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding-top: 10%;
+  padding-left: 9%;
+  gap: 2px;
+  z-index: 8;
+  pointer-events: none;
+}
+
 /* Vertical thread — full card height, centered, fades at top & bottom */
 .threadV {
   position: absolute;
@@ -275,7 +306,10 @@
 
 .foldFor {
   font-family: 'Caveat', cursive;
-  font-size: 16px;
+  /* 2.4cqi = ~16.8px on a 700px card → clamped to 16px ceiling;
+     ~11.5px on a 480px card; ~10px (floor) on cards narrower than
+     ~420px. Scales smoothly with the card, never goes illegibly small. */
+  font-size: clamp(10px, 2.4cqi, 16px);
   font-weight: 400;
   color: rgba(100, 72, 32, 0.42);
   letter-spacing: 0.12em;
@@ -284,7 +318,11 @@
 
 .foldName {
   font-family: 'Caveat', cursive;
-  font-size: 38px;
+  /* 5.8cqi = ~40px on a 700px card → clamped to 38px ceiling;
+     ~28px on a 480px card; ~21px on a 360px card; 20px floor. Replaces
+     the old fixed 38px desktop + 32px mobile breakpoint with a continuous
+     curve tied to the card width. */
+  font-size: clamp(20px, 5.8cqi, 38px);
   font-weight: 600;
   color: rgba(65, 44, 18, 0.58);
   letter-spacing: 0.01em;
@@ -805,7 +843,9 @@
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 
 @media (max-width: 480px) {
-  .foldName { font-size: 32px; }
+  /* .foldName font-size removed — now driven by a clamp(20px, 5.8cqi, 38px)
+     declaration on the base rule, so it scales continuously with the card
+     width via the container query on .foldCard. */
 
   .root {
     padding: 24px 16px 100px;

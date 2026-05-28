@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { TegakiRenderer } from 'tegaki/react'
-import { font } from '../../lib/tegakiFont'
+import AnimatedGlyphText from '../WritingScreen/AnimatedGlyphText'
 import PaperCanvas from '../WritingScreen/PaperCanvas'
 import { PAPER_TYPES } from '../WritingScreen/stylePresets'
 import VideoBackground from '../VideoBackground/VideoBackground'
@@ -374,13 +373,32 @@ function FoldedLetter({
               </svg>
             </motion.div>
 
-            {/* Recipient label — sits in lower quarter, below the knot */}
+            {/* Sender label — top-left quadrant of the envelope. Reads
+                "From [senderName]" so the recipient knows who wrote it
+                before they even open the letter. Hidden cleanly when no
+                sender name is set so the corner doesn't show a bare
+                "From" with nothing after it. */}
+            {senderName && (
+              <motion.div className={styles.foldFromLabel}
+                animate={{ opacity: phase === 'envelope' ? 1 : 0 }}
+                transition={{ duration: 0.18 }}
+              >
+                <span className={styles.foldFor}>From</span>
+                <span className={styles.foldName}>{senderName}</span>
+              </motion.div>
+            )}
+
+            {/* Recipient label — bottom-right quadrant, "To [recipientName]".
+                Mirrors the From label diagonally so the envelope reads
+                like a real piece of mail (sender top-left, addressee
+                bottom-right). When no name is set we show a small ✦ as
+                a quiet placeholder rather than a bare label. */}
             <motion.div className={styles.foldLabel}
               animate={{ opacity: phase === 'envelope' ? 1 : 0 }}
               transition={{ duration: 0.18 }}
             >
               {recipientName
-                ? <><span className={styles.foldFor}>for</span><span className={styles.foldName}>{recipientName}</span></>
+                ? <><span className={styles.foldFor}>To</span><span className={styles.foldName}>{recipientName}</span></>
                 : <span className={styles.foldFor}>✦</span>
               }
             </motion.div>
@@ -446,6 +464,7 @@ export default function RecipientScreen({
     const t = setTimeout(() => setSubtitleOn(true), 800)
     return () => clearTimeout(t)
   }, [writeDone])
+
 
   useEffect(() => {
     if (!subtitleOn) return
@@ -736,18 +755,41 @@ export default function RecipientScreen({
             transition={{ layout: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } }}
           >
             <div className={styles.greetingTitle}>
-              <TegakiRenderer
-                font={font}
+              {/* Greeting renderer was Tegaki, swapped to our in-house
+                  AnimatedGlyphText (SVG-path stroke animation) after Safari
+                  proved hostile to Tegaki's FontFace constructor path. Same
+                  pen-stroke feel; works in every browser; no font preload
+                  dependency. fontSizePx mirrors the prior clamp(42px,7vw,72px)
+                  responsive curve across mobile/tablet/desktop. msPerChar=110
+                  is tuned so 'Hi Marcus!'-sized strings finish in ~1.1s,
+                  matching Tegaki's previous duration so the subtitle/envelope
+                  cascade timing feels unchanged. */}
+              <AnimatedGlyphText
+                text={`Hi ${recipientName || 'there'}!`}
+                fontSizePx={{ mobile: 42, tablet: 56, desktop: 72 }}
+                /* Tight line-height for the hero (default is 1.5, intended
+                   for multi-line body paragraphs). At 72px, 1.5× line-height
+                   adds ~36px of empty descender padding under the glyphs
+                   that pushed the subtitle absurdly far down. 1.05 hugs the
+                   actual glyph bounds — "Hi {name}!" has no real descenders
+                   so we don't lose any visible character. */
+                lineHeightMultiplier={1.05}
+                /* Was 0.92 — tightened to 0.74 (~20% reduction) so the
+                   characters in "Hi {name}!" sit closer together for a more
+                   confident hand-written look at hero scale. */
+                spacingMultiplier={0.74}
+                strokeSpeedMultiplier={1.4}
+                /* 1.5× stroke width — sits between the default (too spindly
+                   at clamp(42-72px) hero scale) and 2× (felt-tip marker, too
+                   loud). Picks up enough pen weight to feel confident without
+                   crowding the inner counters of letters like 'o' and 'k'. */
+                strokeWidthMultiplier={1.5}
+                inkColor="#ffffff"
+                typewriter
+                msPerChar={110}
                 onComplete={() => setWriteDone(true)}
-                time={{ mode: 'uncontrolled', duration: 1.1 }}
-                style={{
-                  fontSize: 'clamp(42px, 7vw, 72px)',
-                  color: '#ffffff', fontWeight: 700,
-                  whiteSpace: 'nowrap', lineHeight: 1, willChange: 'transform',
-                }}
-              >
-                {`Hi ${recipientName || 'there'}!`}
-              </TegakiRenderer>
+                style={{ whiteSpace: 'nowrap', fontWeight: 700 }}
+              />
             </div>
             <motion.p
               className={styles.greetingSub}

@@ -131,6 +131,11 @@ export default function AnimatedGlyphText({
   // Scales each glyph's per-stroke draw + stagger. >1 = visibly slower
   // writing motion (used for hero/signature text); 1 = baseline.
   strokeSpeedMultiplier = 1,
+  // Multiplies every glyph's SVG stroke-width. Use for hero/display sizes
+  // where the default stroke reads too thin at large font sizes (e.g. the
+  // RecipientScreen greeting passes 2 to roughly double pen weight).
+  // 1 = baseline (every other caller).
+  strokeWidthMultiplier = 1,
 }) {
   // Track viewport width so the responsive fontSizePx form updates on resize.
   // Cheap — same pattern PaperCanvas uses for its breakpoint switch.
@@ -213,6 +218,7 @@ export default function AnimatedGlyphText({
     viewportWidth,
     wordSpacingPx,
     strokeSpeedMultiplier,
+    strokeWidthMultiplier,
     kerningPairsPx,
     // Per-char stroke delay sequencer — only active in typewriter mode.
     // Each char gets extraDelaySec = (charIndex × msPerChar)/1000 + startDelayMs/1000
@@ -252,7 +258,7 @@ export default function AnimatedGlyphText({
 //     between groups as a break-opportunity for the browser to wrap on.
 //   • Each '\n' becomes a <br/>.
 function renderWordGroups(chars, opts) {
-  const { inkColor, fontWeight, fontSize, size, customMetrics, viewportWidth, wordSpacingPx, strokeSpeedMultiplier, kerningPairsPx, perCharDelaySec = 0, startDelaySec = 0 } = opts
+  const { inkColor, fontWeight, fontSize, size, customMetrics, viewportWidth, wordSpacingPx, strokeSpeedMultiplier, strokeWidthMultiplier, kerningPairsPx, perCharDelaySec = 0, startDelaySec = 0 } = opts
   // Lookup helper: returns negative px to apply as marginLeft on `ch`
   // when the immediately preceding glyph was `prevCh`. Pair keys are
   // case-sensitive ("rl" ≠ "rL"). Returns 0 for any pair not listed.
@@ -301,6 +307,7 @@ function renderWordGroups(chars, opts) {
               viewportWidth={viewportWidth}
               customMetrics={customMetrics}
               strokeSpeedMultiplier={strokeSpeedMultiplier}
+              strokeWidthMultiplier={strokeWidthMultiplier}
               extraDelaySec={startDelaySec + charIndex * perCharDelaySec}
               kerningLeftPx={kernFor(prevCh, ch)}
             />

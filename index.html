@@ -9,9 +9,33 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;700&family=Inter:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
     <!--
-      Safari fix: Tegaki calls new FontFace(family, url, { featureSettings: "'calt' 0, 'liga' 0" })
-      Safari rejects that featureSettings with SyntaxError. Use a Proxy construct-trap
-      to strip featureSettings before Safari's FontFace engine sees it.
+      Cheap HTTP-level preload so the browser starts fetching the Tegaki
+      fonts as soon as it parses <head>. The actual registration into
+      document.fonts happens in src/lib/tegakiFont.js via a binary-buffer
+      FontFace (the only path Safari reliably accepts — see that file's
+      comment block for the full Safari-FontFace-SyntaxError saga).
+    -->
+    <link rel="preload" href="/fonts/caveat-subset.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="preload" href="/fonts/caveat-full.ttf"   as="font" type="font/ttf" crossorigin />
+    <!--
+      Safari fixes for Tegaki's FontFace usage. Two distinct issues, one shim:
+
+      1. featureSettings — Tegaki sometimes passes
+         { featureSettings: "'calt' 0, 'liga' 0" } as the descriptors arg.
+         Safari throws SyntaxError on that. Strip it before construct.
+
+      2. Unquoted url() source — Tegaki calls
+         new FontFace(family, `url(${url})`)
+         which produces e.g. `url(/fonts/caveat-subset.ttf)`. Chrome accepts
+         the unquoted form; Safari throws "The string did not match the
+         expected pattern" because its CSS parser wants the url quoted.
+         Rewrite `url(<unquoted>)` → `url("<unquoted>")` before construct.
+         Skips strings already containing a quote so we don't double-quote.
+
+         Without this fix the FontFace promise rejects in Safari, Tegaki's
+         engine bails, and any UI gated on Tegaki onComplete never advances
+         — e.g. the Recipient preview renders an empty greeting and never
+         moves to the folded letter phase, so the user sees a blank screen.
     -->
     <script>
       (function () {
@@ -23,16 +47,42 @@
               delete cleaned.featureSettings;
               args = [args[0], args[1], cleaned];
             }
+            // Auto-quote unquoted url() sources for Safari.
+            if (typeof args[1] === 'string') {
+              args[1] = args[1].replace(
+                /url\(\s*([^"')\s][^)]*?)\s*\)/g,
+                function (_, inner) { return 'url("' + inner + '")'; }
+              );
+            }
             return Reflect.construct(Target, args);
           }
         });
       })();
     </script>
+    <!--
+      Helper: detect whether a Vite env-var placeholder actually got
+      substituted. When the var isn't defined Vite leaves the literal
+      `%VITE_FOO%` token in the HTML — so a string like "%VITE_GA_ID%"
+      should be treated as "not set" rather than a real ID. Catches:
+        • empty / falsy
+        • bare name without % wrappers (e.g. "VITE_GA_ID")
+        • untouched placeholder (e.g. "%VITE_GA_ID%")
+      Anything else is assumed to be a real, configured ID.
+    -->
+    <script>
+      window.__isViteEnvSet = function (val) {
+        if (!val) return false;
+        if (typeof val !== 'string') return true;
+        if (val.indexOf('VITE_') === 0) return false;
+        if (val.charAt(0) === '%' && val.charAt(val.length - 1) === '%') return false;
+        return true;
+      };
+    </script>
     <!-- Google Analytics (only loads when VITE_GA_ID is set) -->
     <script>
       (function() {
         var id = '%VITE_GA_ID%';
-        if (!id || id === 'VITE_GA_ID' || id.indexOf('VITE_') === 0) return;
+        if (!window.__isViteEnvSet(id)) return;
         var s = document.createElement('script');
         s.async = true;
         s.src = 'https://www.googletagmanager.com/gtag/js?id=' + id;
@@ -47,7 +97,7 @@
     <script>
       (function() {
         var id = '%VITE_CLARITY_ID%';
-        if (!id || id === 'VITE_CLARITY_ID' || id.indexOf('VITE_') === 0) return;
+        if (!window.__isViteEnvSet(id)) return;
         (function(c,l,a,r,i,t,y){
           c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
           t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;

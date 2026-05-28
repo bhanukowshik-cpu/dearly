@@ -358,6 +358,21 @@ async function init() {
   state.initStarted = true
 
   try {
+    // ── Interactive lookAhead ────────────────────────────────────────────
+    // Tone.js defaults `Context.lookAhead` to 0.1s (100 ms). Every Tone.now()
+    // call returns `audioContext.currentTime + lookAhead`, so events scheduled
+    // at "now" actually fire 100 ms in the future. That's correct for
+    // sequenced music (the worker thread can hit deadlines precisely) but
+    // disastrous for keystroke-driven sounds — it adds a perceptible lag
+    // between key-press and pen-scratch on every tick.
+    //
+    // Drop it to 10 ms: just enough headroom for the envelope's setValueAtTime
+    // chain to be scheduled in the right order without slipping past
+    // currentTime, but low enough that ticks read as "instant" with the
+    // keystroke. Tone's own docs (Context.js) explicitly call this out:
+    // "If no lookAhead is desired, you can set the lookAhead to 0."
+    try { Tone.getContext().lookAhead = 0.01 } catch { /* old Tone — fine */ }
+
     // 1. Load every sample in the pool in parallel. Each gets its own loud
     //    region computed so accent ticks slice into texture-rich audio
     //    regardless of which sample the rotation picks.
