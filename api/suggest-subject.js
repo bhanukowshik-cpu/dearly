@@ -57,16 +57,18 @@ function markupToPlainText(markup) {
 }
 
 // Template fallback — used when the LLM call fails or the API key is
-// missing. Plain, specific, and includes both names so it's at least
-// less generic than "<sender> sent you a note".
+// missing. Gift-framed ("a letter") rather than transactional ("a note"),
+// declarative, short — mirrors the templateSubject in /api/email.js.
+// Period at the end is deliberate: reads as a single statement, not a
+// clickbait open.
 function templateSubject({ fromName, recipientName, plain }) {
   const who   = (recipientName || '').trim()
   const from  = (fromName || 'Someone').trim()
   const snippet = plain.split(/[.!?\n]/)[0]?.trim().slice(0, 50) || ''
-  if (who && snippet) return `${from} wrote you a note — ${snippet}`
-  if (who)            return `Hey ${who}, ${from} wrote you a note`
-  if (snippet)        return `${from} wrote you a note — ${snippet}`
-  return                  `${from} wrote you a note on Dearly`
+  if (who && snippet) return `A letter from ${from} — ${snippet}`
+  if (who)            return `A letter from ${from}, for ${who}.`
+  if (snippet)        return `A letter from ${from} — ${snippet}`
+  return                  `A letter from ${from}.`
 }
 
 export default async function handler(req, res) {
@@ -116,20 +118,31 @@ export default async function handler(req, res) {
   // clickbait, ≤ 80 chars, no emoji unless the note's tone clearly
   // invites it.
   const system = [
-    'You write email subject lines for a handwritten-letter app called Dearly.',
-    'Each subject previews a personal note someone wrote to another person.',
+    'You write email subject lines for Dearly — an app where people send handwritten letters to each other.',
+    'These are not marketing emails or notifications. Each subject announces a letter that one specific person has written to one specific other person.',
+    'Frame it like a letter being delivered, not an email being sent.',
     '',
     'Rules:',
-    '- ONE line, ≤ 80 characters total.',
-    '- If a recipient name is provided, use it (their first name).',
-    '- If no recipient name is provided, just use the sender\'s first name + topic.',
-    '- Always use the sender\'s first name.',
-    '- Reference the actual topic of the note, not generic phrases like "a note for you".',
-    '- Warm, specific, conversational — like a friend describing the note to the recipient.',
-    '- No emoji unless the note itself reads playful/celebratory.',
-    '- No "RE:", "FW:", clickbait, or salesy language.',
-    '- Output ONLY the subject text. No quotes, no "Subject:" prefix, no questions, no meta commentary.',
-    '- Never ask for more information — always write the best subject you can with what you have.',
+    '- ONE line, ≤ 70 characters total. Shorter is better.',
+    '- Always use the sender\'s first name. If a recipient name is provided, use their first name too.',
+    '- Prefer the word "letter" over "note", "message", "email", or "update".',
+    '- Reference the actual topic of the letter when you can — but only if you can do it in 3–5 words. Topic-less is fine.',
+    '- Declarative, calm, gift-like. Periods are good. "A letter from Bhanu, for Marcus." beats "Bhanu has a special note for you!".',
+    '- No emoji unless the letter itself reads playful/celebratory.',
+    '- No "RE:", "FW:", clickbait, salesy verbs ("don\'t miss", "open now"), or exclamation marks.',
+    '- Never ask a question in the subject — questions look broken in inboxes.',
+    '- Output ONLY the subject text. No quotes, no "Subject:" prefix, no meta commentary.',
+    '- Never ask the user for more information — always write the best subject you can with what you have.',
+    '',
+    'Good examples:',
+    '- "A letter from Bhanu, for Marcus."',
+    '- "Bhanu wrote you something."',
+    '- "A letter about last weekend, from Priya."',
+    '- "For Kowshik, from Bhanu."',
+    'Bad examples:',
+    '- "Hey Marcus, Bhanu wrote you a personal note on Dearly!"',
+    '- "📬 You\'ve got mail from Bhanu"',
+    '- "Don\'t miss this letter from Bhanu"',
   ].join('\n')
 
   const user = [

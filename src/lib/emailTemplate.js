@@ -50,7 +50,7 @@ export function buildEmailText({ fromName, recipientName, shareUrl, blurb }) {
     '',
     line2,
     '',
-    `Read it here: ${shareUrl}`,
+    `Open the letter: ${shareUrl}`,
     '',
     '— Dearly · Letters people actually keep',
   ]
@@ -77,18 +77,15 @@ export function buildEmailHtml({
   personalNote,
   // One-line AI-generated context about the note.
   blurb = '',
-  // First ~140 chars of the actual letter body — rendered as a real
-  // tilted paper teaser so the email shows what's inside instead of a
-  // generic envelope graphic. Trimmed + fades out at the bottom so it
-  // reads as "there's more, come read it."
-  excerpt = '',
   assetOrigin = 'https://dearlynotes.app',
 }) {
   const senderFirst = firstName(fromName) || ''
   const recipFirst  = firstName(recipientName)
+  // "Open ... letter" leans into the envelope metaphor — letters get
+  // opened, not just read. Tactile, gift-like, matches the hero image.
   const ctaLabel    = senderFirst
-    ? `Read ${senderFirst}'s note`
-    : 'Read the note'
+    ? `Open ${senderFirst}'s letter`
+    : 'Open the letter'
 
   const line1 = recipFirst ? `Hi ${esc(recipFirst)},` : 'Hi there,'
   const subj  = senderFirst ? esc(senderFirst) : 'Someone'
@@ -97,6 +94,14 @@ export function buildEmailHtml({
     ? `${subj} wrote a small note for you, about ${esc(trimmedBlurb)}.`
     : `${subj} wrote a small note for you.`
   const altGreeting = `${line1} ${line2}`
+
+  // Preheader: hidden text Gmail/Apple Mail surface as the inbox preview
+  // snippet (the ~90 chars beside the sender name in the inbox list).
+  // Controlled here so we never leak random first-content into preview.
+  // Phrase is letter-themed, gentle, no clickbait — matches Dearly's tone.
+  const preheader = recipFirst
+    ? `A small note from ${subj}, sealed just for ${esc(recipFirst)}.`
+    : `A small note from ${subj}, sealed just for you.`
 
   const bgUrl       = `${assetOrigin}/bg.jpg`
   const envelopeUrl = `${assetOrigin}/envelope.png`
@@ -249,15 +254,43 @@ export function buildEmailHtml({
 </head>
 <body style="margin:0;padding:0;background:#0e0a05;font-family:${FF};">
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-         style="background:#0e0a05;min-height:100vh;">
-    <tr><td align="center" valign="top" style="padding:0;position:relative;">
+  <!-- Preheader — hidden inbox preview text. Controls what Gmail/Apple
+       Mail show beside the sender name in the inbox list, BEFORE the
+       recipient opens the message. The combination of display:none,
+       visibility/opacity 0, and the zero font-size/max-height ensures
+       it never renders inside the body itself but still gets harvested
+       as preview by every major client. The trailing &nbsp;&zwnj; chain
+       pushes generic auto-fallback text (like the H1 leaking through)
+       off the end of the preview slot. -->
+  <div style="display:none;visibility:hidden;opacity:0;color:transparent;height:0;max-height:0;width:0;max-width:0;overflow:hidden;font-size:1px;line-height:1px;mso-hide:all;">
+    ${esc(preheader)}
+    &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847;
+    &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847;
+  </div>
 
-      <!-- Atmosphere is the solid #0e0a05 body color. The previous design
-           used a blurred bg.jpg behind everything via position:absolute, but
-           Gmail strips position:absolute and the image collapsed into a
-           sharp inline strip at the top. Removed entirely — the dark warmth
-           reads correctly without it. -->
+  <!-- Outer wrapper carries the atmospheric backdrop.
+
+       Strategy: a multi-layer inline background-image with the dark wash
+       gradient stacked ABOVE the photo URL. Modern email clients
+       (Gmail web, Gmail iOS/Android, Apple Mail, Yahoo) respect this and
+       render the bg.jpg behind a 80%-opacity warm-dark tint, so the text
+       stays legible while the photo provides texture/warmth. Outlook
+       desktop strips background-image entirely and falls back to the
+       solid 0e0a05 -- which still looks intentional (just no photo).
+
+       Why this works where the previous attempt did not: no
+       position:absolute, no separate div or img layer. It is a CSS
+       background property on a real table cell, which is the one form
+       Gmail consistently keeps. The HTML "background" attribute is also
+       set as a safety net for older Outlook builds. -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="background-color:#0e0a05;min-height:100vh;">
+    <tr><td align="center" valign="top" background="${esc(bgUrl)}"
+            style="padding:0;position:relative;background-color:#0e0a05;background-image:linear-gradient(rgba(14,10,5,0.82),rgba(14,10,5,0.82)),url('${esc(bgUrl)}');background-size:cover;background-position:center center;background-repeat:no-repeat;">
+
+      <!-- (No standalone image layer — the bg lives on the <td> above.
+           Previous version used position:absolute which Gmail strips,
+           causing the photo to collapse into a sharp top strip.) -->
       ${''}
 
       <!-- Content column -->
@@ -295,6 +328,11 @@ export function buildEmailHtml({
             <span class="em-env-cap em-env-to">${envTo}</span>
           </div>
         </td></tr>
+        <!-- (No excerpt teaser. The sealed envelope is the entire hook —
+             we want the recipient to click through to discover the letter,
+             not preview it inline. Earlier iterations rendered the first
+             ~140 chars as a whisper, but it overshadowed the envelope and
+             CTA visually. Removed by design. -->
 
         <!-- CTA — bulletproof rounded button. The previous version used
              an inline SVG pill with an absolute-positioned label overlay,
