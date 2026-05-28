@@ -260,8 +260,10 @@ function swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId) {
     if (!waveform) waveform = new Array(36).fill(0.35)
 
     const waveformHTML = renderWaveformBars(waveform)
-    const qrPrepared = qrSvg
-      .replace('<svg ', '<svg preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block" ')
+    // QR is now a PNG data URL (qrSvg variable name kept for diff clarity).
+    // Embedded as <img> so html-to-image rasterises a clean bitmap rather
+    // than re-vectorising an inner SVG inside its foreignObject wrap.
+    const qrPrepared = `<img src="${qrSvg}" alt="" style="width:100%;height:100%;display:block;object-fit:contain;" />`
 
     const overlay = document.createElement('div')
     overlay.setAttribute('data-voice-note-export-overlay', '')

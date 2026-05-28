@@ -1,22 +1,28 @@
 /**
- * voiceBarcode.js — generate a stylized QR code SVG for the export-mode
- * voice-note card. The voice note's right column is small (~25–32% of the
- * pill width × the pill's height), so SCAN RELIABILITY at small physical
- * sizes is the dominant constraint. Every choice below trades a little
- * "designer warmth" for guaranteed scannability:
+ * voiceBarcode.js — generate a stylized QR code as a PNG data URL for the
+ * export-mode voice-note card.
  *
- *   - dots: type 'square' — at 2–3 px per module, rounded dots blur into
- *     a grey wash. Hard square edges keep contrast crisp.
- *   - corners: type 'extra-rounded' / 'dot' for the three finder patterns
- *     only. The eye reads the corners as the "shape" of the QR, so warmth
- *     comes from those big rounded squares while data modules stay sharp.
- *   - color: near-black warm ink (#1a1208) — pure #000 looks cold against
- *     cream paper, but anything lighter than ~#202020 starts losing
- *     contrast when html-to-image antialiases at small sizes.
- *   - error correction: 'L' — minimises module count (~33×33 for our
- *     ~75-char URLs) so each module gets more pixels in the final PNG.
- *   - quiet zone: margin = 2 modules — phones need a clear border around
- *     the QR to lock onto the finder patterns.
+ * Why PNG and not SVG: html-to-image rasterises the captured DOM by
+ * wrapping it in an SVG <foreignObject>, serialising the whole subtree,
+ * then drawing the result to a canvas via an <img> tag. When a QR svg
+ * sits inside that foreignObject, the modules antialias unpredictably
+ * during the outer-SVG-to-canvas rasterisation step — small modules blur
+ * into a grey wash even though the source vector is crisp. Pre-rendering
+ * the QR to a PNG bitmap dodges the double-vector problem entirely: the
+ * export pipeline just treats it as an image.
+ *
+ * Design choices (all in service of scan reliability at small sizes):
+ *   - dots: 'square' — sharp edges survive rasterisation better than
+ *     rounded dots, which blur to grey at low pixel counts per module
+ *   - corners: 'extra-rounded' / 'dot' — the three finder patterns stay
+ *     soft and warm because they're physically large enough to render
+ *     their roundedness clearly. The visual warmth lives here.
+ *   - color: near-black warm ink (#1a1208) — pure #000 reads cold, but
+ *     anything lighter than ~#202020 loses contrast under antialiasing
+ *   - error correction: 'M' — 15% redundancy, balances module count
+ *     vs. tolerance to fuzz
+ *   - quiet zone: 4 modules — QR spec minimum for reliable scanning;
+ *     the export card's white right-column adds a bit more around it
  */
 
 import QRCodeStyling from 'qr-code-styling'
@@ -24,45 +30,31 @@ import QRCodeStyling from 'qr-code-styling'
 const QR_INK = '#1a1208'
 
 /**
- * Render a QR code to an SVG string.
+ * Render a QR code as a PNG data URL.
  *
  * @param {string} payload  URL to encode (typically `/?id=<noteId>` share URL
  *                          for the full letter, or `/v/<id>` voice-only fallback)
- * @returns {Promise<string>} SVG markup with viewBox sized to the QR. The
- *   width/height attrs are stripped so the parent's CSS box controls the
- *   rendered size.
+ * @returns {Promise<string>} `data:image/png;base64,...` ready to drop into
+ *                            <img src="..."> in the export overlay
  */
 export async function renderVoiceBarcodeSVG(payload) {
   const qr = new QRCodeStyling({
-    type: 'svg',
-    width: 600,
-    height: 600,
-    // ~2 modules of quiet zone. Required by spec for scanners to lock
-    // onto the finder patterns. The container around the QR also
-    // provides visual padding, but a real quiet zone in the QR itself
-    // is what scanners actually need.
-    margin: 8,
+    type: 'canvas',
+    width: 800,
+    height: 800,
+    // 4-module quiet zone. At 33×33 modules in an 800px output each
+    // module is ~24px, so 4 modules = ~96px white border on each side.
+    margin: 96,
     data: payload,
     qrOptions: {
-      // 'M' = ~15% error correction. With the now-shorter `/?id=<uuid>`
-      // URL the module count stays low (33×33), so M doesn't push us
-      // into a denser grid — and the extra redundancy means scanners
-      // still decode reliably even if rasterisation softens a few
-      // modules at the rendered size.
       errorCorrectionLevel: 'M',
     },
     dotsOptions: {
       color: QR_INK,
-      // SQUARE dots: at the physical sizes we ship (small voice-note
-      // pills), rounded dots become indistinguishable grey blobs once
-      // the SVG is rasterised. Square keeps every module readable.
       type: 'square',
     },
     cornersSquareOptions: {
       color: QR_INK,
-      // The three finder squares are large enough to stay readable
-      // even with the soft 'extra-rounded' treatment — this is where
-      // the visual warmth comes from.
       type: 'extra-rounded',
     },
     cornersDotOptions: {
@@ -70,15 +62,17 @@ export async function renderVoiceBarcodeSVG(payload) {
       type: 'dot',
     },
     backgroundOptions: {
-      color: 'transparent',
+      // Solid white background — guarantees the quiet zone scanners
+      // need, regardless of the export card's color underneath.
+      color: '#FFFFFF',
     },
   })
 
-  const blob = await qr.getRawData('svg')
-  let svg = await blob.text()
-
-  // Strip width/height so parent CSS controls rendered size; viewBox
-  // alone governs the 1:1 aspect.
-  svg = svg.replace(/\swidth="[^"]+"/, '').replace(/\sheight="[^"]+"/, '')
-  return svg
+  const blob = await qr.getRawData('png')
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload  = () => resolve(reader.result)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
 }
