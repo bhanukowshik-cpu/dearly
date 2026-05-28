@@ -162,24 +162,44 @@ function shortId() {
 
 /**
  * Upload a voice-note audio blob to Supabase Storage.
+ *
+ * Transcodes any browser-native recording (typically webm/opus from
+ * Chrome's MediaRecorder) to WAV before upload. Reason: iOS Safari can't
+ * decode webm at all, so a letter recorded on Chrome and opened on an
+ * iPhone via the QR landing page would have a silent voice pill. WAV
+ * plays on every browser — bigger file (~1MB / 30s) but universal.
+ *
+ * If transcoding fails for any reason, falls back to uploading the
+ * original blob — preserves the existing behavior on the sender's
+ * device even if the cross-browser case is degraded.
+ *
  * @param {Blob} blob — audio blob (typically webm/opus from MediaRecorder)
  * @returns {Promise<{id: string, url: string} | null>}
  */
 export async function uploadVoiceNote(blob) {
-  const id = shortId()
-  // Pick a file extension from the blob's MIME for nicer URLs / correct
-  // Content-Type when Supabase serves it. Falls back to .webm (the most
-  // common MediaRecorder output on Chromium).
-  const ext = blob.type.includes('mp4') ? 'mp4'
-            : blob.type.includes('mpeg') ? 'mp3'
-            : blob.type.includes('ogg')  ? 'ogg'
-            : 'webm'
+  let finalBlob = blob
+  let ext = 'webm'
+
+  try {
+    const { transcodeToWav } = await import('./audio/transcodeToWav')
+    finalBlob = await transcodeToWav(blob)
+    ext = 'wav'
+  } catch (err) {
+    console.warn('[dearly] voice transcode to WAV failed — uploading original blob (may not play on iOS Safari)', err)
+    // Recover original extension hint from the source blob's MIME.
+    ext = blob.type.includes('mp4')  ? 'mp4'
+        : blob.type.includes('mpeg') ? 'mp3'
+        : blob.type.includes('ogg')  ? 'ogg'
+        : 'webm'
+  }
+
+  const id   = shortId()
   const path = `${id}.${ext}`
 
   const { error } = await supabase.storage
     .from(VOICE_BUCKET)
-    .upload(path, blob, {
-      contentType: blob.type || 'audio/webm',
+    .upload(path, finalBlob, {
+      contentType: finalBlob.type || 'audio/wav',
       cacheControl: '31536000',  // 1 year — the file is immutable
       upsert: false,
     })
