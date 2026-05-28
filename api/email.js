@@ -20,7 +20,7 @@
  *                             which only works for testing — for production
  *                             you must verify a domain in Resend.
  *   PUBLIC_ORIGIN   optional  Where assets like the blurred background live.
- *                             Defaults to https://bhanu-dearly.vercel.app.
+ *                             Defaults to https://dearlynotes.app.
  *
  * Response:
  *   200  { ok: true,  id: <resend_message_id> }

@@ -23,7 +23,7 @@ const VIEWPORTS = [
 export default function EmailPreview() {
   const [fromName,      setFromName]      = useState('Bhanu')
   const [recipientName, setRecipientName] = useState('Marcus')
-  const [shareUrl,      setShareUrl]      = useState('https://bhanu-dearly.vercel.app/api/share?id=demo-1234')
+  const [shareUrl,      setShareUrl]      = useState('https://dearlynotes.app/api/share?id=demo-1234')
   const [personalNote,  setPersonalNote]  = useState("Hey Marcus — I've been meaning to write this for a while. Thank you for backing me last quarter. It mattered.")
   // Blurb describes WHAT the note is about, not WHO's involved (the
   // sender is already named in the preceding sentence). Second-person

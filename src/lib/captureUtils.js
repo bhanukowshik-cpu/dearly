@@ -73,7 +73,7 @@ async function bufferToBase64(buf) {
  * no matter where the letter was downloaded from.
  */
 const DEARLY_PUBLIC_URL =
-  (import.meta.env.VITE_PUBLIC_URL || 'https://bhanu-dearly.vercel.app').replace(/\/$/, '')
+  (import.meta.env.VITE_PUBLIC_URL || 'https://dearlynotes.app').replace(/\/$/, '')
 
 /**
  * Pre-export pipeline:
