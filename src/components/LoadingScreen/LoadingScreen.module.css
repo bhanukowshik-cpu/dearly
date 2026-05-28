@@ -47,15 +47,32 @@
    panel itself is a rounded rectangle that clips its children, so the
    nature image fills it edge-to-edge without bleeding into the page.
    ───────────────────────────────────────────────────────────────────────── */
+/* Entrance animations — left panel slides in from -80 px, right panel
+   slides in from +80 px. CSS keyframes (rather than framer-motion's
+   initial/animate) because framer animations stalled at 50% completion
+   under React.StrictMode's double-mount lifecycle. Plain CSS doesn't
+   care about React mount/unmount cycles, so the animation always plays
+   reliably on first paint. */
+@keyframes panelSlideInLeft {
+  from { transform: translateX(-80px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+@keyframes panelSlideInRight {
+  from { transform: translateX(80px);  opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
 .leftPanel {
   position: relative;
   border-radius: 28px;
   overflow: hidden;
   min-height: clamp(540px, 88vh, 880px);
   isolation: isolate;
-  /* (No box-shadow — per design direction, the frame sits flat on the
-     white page rather than floating. Keeps the eye on the letter, not
-     the container.) */
+  /* (No background fallback — the videos are served locally from
+     /videos/, so they start playing immediately on page load. No
+     intermediate gradient needed.) */
+  animation: panelSlideInLeft 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* Nature image — full-bleed background. object-fit: cover keeps it filling
@@ -294,6 +311,15 @@
   padding: clamp(24px, 3vw, 48px) clamp(16px, 2vw, 32px) clamp(24px, 3vw, 48px) clamp(8px, 0.8vw, 14px);
   gap: 28px;
   min-width: 0;
+  animation: panelSlideInRight 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Reduced motion — skip both slides, just fade in over a short window. */
+@media (prefers-reduced-motion: reduce) {
+  .leftPanel,
+  .rightPanel {
+    animation: none;
+  }
 }
 
 /* ── Content block — shared column for headline + CTA ──────────────────

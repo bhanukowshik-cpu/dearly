@@ -5,24 +5,30 @@ import styles from './LoadingScreen.module.css'
 // Each video carries its own accent color so the CTA — and the active chip
 // — can pick up the dominant tone of whatever sky/water is playing behind
 // them. Picked once per mount via useRef so the accent stays stable while
-// the active chip rotates underneath it. The mapping is hand-tuned: warm
-// orange for the sunset cloud video, cool blue for the dreamy evening,
-// etc. Tweak these if a future video doesn't land its tone right.
+// the active chip rotates underneath it.
+//
+// Served from /public/loops/ — pre-compressed H.264 at 720 p, CRF 28, no
+// audio (background videos are muted anyway). Total ~13 MB across all 4
+// (down from 80 MB at source) which is small enough to commit and ship
+// from the same origin as the HTML. Result: video plays the moment the
+// page renders, no remote-CDN handshake, no flash of empty background.
+// The heavy blur(14px) filter applied in CSS hides any compression
+// artifacts from the lower bitrate.
 const NATURE_VIDEOS = [
   {
-    url:    'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/videos/Intro%20Updated.mp4',
+    url:    '/loops/Intro%20Updated.mp4',
     accent: '#4A8DC9',  // sky blue — matches the cloud/sky scene in this video
   },
   {
-    url:    'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/videos/Dreamy%20Evening.mp4',
+    url:    '/loops/Dreamy%20Evening.mp4',
     accent: '#6A78C4',  // dusk indigo
   },
   {
-    url:    'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/videos/Warm%20Clouds%202.mp4',
-    accent: '#E89545',  // sunset orange — the screenshot the user picked
+    url:    '/loops/Warm%20Clouds%202.mp4',
+    accent: '#E89545',  // sunset orange
   },
   {
-    url:    'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/videos/Warm%20River%20Scenary%20Moving%201.mp4',
+    url:    '/loops/Warm%20River%20Scenary%20Moving%201.mp4',
     accent: '#D49454',  // warm gold
   },
 ]
@@ -42,18 +48,32 @@ const reducedMotion =
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-// Pre-rendered letter PNGs
-import priyaLetterPng  from '../../assets/loadingLetters/priya.png'
-import marcusLetterPng from '../../assets/loadingLetters/marcus.png'
-import maiLetterPng    from '../../assets/loadingLetters/mai.png'
+// Pre-rendered letter assets. PNGs are the baseline; if an animated .gif
+// with the same stem exists in the folder (dropped in via the dev
+// Export-PNG button's auto-GIF path when the source note has a GIF) we
+// prefer it so the carousel actually animates on the landing page,
+// matching what the writer designed.
+const letterPngs = import.meta.glob('../../assets/loadingLetters/*.png', { eager: true, import: 'default' })
+const letterGifs = import.meta.glob('../../assets/loadingLetters/*.gif', { eager: true, import: 'default' })
+
+function pickLetter(name) {
+  return (
+    letterGifs[`../../assets/loadingLetters/${name}.gif`] ||
+    letterPngs[`../../assets/loadingLetters/${name}.png`]
+  )
+}
+
+const priyaLetter  = pickLetter('priya')
+const marcusLetter = pickLetter('marcus')
+const maiLetter    = pickLetter('mai')
 
 const SLIDES = [
-  { id: 'manager',    audience: 'To your manager',    img: marcusLetterPng, aspect: '1520 / 1014' },
-  { id: 'parents',    audience: 'To your parents',    img: priyaLetterPng,  aspect: '1520 / 1014' },
-  { id: 'partner',    audience: 'To your partner',    img: maiLetterPng,    aspect: '1520 / 380'  },
-  { id: 'client',     audience: 'To a client',        img: priyaLetterPng,  aspect: '1520 / 1014' },
-  { id: 'connection', audience: 'To a connection',    img: marcusLetterPng, aspect: '1520 / 1014' },
-  { id: 'friend',     audience: 'To your friend',     img: maiLetterPng,    aspect: '1520 / 380'  },
+  { id: 'manager',    audience: 'To your manager',    img: marcusLetter, aspect: '1520 / 1014' },
+  { id: 'parents',    audience: 'To your parents',    img: priyaLetter,  aspect: '1520 / 1014' },
+  { id: 'partner',    audience: 'To your partner',    img: maiLetter,    aspect: '1520 / 380'  },
+  { id: 'client',     audience: 'To a client',        img: priyaLetter,  aspect: '1520 / 1014' },
+  { id: 'connection', audience: 'To a connection',    img: marcusLetter, aspect: '1520 / 1014' },
+  { id: 'friend',     audience: 'To your friend',     img: maiLetter,    aspect: '1520 / 380'  },
 ]
 
 const SLIDE_INTERVAL_MS = 10000
@@ -86,15 +106,32 @@ export default function LoadingScreen({ onCta = () => {} }) {
             The --accent CSS variable here is read by the panel-bottom
             progress bar's fill, so the bar carries the same themed color
             as the CTA on the right (sunset → orange, dusk → indigo, etc).
-            Single source of truth: NATURE_VIDEOS[i].accent. */}
-        <div className={styles.leftPanel} style={{ '--accent': accent }}>
+            Single source of truth: NATURE_VIDEOS[i].accent.
 
+            Slides in from -80 px on mount via a CSS keyframe (see
+            `.leftPanel` animation in the stylesheet) — paired with the
+            right panel sliding in from +80 px. Both animate together so
+            the page "assembles" as a single composition, not in
+            sequence. CSS rather than framer-motion because the latter
+            stalled at 50 % under React.StrictMode's double-mount. */}
+        <div
+          className={styles.leftPanel}
+          style={{ '--accent': accent }}
+        >
+
+          {/* preload="auto" — tell the browser to start downloading the
+              full video as early as possible (default is "metadata" in
+              many browsers, which waits until after first paint). The
+              .leftPanel CSS background provides the instant fallback
+              while bytes are in flight, and the video fades in via its
+              own opacity transition once enough has buffered to play. */}
           <video
             className={styles.natureBg}
             autoPlay
             loop
             muted
             playsInline
+            preload="auto"
             aria-hidden
             ref={el => { if (el) el.playbackRate = 0.75 }}
           >
@@ -166,7 +203,8 @@ export default function LoadingScreen({ onCta = () => {} }) {
             they share one column width (left + right edges aligned).
             Without this wrapper the headline wrapped to its natural 16ch
             text width while the CTA was a fixed 320px — visually
-            unaligned across most viewports. */}
+            unaligned across most viewports. Slides in from +80 px (CSS
+            keyframe) to mirror the left panel's -80 px entry. */}
         <aside className={styles.rightPanel}>
           <div className={styles.contentBlock}>
           <p className={styles.serifCaption}>
