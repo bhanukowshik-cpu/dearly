@@ -398,7 +398,10 @@ export default function VoiceNoteRenderer({
           <VoiceWaveform
             data={note.waveformData}
             progress={progress}
-            bars={26}
+            /* 18 bars (was 26) reads as airy individual marks instead
+               of a packed wash, especially on mobile where the pill is
+               ~150px wide and 26 bars crammed in look solid. */
+            bars={18}
             height={36}
             color={accent}
             dimColor={accentFade}

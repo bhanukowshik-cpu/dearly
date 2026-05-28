@@ -69,8 +69,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: clamp(22px, 14cqi, 36px);
-  height: clamp(22px, 14cqi, 36px);
+  /* Smaller on mobile (~18px floor) so the play CTA doesn't crowd
+     the waveform on the small pill; still scales up on desktop via
+     the cqi term. */
+  width: clamp(18px, 12cqi, 32px);
+  height: clamp(18px, 12cqi, 32px);
   border-radius: 0;
   border: none;
   background: none !important;     /* overrides the inline accent fill */
