@@ -18,18 +18,27 @@
  *   ANTHROPIC_API_KEY  required  https://console.anthropic.com → API Keys
  *
  * Response:
- *   200  { ok: true,  subject: "<one-line subject>" }
+ *   200  {
+ *          ok:      true,
+ *          subject: "<the chosen subject — equals options[0] when present>",
+ *          options: ["<specific anchor>", "<emotional hook>", "<short & intriguing>"]
+ *                    // up to 3 archetype-specific candidates; absent on
+ *                    // the template-fallback path (key missing / API down).
+ *        }
  *   4xx  { ok: false, error: '...' }
- *   5xx  { ok: false, error: '...', fallback: "<safe default subject>" }
  *
  * Fallback behaviour: on any failure (missing key, API down, model
- * refused) we return a 200 with `ok: true` and a template-built
- * subject. The caller treats this as a normal suggestion so the email
- * flow is never blocked.
+ * refused, all candidates filtered out) we return a 200 with `ok: true`
+ * and a template-built subject so the email flow is never blocked.
+ * The `options` array is omitted on the fallback path to signal that
+ * the model didn't actually produce 3 alternatives.
  */
 
 const MODEL          = 'claude-haiku-4-5'        // fast + cheap
-const MAX_TOKENS     = 60
+// Bumped from 60 → 240. The new prompt asks for THREE candidate subjects
+// (Specific Anchor / Emotional Hook / Short & Intriguing). Each can be
+// up to ~80 chars; 240 tokens gives headroom without burning budget.
+const MAX_TOKENS     = 240
 const MAX_MSG_CHARS  = 1800                      // truncate long letters for the prompt
 
 function badRequest(res, msg) {
@@ -117,33 +126,38 @@ export default async function handler(req, res) {
   // best practices: include both names, mention the topic, no
   // clickbait, ≤ 80 chars, no emoji unless the note's tone clearly
   // invites it.
-  const system = [
-    'You write email subject lines for Dearly — an app where people send handwritten letters to each other.',
-    'These are not marketing emails or notifications. Each subject announces a letter that one specific person has written to one specific other person.',
-    'Frame it like a letter being delivered, not an email being sent.',
-    '',
-    'Rules:',
-    '- ONE line, ≤ 70 characters total. Shorter is better.',
-    '- Always use the sender\'s first name. If a recipient name is provided, use their first name too.',
-    '- Prefer the word "letter" over "note", "message", "email", or "update".',
-    '- Reference the actual topic of the letter when you can — but only if you can do it in 3–5 words. Topic-less is fine.',
-    '- Declarative, calm, gift-like. Periods are good. "A letter from Bhanu, for Marcus." beats "Bhanu has a special note for you!".',
-    '- No emoji unless the letter itself reads playful/celebratory.',
-    '- No "RE:", "FW:", clickbait, salesy verbs ("don\'t miss", "open now"), or exclamation marks.',
-    '- Never ask a question in the subject — questions look broken in inboxes.',
-    '- Output ONLY the subject text. No quotes, no "Subject:" prefix, no meta commentary.',
-    '- Never ask the user for more information — always write the best subject you can with what you have.',
-    '',
-    'Good examples:',
-    '- "A letter from Bhanu, for Marcus."',
-    '- "Bhanu wrote you something."',
-    '- "A letter about last weekend, from Priya."',
-    '- "For Kowshik, from Bhanu."',
-    'Bad examples:',
-    '- "Hey Marcus, Bhanu wrote you a personal note on Dearly!"',
-    '- "📬 You\'ve got mail from Bhanu"',
-    '- "Don\'t miss this letter from Bhanu"',
-  ].join('\n')
+  // User-authored prompt — kept verbatim so changes to copy can be made
+  // here without diffing helper code. The trailing "Output Format" block
+  // is the only addendum; it constrains the response shape so the API
+  // route can parse exactly three candidates back out.
+  const system = `You are an expert copywriter specializing in micro-copy, email subject lines, and notifications. Your task is to analyze a personal letter written by a user and generate 3 distinct "Summary Lines" (also known as preview text or email hooks).
+
+The sole purpose of this summary line is to be so specific, relevant, and engaging that the recipient immediately opens the message.
+
+### Core Philosophy
+A great summary line avoids generic platitudes (e.g., "Just checking in" or "A quick update"). Instead, it pulls a specific "anchor" from the text—a shared memory, a precise pain point, a unique location, a time, or an unsaid truth that ONLY makes sense to the sender and recipient.
+
+### Instructions
+1. Analyze the relationship between the sender and recipient based on the text.
+2. Identify the core "anchor" of the letter (e.g., a specific meeting place, a shared problem, a professional milestone, or a family inside joke).
+3. Generate 3 options based on the following archetypes:
+   - Option 1: The Specific Anchor (Leans into a concrete detail like a time, place, or exact topic).
+   - Option 2: The Emotional/Relational Hook (Leans into the feeling or the core "why" of the message).
+   - Option 3: Short & Intriguing (A high-curiosity snippet optimized for tight mobile screen spaces).
+
+### Adaptation Framework by Relationship Type:
+- Friends/Family: Focus on nostalgic anchors, shared specific memories, dates, locations, or inside jokes (e.g., "That 2 AM conversation on the balcony in Goa...").
+- Managers/Colleagues: Focus on relief of a pain point, specific project names, urgency, or direct professional value (e.g., "The final solution for the Q3 pipeline blocker...").
+- Clients/Online Connections: Focus on where you met, a specific topic they mentioned, or an immediate value proposition (e.g., "Following up on our conversation at the tech mixer about AI design tools...").
+
+### Output Format
+Output ONLY the three subject lines, one per line, in this exact order: Specific Anchor first, then Emotional/Relational Hook, then Short & Intriguing.
+- Each line ≤ 80 characters.
+- No "Option 1:" / "1." / "-" / bullet prefixes or labels.
+- No surrounding quotation marks.
+- No commentary, preamble, or explanation before or after.
+- No question marks at the end (they look broken in inboxes).
+- Never ask the user for more information; always write the best subjects you can with what you have.`
 
   const user = [
     `Sender's name: ${fromName}`,
@@ -180,28 +194,47 @@ export default async function handler(req, res) {
       return ok(res, templateSubject({ fromName, recipientName, plain }))
     }
 
-    const data    = await upstream.json()
-    const raw     = data?.content?.[0]?.text ?? ''
-    // Clean up: strip surrounding quotes, "Subject:" prefix, newlines,
-    // and clip to 120 chars defensively (the prompt asks for 80).
-    const subject = raw
-      .replace(/^["'`]+|["'`]+$/g, '')
-      .replace(/^subject:\s*/i, '')
-      .replace(/[\r\n].*$/s, '')
-      .trim()
-      .slice(0, 120)
+    const data = await upstream.json()
+    const raw  = data?.content?.[0]?.text ?? ''
 
-    // Sanity gate: if the model ignored the "no questions" rule and asked
-    // for more info (e.g. "Could you provide the recipient's name?"),
-    // fall back to the template — a question mark in an email subject
-    // looks broken in inboxes.
-    const looksLikeAQuestion = /\?\s*$/.test(subject) ||
-                               /^(could|can|would|please|i need|provide)\b/i.test(subject)
+    // The prompt asks for THREE candidates, one per line, ordered:
+    //   1. Specific Anchor
+    //   2. Emotional / Relational Hook
+    //   3. Short & Intriguing
+    // Parse them out, scrub any prefixes the model might have added
+    // despite the format rules (numbered lists, bullets, "Option N:",
+    // surrounding quotes, "Subject:" prefix). Per-line caps applied.
+    const looksLikeAQuestion = s =>
+      /\?\s*$/.test(s) || /^(could|can|would|please|i need|provide)\b/i.test(s)
 
-    if (!subject || looksLikeAQuestion) {
+    const candidates = raw
+      .split(/\r?\n/)
+      .map(l => l
+        .replace(/^\s*(?:option\s*\d+\s*[:.\-]?|[\d]+[.\)]|[-*•])\s*/i, '')
+        .replace(/^["'`]+|["'`]+$/g, '')
+        .replace(/^subject:\s*/i, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 120))
+      .filter(l => l && !looksLikeAQuestion(l))
+      .slice(0, 3)
+
+    // Backward compat: clients today expect a single `subject` field.
+    // We return the first (Specific Anchor) as the canonical pick and
+    // ALSO expose the full list via `options` so a future ShareSheet
+    // UI can let the sender choose between archetypes without a
+    // second round-trip.
+    if (candidates.length === 0) {
       return ok(res, templateSubject({ fromName, recipientName, plain }))
     }
-    return ok(res, subject)
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'application/json')
+    res.end(JSON.stringify({
+      ok:      true,
+      subject: candidates[0],
+      options: candidates,
+    }))
+    return
   } catch (e) {
     // eslint-disable-next-line no-console
     console.warn('[suggest-subject] threw:', e?.message || e)
