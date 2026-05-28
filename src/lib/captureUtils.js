@@ -381,6 +381,43 @@ function swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId) {
 }
 
 /**
+ * Pre-load any media-frame <img> elements whose src is a `blob:` URL,
+ * convert each blob to a data URL, and swap the src in-place. Returns
+ * a restore function that puts the original blob URLs back.
+ *
+ * Why: html-to-image rasterises the captured DOM by wrapping it in an
+ * SVG <foreignObject>. Browsers refuse to load `blob:` URLs from inside
+ * an SVG that originated as a serialised string — the resource is
+ * considered cross-context — so any <img src="blob:..."> in the
+ * capture renders as empty. Swapping to data: URLs (which are embeddable
+ * inline) is the reliable fix; same technique we use for the QR PNG.
+ */
+async function inlineBlobImages(paperEl) {
+  const imgs = paperEl.querySelectorAll('img')
+  const originals = []
+  await Promise.all(Array.from(imgs).map(async (img) => {
+    const src = img.getAttribute('src') || ''
+    if (!/^blob:/.test(src)) return
+    try {
+      const blob   = await fetch(src).then(r => r.blob())
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload  = () => resolve(reader.result)
+        reader.onerror = () => reject(reader.error)
+        reader.readAsDataURL(blob)
+      })
+      originals.push({ img, prevSrc: src })
+      img.setAttribute('src', dataUrl)
+    } catch (err) {
+      console.warn('[dearly] inline blob image failed', err)
+    }
+  }))
+  return function restore() {
+    originals.forEach(({ img, prevSrc }) => img.setAttribute('src', prevSrc))
+  }
+}
+
+/**
  * Render the waveform as airy, varied-height orange capsules. Goals:
  *
  *   - Bar count low (~22) and gap wide (~50% of bar width) so the bars
@@ -505,9 +542,17 @@ export async function captureCanvas(refOrElement, { noteData, swapVoiceForBarcod
 
   let dataUrl
   let restoreVoiceNotes = () => {}
+  let restoreBlobImages = () => {}
   try {
     const fontEmbedCSS = await buildFontEmbedCSS()
     const bgColor = window.getComputedStyle(paperEl).backgroundColor || '#ffffff'
+
+    // Pre-inline any blob: URL images (uploaded photos). html-to-image's
+    // SVG <foreignObject> rasterisation drops `blob:` resources — the
+    // browser refuses to load them from a serialised SVG context — so the
+    // captured PNG ends up with empty placeholders where photos should be.
+    // Swapping to data: URLs (inline-embeddable) fixes this.
+    restoreBlobImages = await inlineBlobImages(paperEl)
 
     // Voice-note swap: opt-in via swapVoiceForBarcode. Gated because the
     // dev PNG / debug exports want a true screenshot of the live editor
@@ -536,6 +581,8 @@ export async function captureCanvas(refOrElement, { noteData, swapVoiceForBarcod
     if (wrapEl) wrapEl.style.filter = savedFilter
     // Restore voice-note pills (swap was in-place on the live DOM).
     restoreVoiceNotes()
+    // Restore blob: URLs we temporarily swapped to data: URLs.
+    restoreBlobImages()
   }
 
   // Re-rasterize through a fresh canvas with the explicit background
