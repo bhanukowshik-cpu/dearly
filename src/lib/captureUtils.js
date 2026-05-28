@@ -210,12 +210,15 @@ function swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId) {
   const nodes = paperEl.querySelectorAll('[data-voice-note]')
 
   // Sender name flows through paper element's data-sender-name (set by
-  // PaperCanvas). Falls back to "this" phrasing if blank ("listen to this
-  // note") so the caption still reads naturally.
+  // PaperCanvas). Caption phrasing:
+  //   With sender:    "Hear it in Bhanu's voice"
+  //   Without sender: "Hear it in their voice"
+  // The possessive smart-quote handles both regular names and names
+  // ending in 's' (Bhanu's vs Marcus').
   const rawSender = (paperEl.getAttribute('data-sender-name') || '').trim()
   const ownerPhrase = rawSender
     ? `${escapeHtml(rawSender)}${/s$/i.test(rawSender) ? '&rsquo;' : '&rsquo;s'}`
-    : 'this'
+    : 'their'
 
   // Overlay strategy (not innerHTML swap): the original wavesurfer canvas
   // and React-managed children stay untouched, we just position an opaque
@@ -328,17 +331,19 @@ function swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId) {
               white-space:nowrap;
               overflow:hidden;
               text-overflow:ellipsis;
-            ">Scan to listen to ${ownerPhrase} note</div>
+            ">Hear it in ${ownerPhrase} voice</div>
           </div>
 
           <!-- ── Right column (~36%) — QR sits flush, the wobbly bg
                peeks around its corners. The QR PNG has its own solid
-               white quiet zone baked in so it always scans cleanly. -->
+               white quiet zone baked in so it always scans cleanly.
+               No divider line — a straight rule would escape the
+               wobble's curved top/bottom edges anyway, and the
+               waveform/QR pairing reads cleanly without one. -->
           <div style="
             flex:0 0 36%;
             display:flex;align-items:center;justify-content:center;
-            padding:6% 8% 6% 0;
-            border-left:1px dashed rgba(120,80,30,0.22);
+            padding:6% 8% 6% 2%;
             box-sizing:border-box;
           ">
             <div style="
