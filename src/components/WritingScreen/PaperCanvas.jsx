@@ -1191,6 +1191,12 @@ export default function PaperCanvas({
                 onResize={onResizeVoiceNote}
                 onRotate={onRotateVoiceNote}
                 onRemove={onRemoveVoiceNote}
+                /* In reading mode (RecipientScreen, Preview) the pill is
+                   tap-to-play only — no drag, no resize. Routes the click
+                   straight to audio.play() with no intervening pointer
+                   handlers, which keeps iOS Safari's user-gesture chain
+                   intact. */
+                readOnly={readingMode}
               />
             ))}
 

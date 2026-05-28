@@ -129,6 +129,12 @@ export default function VoiceNoteRenderer({
   onResize = NOOP,
   onRotate = NOOP,
   onRemove = NOOP,
+  /* When true, the pill is a play-only target — no drag, no resize handles,
+     no selection chrome. The ENTIRE body becomes a single tap-to-play
+     button so iOS Safari gets a clean user-gesture → audio.play() call
+     with no intervening pointer/drag handlers in the way. Used by
+     RecipientScreen + Preview. */
+  readOnly = false,
 }) {
   // Adaptive palette — derive everything from the paper colour so the
   // voice pill harmonises with whichever paper is selected.
@@ -398,8 +404,16 @@ export default function VoiceNoteRenderer({
         aspectRatio: '3.1 / 1',
         transform:   `translate(-50%, -50%) rotate(${rotation}deg)`,
         zIndex:      isSelected ? 17 : 7,
+        // In readOnly the whole pill is a play button — show a pointer
+        // cursor instead of grab.
+        cursor: readOnly ? 'pointer' : undefined,
       }}
-      onPointerDown={handleBodyPointerDown}
+      // readOnly: skip drag/select handling and route any tap straight
+      // to togglePlay. This keeps iOS Safari's user-gesture → play()
+      // chain unbroken — no intervening pointermove listeners that
+      // could confuse it about whether this is a tap or drag.
+      onPointerDown={readOnly ? undefined : handleBodyPointerDown}
+      onClick={readOnly ? togglePlay : undefined}
     >
       <div className={styles.card}>
         {/* Hand-drawn wobbly background — same shape family as the
@@ -422,10 +436,14 @@ export default function VoiceNoteRenderer({
         </svg>
         <button
           className={styles.playBtn}
-          onClick={togglePlay}
-          onPointerDown={e => e.stopPropagation()}
+          // In readOnly the body-level onClick handles play; let the click
+          // bubble up through the button so we don't double-fire (and so
+          // the user-gesture chain stays clean for iOS).
+          onClick={readOnly ? undefined : togglePlay}
+          onPointerDown={readOnly ? undefined : (e => e.stopPropagation())}
           aria-label={isPlaying ? 'Pause voice note' : 'Play voice note'}
-          style={{ color: accent }}
+          style={{ color: accent, pointerEvents: readOnly ? 'none' : 'auto' }}
+          tabIndex={readOnly ? -1 : 0}
         >
           {isPlaying ? <IconPause /> : <IconPlay />}
         </button>
@@ -498,7 +516,7 @@ export default function VoiceNoteRenderer({
         </div>
       )}
 
-      {isSelected && (
+      {!readOnly && isSelected && (
         <>
           <div className={styles.selFrame} />
           <button
