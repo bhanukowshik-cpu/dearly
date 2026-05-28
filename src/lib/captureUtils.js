@@ -222,11 +222,29 @@ function swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId) {
   // export card on top during capture. Removing the overlay after capture
   // returns the editor to its exact prior state — waveform pixels, canvas
   // refs, React reconciliation all intact.
+  //
+  // Also: hide any selection chrome (×, corner handles, rotate button) that
+  // VoiceNoteRenderer renders when the pill is selected. Those elements
+  // are positioned OUTSIDE the body (e.g. top:-14px on the × button), so
+  // the inset:0 overlay can't cover them. We hide their `display` via
+  // inline style and restore on cleanup.
   const overlays = []
+  const hiddenChildren = []
   nodes.forEach(node => {
     const id  = node.getAttribute('data-voice-note-id')
     const qrSvg = barcodeByVoiceId.get(id)
     if (!qrSvg) return  // upload failed — leave voice pill as-is
+
+    // Hide everything EXCEPT the first child (the .card with the
+    // wavesurfer canvas inside). The card stays in the DOM so wavesurfer
+    // / React don't lose any references, but it's visually covered by
+    // the opaque overlay we're about to append. Every subsequent child
+    // is selection chrome — that's what was leaking into the export.
+    Array.from(node.children).forEach((child, idx) => {
+      if (idx === 0) return  // .card — leave intact
+      hiddenChildren.push({ el: child, prevDisplay: child.style.display })
+      child.style.display = 'none'
+    })
 
     const rect = node.getBoundingClientRect()
     const captionPx = Math.max(8, Math.round(rect.height * 0.14))
@@ -266,9 +284,9 @@ function swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId) {
         overflow:hidden;
         font-family: 'Caveat', ui-serif, Georgia, 'Times New Roman', serif;
       ">
-        <!-- ── Left column (~68%) — waveform + caption ──────────────── -->
+        <!-- ── Left column (~64%) — waveform + caption ──────────────── -->
         <div style="
-          flex:0 0 68%;
+          flex:0 0 64%;
           min-width:0;
           display:flex;flex-direction:column;
           padding:6% 4% 4% 6%;
@@ -293,11 +311,16 @@ function swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId) {
           ">Scan to listen to ${ownerPhrase} note</div>
         </div>
 
-        <!-- ── Right column (~32%) — QR ──────────────────────────────── -->
+        <!-- ── Right column (~36%) — QR ────────────────────────────────
+             Wider than the spec's 25% because the QR has to claim enough
+             physical pixels to scan reliably. No inner padding — the
+             qr-code-styling renderer already adds an 8-module quiet zone
+             internally, doubling it up just steals modules' worth of
+             scannable area. -->
         <div style="
-          flex:0 0 32%;
+          flex:0 0 36%;
           display:flex;align-items:center;justify-content:center;
-          padding:5%;
+          padding:0;
           border-left:1px dashed rgba(120,80,30,0.18);
           background:#FFFFFF;
           box-sizing:border-box;
@@ -315,6 +338,9 @@ function swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId) {
 
   return function restore() {
     overlays.forEach(o => o.remove())
+    hiddenChildren.forEach(({ el, prevDisplay }) => {
+      el.style.display = prevDisplay
+    })
   }
 }
 
