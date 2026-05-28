@@ -131,6 +131,8 @@ export default function App() {
               paperConfig={recipientData.paperConfig}
               stickers={recipientData.stickers}
               textElements={recipientData.textElements}
+              voiceNotes={recipientData.voiceNotes}
+              mediaFrames={recipientData.mediaFrames}
               showRecipient={recipientData.showRecipient}
               textSize={recipientData.textSize}
               onWriteOwn={() => setScreen('writing')}

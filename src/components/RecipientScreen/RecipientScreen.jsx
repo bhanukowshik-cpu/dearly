@@ -261,10 +261,12 @@ function FoldedLetter({
           <div className={`${styles.foldCard} ${glowing ? styles.foldCardGlow : ''}`}>
             <div className={styles.foldPaper} ref={paperRef}>
               <PaperCanvas
-                recipient={recipient} message={message}
+                recipient={recipient} senderName={senderName} message={message}
                 showRecipient={showRecipient} paperConfig={paperConfig}
                 stickers={stickers} textSize={textSize}
                 textElements={textElements}
+                voiceNotes={voiceNotes}
+                mediaFrames={mediaFrames}
                 selectedStickerId={null}
                 onSelectSticker={NOOP} onRemoveSticker={NOOP}
                 onMoveSticker={NOOP}  onResizeSticker={NOOP} onRotateSticker={NOOP}
@@ -398,6 +400,11 @@ export default function RecipientScreen({
   /* iPad-authored draggable text cards. Render-only on this screen
      (no edit). Coexist with `message` so legacy notes still display. */
   textElements  = [],
+  /* Voice notes + media frames as authored in WritingScreen. Their audio
+     URLs are PERMANENT Supabase Storage URLs (the QR-export pipeline in
+     captureUtils swaps blob: URLs for these before saveNote()). */
+  voiceNotes    = [],
+  mediaFrames   = [],
   showRecipient = true,
   textSize      = 'lg',
   onWriteOwn    = () => {},
@@ -534,7 +541,18 @@ export default function RecipientScreen({
     setLoadingPng(true)
     setDownloadDone(false)
     try {
-      const canvas = await captureCanvas(paperRef)
+      // User-facing recipient download (also fires from the Preview
+      // overlay) — swap voice pills for the QR export card so the saved
+      // image carries a scannable link to the full letter.
+      const canvas = await captureCanvas(paperRef, {
+        swapVoiceForBarcode: true,
+        noteData: {
+          senderName, recipientName, recipient, message,
+          paperConfig, stickers, textElements,
+          voiceNotes, mediaFrames,
+          showRecipient, textSize,
+        },
+      })
       if (isMobileDevice) {
         // Show image in an overlay on the same page — no popup needed,
         // works regardless of iOS popup blocker setting.

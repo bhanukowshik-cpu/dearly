@@ -332,6 +332,14 @@ export default function VoiceNoteRenderer({
   return (
     <div
       className={styles.body}
+      // data-* attrs are read by captureUtils during export to swap this
+      // voice pill for the export-mode card (waveform + caption + QR).
+      // They have no effect on the live interactive experience.
+      data-voice-note
+      data-voice-note-id={note.id}
+      data-voice-note-audio={note.audioUrl}
+      data-voice-note-duration={note.duration ?? 0}
+      data-voice-note-waveform={JSON.stringify(note.waveformData || [])}
       style={{
         left:        `${note.x}%`,
         top:         `${note.y}%`,

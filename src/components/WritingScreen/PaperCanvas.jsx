@@ -704,6 +704,7 @@ function computeColorInk(hexColor) {
    ───────────────────────────────────────────────────────────────────────── */
 export default function PaperCanvas({
   recipient,
+  senderName,
   message,
   /* iPad-only: when true the paper body MAY become contenteditable (for
      typing). But we only mount the editable surface while `editorActive`
@@ -1090,6 +1091,9 @@ export default function PaperCanvas({
             ref={paperRef}
             data-paper-canvas
             data-paper-size={size}
+            // Read by captureUtils so the voice-note → barcode swap can
+            // include "scan to listen {sender}'s message" in the caption.
+            data-sender-name={senderName || ''}
             className={`${styles.paper} ${showZigzag ? styles.paperZigzag : ''}`}
             style={paperStyle}
             onPointerDown={() => { onSelectSticker?.(null); onSelectFrame?.(null); onSelectVoiceNote?.(null); onSelectTextElement?.(null) }}

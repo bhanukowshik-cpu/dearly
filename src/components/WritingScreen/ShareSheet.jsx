@@ -222,7 +222,10 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
     onToast?.('Preparing your image…')
 
     try {
-      const canvas = await captureCanvas(paperRef)
+      // User-facing "Download as image" — swap voice pill for the QR
+      // export card so the downloaded PNG carries a scannable link to
+      // the full letter (recipients can't play audio inside a static PNG).
+      const canvas = await captureCanvas(paperRef, { noteData, swapVoiceForBarcode: true })
       if (isMobileDevice) {
         // Show in an overlay on the same page — no popup, works regardless
         // of iOS "Block Pop-ups" setting.

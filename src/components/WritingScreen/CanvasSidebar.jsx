@@ -69,10 +69,12 @@ function Toggle({ icon, label, active, onClick }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   CanvasSidebar — all right-of-canvas controls.
+   CanvasSidebar — all right-of-canvas controls (desktop only).
      • Paper size      (Strip / Postcard / A4)
      • Paper style     (Default / Color / Vintage  + color swatches)
      • Toggles         (Ruler, Zig-zag)
+   On mobile + iPad, paper size is surfaced via the floating
+   PaperSizePicker pill above the paper instead.
    ───────────────────────────────────────────────────────────────────────── */
 export default function CanvasSidebar({ paperConfig, onChangePaper }) {
   const { size = 'postcard', type, color, showRuler, showZigzag } = paperConfig
@@ -83,8 +85,8 @@ export default function CanvasSidebar({ paperConfig, onChangePaper }) {
     <aside className={styles.wrap} aria-label="Canvas options">
 
       {/* ── Paper size ─────────────────────────────────────────────────
-         Lives in the sidebar on desktop. Mobile + iPad surface this via
-         the PaperSizePicker tabs nested on the paper's top edge. */}
+         Desktop control. On mobile/iPad this is surfaced via the
+         PaperSizePicker tabs nested on the paper's top edge. */}
       <section className={styles.section}>
         <h2 className={styles.heading}>Paper size</h2>
         <div className={styles.sizeCol}>

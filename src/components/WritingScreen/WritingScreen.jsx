@@ -1176,6 +1176,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   const paperCanvas = (
     <PaperCanvas
       recipient={recipient}
+      senderName={senderName}
       message={message}
       onMessageChange={setMessage}
       isIpad={isIpad}
