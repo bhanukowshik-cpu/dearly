@@ -237,14 +237,25 @@ export default function VoiceNoteRenderer({
   function togglePlay(e) {
     e?.stopPropagation()
     const a = audioRef.current
-    if (!a) return
+    console.log('[VoiceNote] play tapped. audioRef=', !!a, 'src=', note.audioUrl, 'paused=', a?.paused, 'readyState=', a?.readyState, 'networkState=', a?.networkState, 'error=', a?.error?.code)
+    if (!a) {
+      setPlaybackError('Audio element not mounted yet — try again in a moment.')
+      return
+    }
+    // Surface "no audio source" early — most common cause of a dead-feeling
+    // tap on the recipient screen is the note having a stale blob: URL or
+    // an unreachable Storage URL.
+    if (!note.audioUrl) {
+      setPlaybackError('No audio URL on this note. (The letter may have been saved before voice persistence was wired up.)')
+      return
+    }
     // Clear any previous error — fresh tap, fresh attempt.
     setPlaybackError(null)
     if (a.paused) {
       const p = a.play()
       if (p && typeof p.then === 'function') {
         p.catch(err => {
-          const text = `Play failed: ${err.name} — ${err.message}\nURL: ${a.currentSrc || note.audioUrl}`
+          const text = `Play failed: ${err.name} — ${err.message}\nreadyState=${a.readyState} networkState=${a.networkState} mediaError=${a.error?.code}\nURL: ${a.currentSrc || note.audioUrl}`
           console.error('[VoiceNote] play failed:', err.name, err.message, 'url:', a.currentSrc)
           setPlaybackError(text)
         })
@@ -442,12 +453,15 @@ export default function VoiceNoteRenderer({
         ref={audioRef}
         src={note.audioUrl || undefined}
         preload="auto"
-        /* Mobile browsers benefit from these — playsInline keeps audio
-           inline (no full-screen takeover on iOS), and crossOrigin
-           anonymous prevents tainted state when the audio is served
-           from Supabase Storage (separate origin). */
+        /* playsInline keeps audio playback inline on iOS (no full-screen
+           takeover). Intentionally NOT setting crossOrigin — that would
+           require Supabase Storage to send Access-Control-Allow-Origin
+           headers, and if the bucket isn't configured to do so, iOS
+           Safari refuses to load the audio entirely. Without crossOrigin,
+           Safari treats the resource as opaque media (we can play it,
+           we just can't read its pixel/sample data from JS — which we
+           don't need to do). */
         playsInline
-        crossOrigin="anonymous"
       />
 
       {/* Visible playback error — appears below the pill if the audio
