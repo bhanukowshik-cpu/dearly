@@ -22,6 +22,10 @@ import { DEFAULT_FRAME } from '../../lib/mediaFrameConfig'
 import { computeFrameHeight } from '../../lib/mediaFrameHelpers'
 import { maybeShowStorageNotice } from '../../lib/storageNotice'
 import { trackCTA, trackEvent, markWritingStart, trackFirstShareClick } from '../../lib/analytics'
+import FeedbackToast from '../FeedbackToast/FeedbackToast'
+
+// One-time-per-device flag so the authoring feedback prompt never nags.
+const AUTHORING_FEEDBACK_KEY = 'dearly_authoring_feedback_done'
 import { exportNoteToJson, copyToClipboard, downloadAsFile, buildExportFilename, importNoteFromFile, pickJsonFile, exportPaperAsPng } from '../../lib/exportNoteJson'
 import {
   DEFAULT_PEN_COLOR,
@@ -240,6 +244,30 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   useEffect(() => { markWritingStart() }, [])
   // Fire a one-time "drawing" media-attach the first time ink is laid down.
   const drawingTrackedRef = useRef(false)
+
+  /* Authoring feedback prompt — appears once the user has spent ~45s
+     actively in the editor (counting only foreground time), and only if
+     they haven't already rated/dismissed it on this device. */
+  const [showFeedback, setShowFeedback] = useState(false)
+  useEffect(() => {
+    let done = false
+    try { done = localStorage.getItem(AUTHORING_FEEDBACK_KEY) === '1' } catch { /* storage blocked */ }
+    if (done) return
+    let activeSeconds = 0
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') activeSeconds += 1
+      if (activeSeconds >= 45) {
+        clearInterval(id)
+        setShowFeedback(true)
+        trackEvent('feedback_prompt_shown', { source: 'authoring' })
+      }
+    }, 1000)
+    return () => clearInterval(id)
+  }, [])
+  const dismissFeedback = useCallback(() => {
+    setShowFeedback(false)
+    try { localStorage.setItem(AUTHORING_FEEDBACK_KEY, '1') } catch { /* storage blocked */ }
+  }, [])
   const [toast,              setToast]              = useState(null)
   const toastTimerRef  = useRef(null)
   const toastCounterRef = useRef(0)
@@ -403,13 +431,22 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       setMessage(reverted)
       setEditorResyncKey(k => k + 1)
       const size = paperConfig?.size ?? 'postcard'
-      const overflowMsg =
-        size === 'strip'
-          ? "Your message is overflowing the strip. Switch to a postcard to fit your full message."
-          : size === 'a4'
-            ? "Your message is overflowing the sheet. Try a smaller text size to fit more."
-            : "Your message is overflowing the card. Switch to A4 to fit your full message."
-      showToast(overflowMsg, 'overflow')
+      const paperLabel = size === 'strip' ? 'strip' : size === 'a4' ? 'sheet' : 'card'
+      // Stepping the text size down is the least disruptive fix, so lead with
+      // it whenever there's a smaller size to drop to (Large to Medium, Medium
+      // to Small). Once at Small, fall back to nudging toward a larger paper;
+      // an A4 sheet at Small has no further room, so we ask to trim instead.
+      const sizeStep  = textSize === 'lg' ? 'Medium' : textSize === 'md' ? 'Small' : null
+      const paperStep = size === 'strip' ? 'a postcard' : size === 'postcard' ? 'an A4 sheet' : null
+      const fix =
+        sizeStep && paperStep
+          ? `Try reducing the text size to ${sizeStep}, or switch to ${paperStep}.`
+          : sizeStep
+            ? `Try reducing the text size to ${sizeStep} to fit more.`
+            : paperStep
+              ? `Switch to ${paperStep} to fit your full message.`
+              : 'Try shortening your message a little to fit.'
+      showToast(`Your message is overflowing the ${paperLabel}. ${fix}`, 'overflow')
     } else {
       lastValidMessageRef.current = message
     }
@@ -2032,6 +2069,12 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
         )}
       </AnimatePresence>
 
+      {/* Authoring feedback prompt — bottom-center, after ~45s of active use */}
+      <AnimatePresence>
+        {showFeedback && (
+          <FeedbackToast key="authoring-feedback" onDone={dismissFeedback} source="authoring" />
+        )}
+      </AnimatePresence>
 
     </div>
   )

@@ -34,6 +34,76 @@ import { renderVoiceBarcodeSVG } from './voiceBarcode'
        has been removed.
    ───────────────────────────────────────────────────────────────────── */
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Capture style whitelist — keeps the embedded-SVG data URL small enough
+   for Chrome to load.
+
+   html-to-image clones every node and inlines its style. In Chrome
+   getComputedStyle(node).cssText returns "" for every element, so the
+   library falls through to enumerating the FULL computed style (~340
+   properties) per node and writes each as an inline declaration. With
+   hundreds/thousands of glyph spans + SVG paths that balloons the
+   serialized markup to ~30-40MB, which becomes a ~40MB+
+   `data:image/svg+xml,...` URL after encodeURIComponent. The dev build
+   (unminified styles, dev attributes) lands larger than prod, crossing the
+   point where Chrome rejects the data URL with "Not allowed to load local
+   resource" — hence downloads worked on prod but failed on the dev server.
+
+   Restricting the inlined set to only the properties that actually affect
+   how the paper paints cuts the property count (and the data URL) by well
+   over half. Keep this list inclusive of anything visual — a MISSING
+   property renders wrong in the isolated <foreignObject>, since document
+   stylesheets don't apply there. */
+const CAPTURE_STYLE_PROPS = [
+  // box / layout
+  'display', 'position', 'top', 'right', 'bottom', 'left',
+  'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+  'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+  'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+  'box-sizing', 'overflow', 'overflow-x', 'overflow-y', 'aspect-ratio',
+  'visibility', 'float', 'clear', 'z-index',
+  // flex / grid
+  'flex', 'flex-direction', 'flex-wrap', 'flex-grow', 'flex-shrink', 'flex-basis',
+  'align-items', 'align-self', 'align-content',
+  'justify-content', 'justify-items', 'justify-self',
+  'gap', 'row-gap', 'column-gap', 'order',
+  'grid-template-columns', 'grid-template-rows', 'grid-column', 'grid-row',
+  'place-items', 'place-content',
+  // transform
+  'transform', 'transform-origin', 'rotate', 'scale', 'translate', 'perspective',
+  // color / paint
+  'color', 'opacity',
+  'background-color', 'background-image', 'background-size',
+  'background-position', 'background-repeat', 'background-clip',
+  'background-origin', 'background-attachment',
+  '-webkit-background-clip', '-webkit-text-fill-color',
+  'mix-blend-mode', 'background-blend-mode',
+  // border / radius
+  'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
+  'border-top-style', 'border-right-style', 'border-bottom-style', 'border-left-style',
+  'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color',
+  'border-top-left-radius', 'border-top-right-radius',
+  'border-bottom-right-radius', 'border-bottom-left-radius',
+  // effects
+  'box-shadow', 'filter', 'backdrop-filter', 'text-shadow',
+  'clip-path', 'mask', 'mask-image', '-webkit-mask', '-webkit-mask-image',
+  // typography
+  'font-family', 'font-size', 'font-weight', 'font-style', 'font-variant',
+  'font-stretch', 'font-feature-settings', 'font-variation-settings',
+  'line-height', 'letter-spacing', 'word-spacing',
+  'text-align', 'text-transform', 'text-decoration', 'text-indent',
+  'white-space', 'word-break', 'overflow-wrap', 'vertical-align',
+  'direction', 'writing-mode', 'unicode-bidi', 'text-overflow',
+  // svg paint
+  'fill', 'fill-opacity', 'fill-rule',
+  'stroke', 'stroke-width', 'stroke-opacity',
+  'stroke-dasharray', 'stroke-dashoffset',
+  'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit',
+  'paint-order', 'vector-effect',
+  // media
+  'object-fit', 'object-position',
+]
+
 async function bufferToBase64(buf) {
   const bytes = new Uint8Array(buf)
   let binary = ''
@@ -566,6 +636,7 @@ export async function captureCanvas(refOrElement, { noteData, swapVoiceForBarcod
     const opts = {
       pixelRatio,
       backgroundColor: bgColor,
+      includeStyleProperties: CAPTURE_STYLE_PROPS,
       ...(fontEmbedCSS ? { fontEmbedCSS } : {}),
     }
 

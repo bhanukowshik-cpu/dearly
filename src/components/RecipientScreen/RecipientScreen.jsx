@@ -10,10 +10,12 @@ import { trackEvent, trackTiming, trackCTA, clarityTag } from '../../lib/analyti
 import styles from './RecipientScreen.module.css'
 
 // ── Ambient audio ──────────────────────────────────────────────────────────────
+// Served same-origin from /public/music/ — was Supabase Storage, which
+// loaded unreliably (CDN/ORB blocking) so the ambient track never started.
 const MUSIC_TRACKS = [
-  'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/music/Soft%20Music%201.mp3',
-  'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/music/the-paths-we-walk-aylex-main-version-29711-02-43.mp3',
-  'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/music/earth-in-bloom-richard-bodgers-main-version-00-59-7489.mp3',
+  '/music/Soft%20Music%201.mp3',
+  '/music/the-paths-we-walk-aylex-main-version-29711-02-43.mp3',
+  '/music/earth-in-bloom-richard-bodgers-main-version-00-59-7489.mp3',
 ]
 
 function makeAmbient() {
@@ -224,9 +226,15 @@ function FoldedLetter({
     return () => clearTimeout(t)
   }, [isLetter])
 
-  const { type = 'minimal', color = '#FAFAF8' } = paperConfig ?? {}
+  const { type = 'minimal', color = '#FAFAF8', size = 'postcard' } = paperConfig ?? {}
   const typeData  = PAPER_TYPES[type] ?? PAPER_TYPES.minimal
   const panelBg   = type === 'color' ? color : '#F3E9D4'
+
+  // Card aspect ratio (height ÷ width) so the CSS width calc can also cap
+  // by available height. A4 is tall (1.414) and would otherwise overflow the
+  // viewport and push the "Open your note" CTA off-screen; strip/postcard are
+  // short enough that the height term never wins, so they're unaffected.
+  const cardAspect = { strip: 1 / 4, postcard: 2 / 3, a4: 1.414 }[size] ?? 2 / 3
 
   function panelAnimate(axis, deg) {
     if (isLetter)  return { [axis]: deg, opacity: 0 }
@@ -264,7 +272,7 @@ function FoldedLetter({
             duration: 1.4, delay: 1.2, repeat: Infinity, repeatDelay: 5, ease: 'easeInOut',
           } : { duration: 0.3 }}
         >
-          <div className={`${styles.foldCard} ${glowing ? styles.foldCardGlow : ''}`}>
+          <div className={`${styles.foldCard} ${glowing ? styles.foldCardGlow : ''}`} style={{ '--card-ar': cardAspect }}>
             <div className={styles.foldPaper} ref={paperRef}>
               <PaperCanvas
                 recipient={recipient} senderName={senderName} message={message}
@@ -461,14 +469,14 @@ export default function RecipientScreen({
 
   useEffect(() => {
     if (!writeDone) return
-    const t = setTimeout(() => setSubtitleOn(true), 800)
+    const t = setTimeout(() => setSubtitleOn(true), 250)
     return () => clearTimeout(t)
   }, [writeDone])
 
 
   useEffect(() => {
     if (!subtitleOn) return
-    const t = setTimeout(() => setPhase('envelope'), 2600)
+    const t = setTimeout(() => setPhase('envelope'), 1100)
     return () => clearTimeout(t)
   }, [subtitleOn])
 
@@ -822,7 +830,7 @@ export default function RecipientScreen({
               animate={{ opacity: subtitleOn ? 1 : 0, y: subtitleOn ? 0 : 12 }}
               transition={{ duration: 0.7, ease: 'easeOut' }}
             >
-              {senderName ? `${senderName} wrote something for you` : 'Someone wrote something for you'}
+              {senderName ? `${senderName} wrote a message for you` : 'Someone wrote a message for you'}
             </motion.p>
           </motion.div>
         )}

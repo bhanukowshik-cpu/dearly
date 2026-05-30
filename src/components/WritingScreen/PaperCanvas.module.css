@@ -195,6 +195,28 @@
   white-space: pre-wrap;
 }
 
+/* ── Ghost caret ──────────────────────────────────────────────────────────
+   A thin warm-ink vertical that mirrors the editor caret onto the paper.
+   Positioned absolutely inside .letterContent (left/top/height set inline
+   from the measured glyph box). The slight tilt borrows the hand-drawn
+   voice so it reads like a poised pen-tip rather than a system caret. */
+.paperCaret {
+  position: absolute;
+  width: 2px;
+  border-radius: 1px;
+  transform: rotate(-1.5deg);
+  transform-origin: center;
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 3;
+  animation: paperCaretBlink 1.1s ease-in-out infinite;
+}
+
+@keyframes paperCaretBlink {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 0.12; }
+}
+
 /* When fitContent scales down, the body must size to natural height
    so all text is visible within the scaled-down letter. */
 :global([data-body-free]) .body {

@@ -10,6 +10,16 @@
   justify-content: center;
   padding: 40px 24px 130px;
   overflow: hidden;
+  /* Own stacking context + dark base (matches body in index.css). The
+     background layers below use negative z-index; isolating here keeps
+     them painted INSIDE .root (above this base, below content) instead
+     of escaping to an ancestor. Without it, when RecipientScreen renders
+     inside the fixed preview overlay, Safari paints the negative-z video
+     behind the overlay — so the video vanished and the editor bled
+     through. Self-contained now: works the same at document root, the
+     recipient route, and the preview overlay. */
+  isolation: isolate;
+  background: #100e0b;
 }
 
 /* ── Background ──────────────────────────────────────────────────────────── */
@@ -119,7 +129,13 @@
 }
 
 .foldCard {
-  width: min(700px, 92vw);
+  /* Width is capped three ways: a hard max (700px), the viewport width
+     (92vw), and — via --card-ar (paper height ÷ width) — the available
+     viewport height. The height term keeps a tall A4 letter from
+     overflowing and hiding the "Open your note" CTA; for short strip/
+     postcard papers it's far larger than 700px so it never wins. ~290px
+     is reserved for the greeting above and the CTA/controls below. */
+  width: min(700px, 92vw, calc((100svh - 290px) / var(--card-ar, 0.667)));
   position: relative;
   border-radius: 12px;
   perspective: 900px;

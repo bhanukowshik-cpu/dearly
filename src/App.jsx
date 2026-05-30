@@ -204,11 +204,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            /* Opaque dark base (matches body in index.css) so the editor
-               behind never bleeds through — RecipientScreen's video/blur/
-               tint layers all sit on negative z-index and aren't fully
-               opaque, so without this the writing screen shows through. */
-            style={{ position: 'fixed', inset: 0, zIndex: 500, background: '#100e0b' }}
+            style={{ position: 'fixed', inset: 0, zIndex: 500 }}
           >
             <RecipientScreen
               senderName={previewData.senderName}

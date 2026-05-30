@@ -1,11 +1,15 @@
 import { useRef, useState } from 'react'
 import styles from './VideoBackground.module.css'
 
+// Served same-origin from /public/loops/ (same assets LoadingScreen uses).
+// Previously these pointed at Supabase Storage, which loaded unreliably
+// (CDN/ORB blocking) and left the recipient/preview background blank while
+// the splash — which already used the local copies — played fine.
 const VIDEOS = [
-  'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/videos/Intro%20Updated.mp4',
-  'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/videos/Dreamy%20Evening.mp4',
-  'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/videos/Warm%20Clouds%202.mp4',
-  'https://hdxswlhlbnbvfektdkuq.supabase.co/storage/v1/object/public/media/videos/Warm%20River%20Scenary%20Moving%201.mp4',
+  '/loops/Intro%20Updated.mp4',
+  '/loops/Dreamy%20Evening.mp4',
+  '/loops/Warm%20Clouds%202.mp4',
+  '/loops/Warm%20River%20Scenary%20Moving%201.mp4',
 ]
 
 export default function VideoBackground() {
