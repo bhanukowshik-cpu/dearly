@@ -71,8 +71,8 @@ export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = '
     //
     //   sm (15px font) → 1.6× — most aggressive bump so thin strokes don't disappear
     //   md (20px font) → 1.5× — the design "anchor"
-    //   lg (30px font) → 1.125× — light bump; large text already reads bold
-    const STROKE_MULT_BY_SIZE = { sm: 1.6, md: 1.5, lg: 1.125 }
+    //   lg (30px font) → 1.325× — heavier so large/default text reads darker
+    const STROKE_MULT_BY_SIZE = { sm: 1.6, md: 1.5, lg: 1.325 }
     // Final stroke multiplier composes the size-tier mult (sm/md/lg readability
     // boost) with the caller-supplied override. Hero/display callers (e.g. the
     // RecipientScreen greeting) pass strokeWidthMultiplier=2 to fatten the

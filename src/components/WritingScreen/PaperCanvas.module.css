@@ -377,53 +377,93 @@
 
 /* ── Highlight & strikethrough markup ────────────────────────────────────── */
 
+/* Hand-drawn highlighter swipe. The fill is a tileable SVG whose top & bottom
+   edges are irregular AND wander independently of each other, so the band's
+   thickness breathes along its length the way a real marker stroke does — not a
+   uniform rectangle. A wide 210px tile with four unevenly-spaced bumps makes the
+   repeat hard to perceive across a normal line, killing the "robotic" look.
+   background-* is paint-only, so none of this affects the glyph box or line
+   height. The band is sized to ~64% of the line box and nudged downward so the
+   tall parts of letters (ascenders, caps, descenders) overflow it like a real
+   marker that's narrower than the text — this also leaves a gap between wrapped
+   lines (no vertical overlap).
+
+   Rounded marker ends are drawn as two dedicated end-cap layers, NOT border-radius.
+   border-radius rounds the element box's corners, but our band only fills 64% of
+   the box height (and is nudged to 66%), so the radius arc never touches the band —
+   the ends read as straight cuts, worst on the left edge of wrapped continuation
+   lines. Instead: layer 1 = left semicircle cap pinned to the border-box left edge,
+   layer 2 = right semicircle cap pinned to the right edge, layer 3 = the wavy band
+   repeating across the content-box. The 8px horizontal padding carves out cap
+   strips on each side; caps use background-origin/clip border-box so they sit in
+   those strips, while the band uses content-box so it stays inset and meets each
+   cap's flat edge flush (no translucent double-darkening). box-decoration-break:
+   clone repaints all three layers — caps included — on every wrapped line. */
 .highlight {
-  background-color: rgba(255, 208, 40, 0.52);
-  border-radius: 2px 4px 5px 3px / 5px 3px 2px 4px;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='40' viewBox='0 0 20 40' preserveAspectRatio='none'%3E%3Cpath d='M20,2 A18,18 0 0 0 20,38 Z' fill='rgba(255,208,40,0.52)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='40' viewBox='0 0 20 40' preserveAspectRatio='none'%3E%3Cpath d='M0,2 A18,18 0 0 1 0,38 Z' fill='rgba(255,208,40,0.52)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='210' height='40' viewBox='0 0 210 40' preserveAspectRatio='none'%3E%3Cpath d='M0,4 C16,1 33,7 50,3.5 C68,1.4 86,6.6 108,4.2 C128,1.3 148,7 170,3.2 C188,1.6 200,6.4 210,4 L210,36 C200,39.4 188,34 170,37 C148,39.6 128,33.8 108,36.4 C86,39.2 68,34.4 50,37 C33,39.4 16,34.2 0,36 Z' fill='rgba(255,208,40,0.52)'/%3E%3C/svg%3E");
+  background-repeat: no-repeat, no-repeat, repeat-x;
+  background-position: left 66%, right 66%, 50% 66%;
+  background-size: 8px 64%, 8px 64%, 210px 64%;
+  background-origin: border-box, border-box, content-box;
+  background-clip: border-box, border-box, content-box;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
-  padding: 1px 5px 2px 4px;
-  margin: 0 -2px;
+  padding: 0 8px;
+  margin: 0 -3px;
   color: inherit;
 }
 
 .highlightPink {
-  background-color: rgba(255, 130, 160, 0.50);
-  border-radius: 4px 2px 3px 5px / 3px 5px 4px 2px;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='40' viewBox='0 0 20 40' preserveAspectRatio='none'%3E%3Cpath d='M20,2 A18,18 0 0 0 20,38 Z' fill='rgba(255,130,160,0.50)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='40' viewBox='0 0 20 40' preserveAspectRatio='none'%3E%3Cpath d='M0,2 A18,18 0 0 1 0,38 Z' fill='rgba(255,130,160,0.50)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='210' height='40' viewBox='0 0 210 40' preserveAspectRatio='none'%3E%3Cpath d='M0,4 C16,1 33,7 50,3.5 C68,1.4 86,6.6 108,4.2 C128,1.3 148,7 170,3.2 C188,1.6 200,6.4 210,4 L210,36 C200,39.4 188,34 170,37 C148,39.6 128,33.8 108,36.4 C86,39.2 68,34.4 50,37 C33,39.4 16,34.2 0,36 Z' fill='rgba(255,130,160,0.50)'/%3E%3C/svg%3E");
+  background-repeat: no-repeat, no-repeat, repeat-x;
+  background-position: left 66%, right 66%, 50% 66%;
+  background-size: 8px 64%, 8px 64%, 210px 64%;
+  background-origin: border-box, border-box, content-box;
+  background-clip: border-box, border-box, content-box;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
-  padding: 2px 4px 1px 5px;
-  margin: 0 -2px;
+  padding: 0 8px;
+  margin: 0 -3px;
   color: inherit;
 }
 
 .highlightSage {
-  background-color: rgba(75, 185, 140, 0.45);
-  border-radius: 3px 5px 2px 4px / 4px 2px 5px 3px;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='40' viewBox='0 0 20 40' preserveAspectRatio='none'%3E%3Cpath d='M20,2 A18,18 0 0 0 20,38 Z' fill='rgba(75,185,140,0.45)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='40' viewBox='0 0 20 40' preserveAspectRatio='none'%3E%3Cpath d='M0,2 A18,18 0 0 1 0,38 Z' fill='rgba(75,185,140,0.45)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='210' height='40' viewBox='0 0 210 40' preserveAspectRatio='none'%3E%3Cpath d='M0,4 C16,1 33,7 50,3.5 C68,1.4 86,6.6 108,4.2 C128,1.3 148,7 170,3.2 C188,1.6 200,6.4 210,4 L210,36 C200,39.4 188,34 170,37 C148,39.6 128,33.8 108,36.4 C86,39.2 68,34.4 50,37 C33,39.4 16,34.2 0,36 Z' fill='rgba(75,185,140,0.45)'/%3E%3C/svg%3E");
+  background-repeat: no-repeat, no-repeat, repeat-x;
+  background-position: left 66%, right 66%, 50% 66%;
+  background-size: 8px 64%, 8px 64%, 210px 64%;
+  background-origin: border-box, border-box, content-box;
+  background-clip: border-box, border-box, content-box;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
-  padding: 1px 4px 2px 5px;
-  margin: 0 -2px;
+  padding: 0 8px;
+  margin: 0 -3px;
   color: inherit;
 }
 
-/* Hand-drawn single wavy strikethrough */
+/* Hand-drawn wavy strikethrough. Painted as a repeating background on the inline
+   span itself (not an absolute ::after) so box-decoration-break:clone redraws the
+   line through EACH wrapped row. An absolutely-positioned bar only covers the
+   span's single bounding box, so a strike spanning two lines drew once in the gap
+   between them and never crossed the glyphs. The 8px-tall line is pinned to ~52%
+   so it passes through the glyph bodies, which sit low in the line box. */
 .strike {
-  position: relative;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M0,4 C15,2.7 30,5.3 45,4 C60,2.7 75,5.3 90,4 C105,2.7 117,5 120,4' stroke='rgba(70,52,38,0.62)' stroke-width='1.9' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: 50% 62%;
+  background-size: 120px 8px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
   color: inherit;
-}
-.strike::after {
-  content: '';
-  position: absolute;
-  left: 0; right: 0;
-  /* Glyph SVGs baseline-align to the bottom of the line box, so the visual
-     x-height body sits low in the span. Anchor the line through that body
-     (~54%) rather than the geometric line-box centre, which floats above. */
-  top: 54%;
-  height: 6px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 6' preserveAspectRatio='none'%3E%3Cpath d='M0,3 C18,2 36,4 54,3 C72,2 90,4 108,3 C126,2 144,4 162,3 C180,2 196,3.8 200,3' stroke='rgba(58,36,16,0.72)' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-size: 100% 6px;
 }
 
 
