@@ -228,6 +228,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   const nextVoiceNoteIdRef = useRef(1)
   const [shakeKey,           setShakeKey]           = useState(0)
   const [showShare,          setShowShare]          = useState(false)
+  const [showHelpMenu,       setShowHelpMenu]       = useState(false)
   const [toast,              setToast]              = useState(null)
   const toastTimerRef  = useRef(null)
   const toastCounterRef = useRef(0)
@@ -353,6 +354,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
 
   const paperRef    = useRef(null)
   const shareWrapRef = useRef(null)
+  const helpWrapRef  = useRef(null)
   const selectedStickerIdRef = useRef(selectedStickerId)
   useEffect(() => { selectedStickerIdRef.current = selectedStickerId }, [selectedStickerId])
   const selectedTextElementIdRef = useRef(selectedTextElementId)
@@ -439,6 +441,25 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       document.removeEventListener('keydown', handleEscape)
     }
   }, [showShare, isMobile])
+
+  /* Close the help/legal overflow menu when clicking outside or pressing Escape */
+  useEffect(() => {
+    if (!showHelpMenu) return
+    function handleOutside(e) {
+      if (helpWrapRef.current && !helpWrapRef.current.contains(e.target)) {
+        setShowHelpMenu(false)
+      }
+    }
+    function handleEscape(e) {
+      if (e.key === 'Escape') setShowHelpMenu(false)
+    }
+    document.addEventListener('pointerdown', handleOutside)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('pointerdown', handleOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [showHelpMenu])
 
   // The canvas counts as "empty" only when there's truly nothing on it —
   // no typed message, no placed stickers, no uploaded pictures, no recorded
@@ -1616,6 +1637,71 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               <span>{exportingPng ? 'Capturing…' : 'PNG'}</span>
             </motion.button>
           )}
+          {/* Overflow menu — support + legal. Lives in the top bar so it
+              never competes with the bottom tool nav. Legal pages open in a
+              new tab so an in-progress letter is never lost. */}
+          <div className={styles.helpWrap} ref={helpWrapRef}>
+            <motion.button
+              className={styles.helpBtn}
+              onClick={() => setShowHelpMenu(v => !v)}
+              aria-label="Support and legal"
+              aria-haspopup="menu"
+              aria-expanded={showHelpMenu}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              transition={{ duration: 0.1 }}
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden>
+                <circle cx="4" cy="9" r="1.5" />
+                <circle cx="9" cy="9" r="1.5" />
+                <circle cx="14" cy="9" r="1.5" />
+              </svg>
+            </motion.button>
+            <AnimatePresence>
+              {showHelpMenu && (
+                <motion.div
+                  className={styles.helpMenu}
+                  role="menu"
+                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                  transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <span className={styles.helpMenuLabel}>Get in touch</span>
+                  <a
+                    className={styles.helpMenuItem}
+                    href="mailto:hello@dearlynotes.app"
+                    role="menuitem"
+                    onClick={() => setShowHelpMenu(false)}
+                  >
+                    <span>Questions · Support · Appreciate</span>
+                    <span className={styles.helpMenuItemSub}>hello@dearlynotes.app</span>
+                  </a>
+                  <div className={styles.helpMenuDivider} />
+                  <a
+                    className={styles.helpMenuItem}
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    role="menuitem"
+                    onClick={() => setShowHelpMenu(false)}
+                  >
+                    Privacy Policy
+                  </a>
+                  <a
+                    className={styles.helpMenuItem}
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    role="menuitem"
+                    onClick={() => setShowHelpMenu(false)}
+                  >
+                    Terms of Service
+                  </a>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           <div className={styles.shareWrap} ref={shareWrapRef}>
             <motion.button
               className={`${styles.shareNavBtn} ${isEmpty ? styles.shareNavBtnDisabled : ''}`}

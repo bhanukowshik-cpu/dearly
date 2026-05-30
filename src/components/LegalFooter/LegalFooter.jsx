@@ -1,37 +1,35 @@
-/**
- * Tiny, unobtrusive footer with links to the legal pages.
- *
- * Rendered only on the non-cinematic screens (landing + writing) so it
- * doesn't intrude on the recipient/preview experience. Links open the
- * standalone static pages served at /privacy and /terms.
- */
-export default function LegalFooter() {
-  const linkStyle = {
-    color: 'rgba(255,255,255,0.40)',
-    textDecoration: 'none',
-    fontFamily: 'Inter, sans-serif',
-    fontSize: 11,
-    fontWeight: 400,
-    letterSpacing: '0.02em',
-  }
+import styles from './LegalFooter.module.css'
 
+/**
+ * Discreet fixed footer with two clusters:
+ *   • left  → a contact line for questions / support / appreciation, linking
+ *             to the support inbox, and
+ *   • right → links to the standalone Privacy and Terms pages.
+ *
+ * Rendered only on the landing screen — the writing screen owns its bottom
+ * edge with its own toolbar, so the footer would collide with it there.
+ * Responsive behavior (label collapse, safe-area insets) lives in the
+ * accompanying CSS module.
+ */
+const SUPPORT_EMAIL = 'hello@dearlynotes.app'
+
+export default function LegalFooter() {
   return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: 'calc(8px + env(safe-area-inset-bottom, 0px))',
-        left: 0,
-        right: 0,
-        zIndex: 400,
-        display: 'flex',
-        justifyContent: 'center',
-        gap: 14,
-        pointerEvents: 'none',
-      }}
-    >
-      <a href="/privacy" style={{ ...linkStyle, pointerEvents: 'auto' }}>Privacy</a>
-      <span style={{ color: 'rgba(255,255,255,0.22)', fontSize: 11 }}>·</span>
-      <a href="/terms" style={{ ...linkStyle, pointerEvents: 'auto' }}>Terms</a>
-    </div>
+    <footer className={styles.footer} aria-label="Footer">
+      {/* Left — contact */}
+      <div className={styles.left}>
+        <span className={styles.labels}>Questions · Support · Appreciate</span>
+        <a className={styles.email} href={`mailto:${SUPPORT_EMAIL}`}>
+          {SUPPORT_EMAIL}
+        </a>
+      </div>
+
+      {/* Right — legal */}
+      <nav className={styles.right} aria-label="Legal">
+        <a className={styles.link} href="/privacy">Privacy</a>
+        <span className={styles.dot} aria-hidden="true">·</span>
+        <a className={styles.link} href="/terms">Terms</a>
+      </nav>
+    </footer>
   )
 }

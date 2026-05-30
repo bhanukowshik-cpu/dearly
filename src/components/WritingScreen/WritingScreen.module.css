@@ -203,6 +203,88 @@
   border-color: rgba(255, 255, 255, 0.38);
 }
 
+/* ── Support / legal overflow menu (top bar) ────────────────────────────── */
+.helpWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.helpBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.helpBtn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.38);
+}
+
+.helpMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 220px;
+  padding: 6px;
+  background: #1b2230;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.40);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.helpMenuLabel {
+  padding: 6px 10px 2px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.helpMenuItem {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.86);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  transition: background 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.helpMenuItem:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.helpMenuItemSub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.helpMenuDivider {
+  height: 1px;
+  margin: 4px 6px;
+  background: rgba(255, 255, 255, 0.10);
+}
+
 /* ── Preview nudge ─────────────────────────────────────────────────────────
    A thought-bubble that pops below the Preview button when the user
    tries to preview without filling in the sender or recipient name.

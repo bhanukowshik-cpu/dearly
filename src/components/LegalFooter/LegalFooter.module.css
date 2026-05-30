@@ -1,0 +1,99 @@
+/* Discreet fixed footer.
+   Left  → contact (questions / support / appreciation) email.
+   Right → Privacy · Terms.
+   Responsive: collapses the contact label on phones, respects safe-area
+   insets, and steps out of the way of the editor controls on small screens. */
+
+.footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-left: calc(18px + env(safe-area-inset-left, 0px));
+  padding-right: calc(18px + env(safe-area-inset-right, 0px));
+  pointer-events: none; /* let the canvas behind stay interactive */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.left,
+.right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0; /* allow the email to shrink instead of pushing the layout wide */
+  pointer-events: none;
+}
+
+.right {
+  flex: 0 0 auto; /* legal links keep their width; the left cluster gives way */
+}
+
+.labels {
+  color: rgba(255, 255, 255, 0.32);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.email,
+.link {
+  color: rgba(255, 255, 255, 0.45);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  padding: 6px 2px; /* enlarge the tap target without looking bigger */
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s ease;
+}
+
+.email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.email:hover,
+.link:hover {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.dot {
+  color: rgba(255, 255, 255, 0.22);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+/* Phones: drop the descriptive label, keep just the email + legal links. */
+@media (max-width: 640px) {
+  .footer {
+    bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+    padding-left: calc(14px + env(safe-area-inset-left, 0px));
+    padding-right: calc(14px + env(safe-area-inset-right, 0px));
+    gap: 10px;
+  }
+
+  .labels {
+    display: none;
+  }
+
+  .email,
+  .link {
+    font-size: 11px;
+  }
+}
+
+/* Very narrow phones: trim a touch more so nothing clips. */
+@media (max-width: 360px) {
+  .email,
+  .link {
+    font-size: 10px;
+  }
+}

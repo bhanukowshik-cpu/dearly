@@ -235,7 +235,7 @@ export default function App() {
 
       {/* Legal footer — only on the non-cinematic screens, and never over
           the recipient view or the preview overlay. */}
-      {(screen === 'landing' || screen === 'writing') && !previewData && <LegalFooter />}
+      {screen === 'landing' && !previewData && <LegalFooter />}
 
       {/* Cookie-consent banner — gates Google Analytics / Clarity. */}
       <ConsentBanner />
