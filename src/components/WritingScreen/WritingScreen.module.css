@@ -962,8 +962,14 @@
   margin: 0 auto;
   width: max-content;
   max-width: min(86vw, 440px);
-  z-index: 600;
+  z-index: 1000;
   pointer-events: none;
+  /* Pre-promote the layer and give the toast its own stacking context up
+     front. Without this, the pill's backdrop-filter is composited late while
+     the anchor animates `transform`, and Chromium paints it behind the paper
+     for a frame on the way up. */
+  isolation: isolate;
+  will-change: transform;
 }
 
 .toast {

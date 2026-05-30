@@ -627,7 +627,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
 
   const handleSend = useCallback(() => {
     if (isEmpty) {
-      showToast("Your note is still blank — add a message, sticker, picture, voice note, or drawing first.")
+      showToast("Your note is still blank. Add a message, sticker, picture, voice note, or drawing first.")
       setShakeKey(k => k + 1)
       return
     }
@@ -681,13 +681,13 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       const kb = Math.max(1, Math.round(text.length / 1024))
       showToast(
         copied
-          ? `Note exported — copied to clipboard and downloaded (${filename}, ${kb} KB).`
-          : `Note exported — downloaded ${filename} (${kb} KB). Clipboard copy failed; use the file.`
+          ? `Note exported, copied to clipboard and downloaded (${filename}, ${kb} KB).`
+          : `Note exported, downloaded ${filename} (${kb} KB). Clipboard copy failed; use the file.`
       )
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[export] failed', err)
-      showToast('Export failed — see browser console for details.')
+      showToast('Export failed. See browser console for details.')
     } finally {
       setExporting(false)
     }
@@ -725,14 +725,14 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       // paper size — display them as-is).
       const result = await exportPaperAsPng({ filename: `${baseName}.png` })
       if (result.isGif) {
-        showToast(`Paper exported as animated GIF — downloaded ${result.filename} (${result.width}×${result.height}, ${result.frames} frames).`, 'info')
+        showToast(`Paper exported as animated GIF, downloaded ${result.filename} (${result.width}×${result.height}, ${result.frames} frames).`, 'info')
       } else {
-        showToast(`Paper exported as PNG — downloaded ${result.filename} (${result.width}×${result.height}).`, 'info')
+        showToast(`Paper exported as PNG, downloaded ${result.filename} (${result.width}×${result.height}).`, 'info')
       }
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[exportPng] failed', err)
-      showToast(`PNG export failed — ${err?.message || 'see console'}`)
+      showToast(`PNG export failed: ${err?.message || 'see console'}`)
     } finally {
       setExportingPng(false)
     }
@@ -810,11 +810,11 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       redoStackRef.current = []
       syncHistoryFlags()
 
-      showToast(`Note imported — ${file.name} loaded into the editor.`, 'info')
+      showToast(`Note imported, ${file.name} loaded into the editor.`, 'info')
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[import] failed', err)
-      showToast(`Import failed — ${err?.message || 'unknown error'}`)
+      showToast(`Import failed: ${err?.message || 'unknown error'}`)
     } finally {
       setImporting(false)
     }
@@ -983,7 +983,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   /* ── Media-frame handlers ───────────────────────────────────────────── */
   function addMediaFrame(partial = {}) {
     if (mediaFrames.length >= 6) {
-      showToast("You've added 6 photo frames already — remove one to add another.")
+      showToast("You've added 6 photo frames already. Remove one to add another.")
       return
     }
     // First image upload: one-time heads-up that uploads are stored & shareable.
@@ -1056,7 +1056,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       return prev.filter(f => f.id !== id)
     })
     if (selectedFrameId === id) setSelectedFrameId(null)
-    showToast('Photo removed — press ⌘Z to undo', 'info')
+    showToast('Photo removed. Press ⌘Z to undo', 'info')
   }
 
   /* Pop the most recent removed frame and put it back where it was.
@@ -1070,7 +1070,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     // remove, restoring would exceed the cap. Toast and bail.
     setMediaFrames(prev => {
       if (prev.length >= 6) {
-        showToast("Can't restore — you're already at the 6-photo limit.")
+        showToast("Can't restore, you're already at the 6-photo limit.")
         return prev
       }
       return [...prev, frame]
@@ -1127,7 +1127,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   /* ── Voice-note handlers ────────────────────────────────────────────── */
   function addVoiceNote({ audioUrl, duration, waveformData }) {
     if (voiceNotes.length >= 4) {
-      showToast("You've added 4 voice notes already — remove one to add another.")
+      showToast("You've added 4 voice notes already. Remove one to add another.")
       return
     }
     // First voice note: one-time heads-up that uploads are stored & shareable.
