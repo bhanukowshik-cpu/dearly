@@ -416,7 +416,10 @@
   content: '';
   position: absolute;
   left: 0; right: 0;
-  top: 44%;
+  /* Glyph SVGs baseline-align to the bottom of the line box, so the visual
+     x-height body sits low in the span. Anchor the line through that body
+     (~54%) rather than the geometric line-box centre, which floats above. */
+  top: 54%;
   height: 6px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 6' preserveAspectRatio='none'%3E%3Cpath d='M0,3 C18,2 36,4 54,3 C72,2 90,4 108,3 C126,2 144,4 162,3 C180,2 196,3.8 200,3' stroke='rgba(58,36,16,0.72)' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;

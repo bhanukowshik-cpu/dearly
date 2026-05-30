@@ -3,20 +3,24 @@
 // glyph inherits the paper's ink color at render time.
 import { typographyMetadata } from './typographyMetadata'
 
+// Glyph SVGs live inside src/assets so they are committed to git and bundled
+// on every build (including Vercel). They were previously globbed from the
+// gitignored `Dearly V2/` design folder, which meant production builds found
+// zero glyphs and silently fell back to the Caveat web font.
 const rawSmall = import.meta.glob(
-  '../../Dearly V2/Glyphs/Small Letters/*.svg',
+  '../assets/glyphs/Small Letters/*.svg',
   { as: 'raw', eager: true }
 )
 const rawCapital = import.meta.glob(
-  '../../Dearly V2/Glyphs/Capital Letters/*.svg',
+  '../assets/glyphs/Capital Letters/*.svg',
   { as: 'raw', eager: true }
 )
 const rawNumbers = import.meta.glob(
-  '../../Dearly V2/Glyphs/Numbers/*.svg',
+  '../assets/glyphs/Numbers/*.svg',
   { as: 'raw', eager: true }
 )
 const rawSpecial = import.meta.glob(
-  '../../Dearly V2/Glyphs/Special Characters/*.svg',
+  '../assets/glyphs/Special Characters/*.svg',
   { as: 'raw', eager: true }
 )
 

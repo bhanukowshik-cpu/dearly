@@ -204,14 +204,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   // Recipient name is metadata only — never rendered onto the paper canvas.
   const [showRecipient,      setShowRecipient]      = useState(false)
   const [paperConfig,        setPaperConfig]        = useState(DEFAULT_PAPER)
-  /* Default text size: 'lg' on iPad so the ruler lines are spaced
-     comfortably for a finger / Pencil; 'md' everywhere else. */
-  const [textSize,           setTextSize]           = useState(() => {
-    if (typeof navigator === 'undefined') return 'md'
-    const ua = navigator.userAgent
-    const isIpadInit = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)
-    return isIpadInit ? 'lg' : 'md'
-  })
+  /* Default text size is Large everywhere. */
+  const [textSize,           setTextSize]           = useState('lg')
   const [stickers,           setStickers]           = useState([])
   const [selectedStickerId,  setSelectedStickerId]  = useState(null)
   /* iPad text-element layer — typed entries from the TextPopup get
