@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import LoadingScreen    from './components/LoadingScreen/LoadingScreen'
 import WritingScreen    from './components/WritingScreen/WritingScreen'
 import RecipientScreen  from './components/RecipientScreen/RecipientScreen'
+import ConsentBanner    from './components/ConsentBanner/ConsentBanner'
+import LegalFooter      from './components/LegalFooter/LegalFooter'
 import { decodeNote }   from './lib/shareUtils'
 import { getNoteById }  from './lib/supabase'
 import { STICKER_REGISTRY } from './components/WritingScreen/handDrawnStickers'
@@ -230,6 +232,13 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Legal footer — only on the non-cinematic screens, and never over
+          the recipient view or the preview overlay. */}
+      {(screen === 'landing' || screen === 'writing') && !previewData && <LegalFooter />}
+
+      {/* Cookie-consent banner — gates Google Analytics / Clarity. */}
+      <ConsentBanner />
     </ErrorBoundary>
   )
 }

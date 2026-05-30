@@ -231,7 +231,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
     setLoadingPng(true)
     setDownloadDone(false)
     setExportErr('')
-    onToast?.('Preparing your image…')
+    onToast?.('Preparing your image…', 'info')
 
     try {
       // User-facing "Download as image" — swap voice pill for the QR
@@ -244,7 +244,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
         setImageOverlayUrl(canvas.toDataURL('image/png'))
         setDownloadDone('ios')
         trackEvent('png_downloaded', { source: 'share_sheet', platform: 'mobile' })
-        onToast?.('Long press the image to save it.')
+        onToast?.('Long press the image to save it.', 'info')
       } else {
         await new Promise((resolve, reject) => {
           canvas.toBlob(blob => {
@@ -259,7 +259,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
             setTimeout(() => URL.revokeObjectURL(url), 1000)
             setDownloadDone('done')
             trackEvent('png_downloaded', { source: 'share_sheet', platform: 'desktop' })
-            onToast?.('Image downloaded — check your Downloads folder.')
+            onToast?.('Image downloaded — check your Downloads folder.', 'info')
             resolve()
           }, 'image/png')
         })
@@ -268,7 +268,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
     } catch (e) {
       console.error('PNG export failed', e)
       setExportErr('Export failed — please try again.')
-      onToast?.('Could not export image, please try again.')
+      onToast?.('Could not export image, please try again.', 'error')
     } finally {
       setLoadingPng(false)
     }
@@ -370,7 +370,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
       // Clear the archetype payload so a re-opened form refetches fresh
       // options for whatever note state the user has by then.
       setSubjectOptions([])
-      onToast?.(`Sent to ${sentLabel}.`)
+      onToast?.(`Sent to ${sentLabel}.`, 'info')
       trackEvent('email_sent', { source: 'share_sheet', count: recipients.length })
       if (emailSentTimerRef.current) clearTimeout(emailSentTimerRef.current)
       emailSentTimerRef.current = setTimeout(() => setEmailSentTo(''), 5000)

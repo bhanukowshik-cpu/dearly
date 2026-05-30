@@ -176,10 +176,6 @@
   box-sizing: border-box;
 }
 
-.messageEditor.atLimit {
-  color: rgba(255, 255, 255, 0.70);
-}
-
 /* Inline formatting styles inside the editor */
 .messageEditor mark {
   background: none;

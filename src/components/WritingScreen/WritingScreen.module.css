@@ -947,31 +947,164 @@
 
 /* ── Toast notification ───────────────────────────────────────────────────── */
 
-.toast {
+/* Fixed positioning + enter/exit live on the anchor; the inner .toast owns the
+   shake transform, so the two transforms never fight. */
+.toastAnchor {
   position: fixed;
-  top: max(64px, calc(env(safe-area-inset-top) + 20px));
-  right: 20px;
+  /* Sit clear of the ~79px bottom tab bar (To/From · Write · …) rather than
+     overlapping it. */
+  bottom: max(96px, calc(env(safe-area-inset-bottom) + 96px));
+  /* Center horizontally via auto margins (not transform) so framer-motion's
+     y-axis enter/exit animation owns `transform` without fighting a
+     translateX(-50%). */
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: max-content;
+  max-width: min(86vw, 440px);
   z-index: 600;
-  background: rgba(10, 16, 30, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 12px;
-  padding: 11px 18px;
-  white-space: nowrap;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  font-weight: 450;
-  color: rgba(255, 255, 255, 0.82);
-  letter-spacing: 0.01em;
-  line-height: 1.4;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   pointer-events: none;
 }
 
-@media (max-width: 599px), (max-width: 1180px) and (orientation: portrait) {
-  .toast {
-    right: auto;
-    left: 50%;
-    transform: translateX(-50%);
-  }
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border-radius: 14px;
+  padding: 11px 10px 11px 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  /* Light frosted glass — same translucent-white surface as the "Your message"
+     input box (rgba 255 .055 + blur). The STATE is encoded purely by the colored
+     glow: an outer ambient bloom plus a one-directional inner glow rising from
+     the bottom edge. Text stays white and crisp over the dark app chrome. */
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  pointer-events: none;
 }
+
+/* Hand-drawn tone icons, recolored per tone via mask-image so a single black
+   source SVG paints in whatever accent the tone needs. */
+.toastIcon {
+  flex-shrink: 0;
+  width: 19px;
+  height: 19px;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+/* Message text takes the remaining width so the close button stays pinned to
+   the right edge and the copy wraps before it. */
+.toastMsg {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Repeat-action shake — x-axis only so it composes with the anchor's
+   enter/exit y-translate. Restarted from JS via a reflow (see WritingScreen). */
+@keyframes toastShake {
+  0%   { transform: translateX(0); }
+  15%  { transform: translateX(-8px); }
+  30%  { transform: translateX(8px); }
+  45%  { transform: translateX(-6px); }
+  60%  { transform: translateX(6px); }
+  75%  { transform: translateX(-3px); }
+  90%  { transform: translateX(3px); }
+  100% { transform: translateX(0); }
+}
+.toastShake {
+  animation: toastShake 0.45s ease-in-out;
+}
+
+/* Dismiss button — the pill itself is pointer-events:none so it never blocks
+   the page, so the button re-enables pointer events just for itself. */
+.toastClose {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  margin: -5px -2px -5px 2px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease;
+}
+.toastClose:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.toastClose::before {
+  content: '';
+  width: 11px;
+  height: 11px;
+  background-color: rgba(255, 255, 255, 0.58);
+  -webkit-mask-image: url('../../assets/icons/close.svg');
+  mask-image: url('../../assets/icons/close.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  transition: background-color 0.15s ease;
+}
+.toastClose:hover::before {
+  background-color: rgba(255, 255, 255, 0.92);
+}
+
+/* Caution (warnings, limits) — yellow inner glow rising from the bottom edge. */
+.toastCaution {
+  box-shadow: inset 0 -14px 22px -10px rgba(248, 192, 26, 0.7);
+}
+.toastCaution .toastIcon {
+  background-color: rgb(250, 204, 48);
+  -webkit-mask-image: url('../../assets/icons/caution-sign.svg');
+  mask-image: url('../../assets/icons/caution-sign.svg');
+}
+
+/* Error (failures) — red inner glow rising from the bottom edge. */
+.toastError {
+  box-shadow: inset 0 -14px 22px -10px rgba(240, 68, 56, 0.72);
+}
+.toastError .toastIcon {
+  background-color: rgb(248, 113, 102);
+  -webkit-mask-image: url('../../assets/icons/caution-sign.svg');
+  mask-image: url('../../assets/icons/caution-sign.svg');
+}
+
+/* Info / idle (in-progress / sent / downloaded) — blue inner glow from the bottom edge. */
+.toastInfo {
+  box-shadow: inset 0 -14px 22px -10px rgba(46, 124, 240, 0.7);
+}
+.toastInfo .toastIcon {
+  background-color: rgb(120, 178, 255);
+  -webkit-mask-image: url('../../assets/icons/checked.svg');
+  mask-image: url('../../assets/icons/checked.svg');
+}
+
+/* Overflow (paper is full) — a caution-class warning, so it shares the yellow glow. */
+.toastOverflow {
+  box-shadow: inset 0 -14px 22px -10px rgba(248, 192, 26, 0.7);
+}
+.toastOverflow .toastIcon {
+  background-color: rgb(250, 204, 48);
+  -webkit-mask-image: url('../../assets/icons/caution-sign.svg');
+  mask-image: url('../../assets/icons/caution-sign.svg');
+}
+

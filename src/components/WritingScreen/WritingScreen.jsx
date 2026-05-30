@@ -20,6 +20,7 @@ import { DEFAULT_PAPER } from './stylePresets'
 import { extractName } from './nameUtils'
 import { DEFAULT_FRAME } from '../../lib/mediaFrameConfig'
 import { computeFrameHeight } from '../../lib/mediaFrameHelpers'
+import { maybeShowStorageNotice } from '../../lib/storageNotice'
 import { exportNoteToJson, copyToClipboard, downloadAsFile, buildExportFilename, importNoteFromFile, pickJsonFile, exportPaperAsPng } from '../../lib/exportNoteJson'
 import {
   DEFAULT_PEN_COLOR,
@@ -230,6 +231,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   const [toast,              setToast]              = useState(null)
   const toastTimerRef  = useRef(null)
   const toastCounterRef = useRef(0)
+  const activeToastRef = useRef(null)
+  const [shakeId, setShakeId] = useState(0)
   /* iPad detection — UA-based so it works in both orientations (iPadOS 13+
      reports as Macintosh, so we also require maxTouchPoints > 1 to
      distinguish a real iPad from a Mac). Stable for the session — orientation
@@ -380,7 +383,14 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       overflowRevertedRef.current = true
       setMessage(reverted)
       setEditorResyncKey(k => k + 1)
-      showToast("Your letter is full — switch to a smaller text size to fit more.")
+      const size = paperConfig?.size ?? 'postcard'
+      const overflowMsg =
+        size === 'strip'
+          ? "Your message is overflowing the strip. Switch to a postcard to fit your full message."
+          : size === 'a4'
+            ? "Your message is overflowing the sheet. Try a smaller text size to fit more."
+            : "Your message is overflowing the card. Switch to A4 to fit your full message."
+      showToast(overflowMsg, 'overflow')
     } else {
       lastValidMessageRef.current = message
     }
@@ -443,12 +453,34 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   )
   const recipientName = extractName(recipient)
 
-  const showToast = useCallback((msg) => {
+  // tone: 'caution' (default — warnings, limits, failures) or 'info'
+  // (non-emergency: in-progress / sent / downloaded). Drives color + icon.
+  const showToast = useCallback((msg, tone = 'caution') => {
+    const active = activeToastRef.current
+    // Repeating the same action while its toast is still up: don't stack a
+    // duplicate — shake the existing one to reinforce the nudge and refresh
+    // its dismiss timer.
+    if (active && active.msg === msg) {
+      setShakeId(n => n + 1)
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+      toastTimerRef.current = setTimeout(() => setToast(null), 3800)
+      return
+    }
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     const id = ++toastCounterRef.current
-    setToast({ msg, id })
+    setShakeId(0)
+    setToast({ msg, id, tone })
     toastTimerRef.current = setTimeout(() => setToast(null), 3800)
   }, [])
+
+  const dismissToast = useCallback(() => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToast(null)
+  }, [])
+
+  // Keep a ref of the visible toast so showToast can detect a repeated action
+  // without a stale closure.
+  useEffect(() => { activeToastRef.current = toast }, [toast])
 
   const getNoteData = useCallback(() => ({
     senderName, recipient, recipientName, message, paperConfig, stickers, mediaFrames, voiceNotes, showRecipient, textSize,
@@ -693,9 +725,9 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       // paper size — display them as-is).
       const result = await exportPaperAsPng({ filename: `${baseName}.png` })
       if (result.isGif) {
-        showToast(`Paper exported as animated GIF — downloaded ${result.filename} (${result.width}×${result.height}, ${result.frames} frames).`)
+        showToast(`Paper exported as animated GIF — downloaded ${result.filename} (${result.width}×${result.height}, ${result.frames} frames).`, 'info')
       } else {
-        showToast(`Paper exported as PNG — downloaded ${result.filename} (${result.width}×${result.height}).`)
+        showToast(`Paper exported as PNG — downloaded ${result.filename} (${result.width}×${result.height}).`, 'info')
       }
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -778,7 +810,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       redoStackRef.current = []
       syncHistoryFlags()
 
-      showToast(`Note imported — ${file.name} loaded into the editor.`)
+      showToast(`Note imported — ${file.name} loaded into the editor.`, 'info')
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[import] failed', err)
@@ -795,10 +827,10 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     if (isMobile) return
     if (message.trim() !== '') {
       setShakeKey(k => k + 1)
-      showToast("Use the writing panel on the left to make edits, the canvas updates as you type.")
+      showToast("Use the writing panel on the left to make edits, the canvas updates as you type.", 'info')
     } else {
       setShakeKey(k => k + 1)
-      showToast("Start writing in the panel on the left, your letter will appear here as you type.")
+      showToast("Start writing in the panel on the left, your letter will appear here as you type.", 'info')
     }
   }, [message, isMobile, showToast])
 
@@ -954,6 +986,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       showToast("You've added 6 photo frames already — remove one to add another.")
       return
     }
+    // First image upload: one-time heads-up that uploads are stored & shareable.
+    maybeShowStorageNotice(showToast)
     const id = `mf-${nextFrameIdRef.current++}`
     // Slight random offset so successive frames don't stack exactly
     const jitter = mediaFrames.length * 3
@@ -1022,7 +1056,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       return prev.filter(f => f.id !== id)
     })
     if (selectedFrameId === id) setSelectedFrameId(null)
-    showToast('Photo removed — press ⌘Z to undo')
+    showToast('Photo removed — press ⌘Z to undo', 'info')
   }
 
   /* Pop the most recent removed frame and put it back where it was.
@@ -1096,6 +1130,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       showToast("You've added 4 voice notes already — remove one to add another.")
       return
     }
+    // First voice note: one-time heads-up that uploads are stored & shareable.
+    maybeShowStorageNotice(showToast)
     const id = `vn-${nextVoiceNoteIdRef.current++}`
     const jitter = voiceNotes.length * 4
 
@@ -1374,7 +1410,6 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       shakeKey={shakeKey}
       textSize={textSize}
       onTextSizeChange={setTextSize}
-      onLimitToast={showToast}
       editorResyncKey={editorResyncKey}
     />
   )
@@ -1843,16 +1878,34 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
         {toast && (
           <motion.div
             key={toast.id}
-            className={styles.toast}
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
+            className={styles.toastAnchor}
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 14 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
-            {toast.msg}
+            {/* Inner pill carries the visible glass + tone glow. The shake is a
+                self-contained CSS keyframe (x-axis only) so it composes with the
+                anchor's enter/exit y-translate. Re-keying by shakeId remounts
+                just the pill on a repeated action, which replays the animation
+                reliably (re-adding the class wouldn't restart it). Plain div —
+                binding framer controls here stalled the anchor's enter. */}
+            <div
+              key={shakeId}
+              className={`${styles.toast} ${toast.tone === 'info' ? styles.toastInfo : toast.tone === 'error' ? styles.toastError : toast.tone === 'overflow' ? styles.toastOverflow : styles.toastCaution} ${shakeId > 0 ? styles.toastShake : ''}`}
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <span className={styles.toastIcon} aria-hidden="true" />
+              <span className={styles.toastMsg}>{toast.msg}</span>
+              <button
+                type="button"
+                className={styles.toastClose}
+                onClick={dismissToast}
+                aria-label="Dismiss notification"
+              />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

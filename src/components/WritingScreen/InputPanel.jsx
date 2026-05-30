@@ -6,7 +6,6 @@ import { extractName } from './nameUtils'
 import { useTypingSound } from '../../lib/useTypingSound'
 import styles from './InputPanel.module.css'
 
-const SIZE_WORD_LIMITS = { lg: 100, md: 220, sm: 440 }
 const MAX_NAME_CH      = 80
 
 function countWords(text) {
@@ -579,7 +578,7 @@ function RecipientBox({ value, onChange, onHide, shakeKey }) {
 /* ─────────────────────────────────────────────────────────────────────────
    MessageBox — contenteditable message editor
    ───────────────────────────────────────────────────────────────────────── */
-function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onSizeChange, onLimitToast, resyncKey = 0 }) {
+function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onSizeChange, resyncKey = 0 }) {
   const editorRef           = useRef(null)
   const triggerRef          = useRef(null)
   const isEditingRef        = useRef(false)
@@ -597,17 +596,14 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
   const [selActive,    setSelActive]    = useState(false)
   const [selRect,      setSelRect]      = useState(null)
   const [selSize,      setSelSize]      = useState('md')
-  const [wordCount,    setWordCount]    = useState(() => countWords(value))
   const [showTooltip,  setShowTooltip]  = useState(false)
   const [tooltipPos,   setTooltipPos]   = useState(null)
 
   const undoStackRef = useRef([])
   const redoStackRef = useRef([])
 
-  const maxWords    = SIZE_WORD_LIMITS[textSize] ?? 200
   const firstName   = extractName(markupToPlainText(recipient))
   const headerLabel = firstName ? `Message to ${firstName}` : 'Your message'
-  const atLimit     = wordCount >= maxWords
   const isEmpty     = !value || value.trim() === ''
 
   /* Sync value → DOM when not focused */
@@ -617,7 +613,6 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
     const html = markupToHtml(value)
     if (el.innerHTML !== html) el.innerHTML = html
     lastValidRef.current = value
-    setWordCount(countWords(el.textContent || ''))
   }, [value])
 
   useEffect(() => {
@@ -625,7 +620,6 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
     if (!el) return
     el.innerHTML = markupToHtml(value)
     lastValidRef.current = value
-    setWordCount(countWords(el.textContent || ''))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Hard sync from external (e.g. WritingScreen reverted `value` after detecting
@@ -639,7 +633,6 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
     const html = markupToHtml(value)
     if (el.innerHTML !== html) el.innerHTML = html
     lastValidRef.current = value
-    setWordCount(countWords(el.textContent || ''))
     placeCursorAtEnd(el)
   }, [resyncKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -664,27 +657,36 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
     }
   }, [value])
 
-  function sizeName() {
-    return textSize === 'lg' ? 'Large' : textSize === 'md' ? 'Medium' : 'Small'
-  }
-
   function handlePaste(e) {
     e.preventDefault()
-    const raw = e.clipboardData?.getData('text/plain') ?? ''
-    // Normalise line endings and collapse runs of 3+ newlines to 2 so pasted
-    // paragraphs don't create double blank lines after serializeToMarkup runs.
-    const pasted = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n{3,}/g, '\n\n')
     const el = editorRef.current
     if (!el) return
-    const currentPlain = el.textContent || ''
-    const sel = window.getSelection()
-    const selectedText = sel && !sel.isCollapsed ? sel.toString() : ''
-    const afterReplace = currentPlain.replace(selectedText, '') + pasted
-    if (countWords(afterReplace) > maxWords) {
-      onLimitToast?.(`You've reached the ${maxWords}-word limit for ${sizeName()} text — switch to a smaller size to write more.`)
-      return
+    const html  = e.clipboardData?.getData('text/html')  ?? ''
+    const plain = e.clipboardData?.getData('text/plain') ?? ''
+
+    // Preserve highlights / strikes / bold / size on paste. When the clipboard
+    // carries HTML (copied from this editor, or any rich source) we parse it in
+    // an inert DOMParser document and run it through the editor's OWN serializer
+    // — so only the formatting we support survives and everything else collapses
+    // to its text. The result is re-inserted as HTML so the marks come back.
+    // Plain-text-only clipboards fall back to the original insertText path.
+    let pastedMarkup
+    if (html) {
+      const body = new DOMParser().parseFromString(html, 'text/html').body
+      pastedMarkup = serializeToMarkup(body).replace(/^\n+|\n+$/g, '')
+    } else {
+      pastedMarkup = plain
     }
-    document.execCommand('insertText', false, pasted)
+    // Normalise line endings and collapse runs of 3+ newlines to 2 so pasted
+    // paragraphs don't create double blank lines after serializeToMarkup runs.
+    pastedMarkup = pastedMarkup.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n{3,}/g, '\n\n')
+
+    // markupToHtml escapes <, >, & before re-applying our whitelisted tags, so
+    // no arbitrary clipboard HTML reaches the live DOM. Paper overflow (not a
+    // word count) is the only limit — the WritingScreen guard reverts + toasts
+    // if the paste spills past the paper.
+    if (html) document.execCommand('insertHTML', false, markupToHtml(pastedMarkup))
+    else      document.execCommand('insertText', false, pastedMarkup)
     handleInput()
   }
 
@@ -693,12 +695,6 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
     if (!el) return
     const plain = el.textContent || ''
     const words = countWords(plain)
-    if (words > maxWords) {
-      el.innerHTML = markupToHtml(lastValidRef.current)
-      placeCursorAtEnd(el)
-      onLimitToast?.(`You've reached the ${maxWords}-word limit for ${sizeName()} text — switch to a smaller size to write more.`)
-      return
-    }
     undoStackRef.current.push(lastValidRef.current)
     if (undoStackRef.current.length > 100) undoStackRef.current.shift()
     redoStackRef.current = []
@@ -706,7 +702,6 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
     // when pasted content gets split into block-level <div> elements.
     const markup = serializeToMarkup(el).replace(/\n{3,}/g, '\n\n')
     lastValidRef.current = markup
-    setWordCount(words)
     onChange(markup)
     setSelActive(false)
     setSelRect(null)
@@ -745,7 +740,6 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
         lastValidRef.current = prev
         el.innerHTML = markupToHtml(prev)
         onChange(prev)
-        setWordCount(countWords(el.textContent || ''))
         placeCursorAtEnd(el)
       }
       return
@@ -758,7 +752,6 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
         lastValidRef.current = next
         el.innerHTML = markupToHtml(next)
         onChange(next)
-        setWordCount(countWords(el.textContent || ''))
         placeCursorAtEnd(el)
       }
     }
@@ -782,7 +775,6 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
     const markup = normalizeMarkup(serializeToMarkup(editor))
     lastValidRef.current = markup
     onChange(markup)
-    setWordCount(countWords(editor.textContent || ''))
     setSelActive(false)
     setSelRect(null)
   }
@@ -862,7 +854,7 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
       >
         <div
           ref={editorRef}
-          className={`${styles.messageEditor} ${atLimit ? styles.atLimit : ''}`}
+          className={styles.messageEditor}
           contentEditable
           suppressContentEditableWarning
           onInput={handleInput}
@@ -962,7 +954,6 @@ export default function InputPanel({
   shakeKey,
   textSize,
   onTextSizeChange,
-  onLimitToast,
   editorResyncKey = 0,
 }) {
   return (
@@ -974,7 +965,6 @@ export default function InputPanel({
         shakeKey={shakeKey}
         textSize={textSize}
         onSizeChange={onTextSizeChange}
-        onLimitToast={onLimitToast}
         resyncKey={editorResyncKey}
       />
     </div>
