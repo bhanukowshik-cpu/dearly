@@ -6,7 +6,7 @@ import { PAPER_TYPES } from '../WritingScreen/stylePresets'
 import VideoBackground from '../VideoBackground/VideoBackground'
 import { captureCanvas } from '../../lib/captureUtils'
 import { submitFeedback } from '../../lib/supabase'
-import { trackEvent } from '../../lib/analytics'
+import { trackEvent, trackTiming, trackCTA, clarityTag } from '../../lib/analytics'
 import styles from './RecipientScreen.module.css'
 
 // ── Ambient audio ──────────────────────────────────────────────────────────────
@@ -509,11 +509,30 @@ export default function RecipientScreen({
   // When the letter opens — swell volume and schedule both toasts
   useEffect(() => {
     if (phase !== 'letter') return
+    trackEvent('letter_reached')
     ambientRef.current?.setVolume(0.16)
     const t1 = setTimeout(() => setShowRatingToast(true), 12000)
     const t2 = setTimeout(() => setShowToast(true), 9000)
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [phase])
+
+  // Recipient engagement time: from "opened" until the reader leaves
+  // (tab hidden / closed / send-back). Fires at most once.
+  useEffect(() => {
+    const flush = () => {
+      if (engagementSentRef.current || openedAtRef.current == null) return
+      engagementSentRef.current = true
+      trackTiming('recipient_engagement', performance.now() - openedAtRef.current)
+    }
+    const onHide = () => { if (document.visibilityState === 'hidden') flush() }
+    document.addEventListener('visibilitychange', onHide)
+    window.addEventListener('pagehide', flush)
+    return () => {
+      document.removeEventListener('visibilitychange', onHide)
+      window.removeEventListener('pagehide', flush)
+      flush()
+    }
+  }, [])
 
   const handleRate = (star) => {
     setRating(star)
@@ -543,9 +562,13 @@ export default function RecipientScreen({
     if (elevenAudio.current) { elevenAudio.current.pause(); elevenAudio.current = null }
   }, [])
 
+  const openedAtRef      = useRef(null)
+  const engagementSentRef = useRef(false)
   const openNote         = useCallback(() => {
     setPhase('opening')
     trackEvent('note_opened')
+    clarityTag('opened', 'yes')
+    if (openedAtRef.current == null) openedAtRef.current = performance.now()
     if (!musicOn) {
       ambientRef.current?.play(0.08).then(() => setMusicOn(true)).catch(() => {})
     }
@@ -626,6 +649,8 @@ export default function RecipientScreen({
 
     const { totalWords } = buildWordItems(recipient, message)
     if (!totalWords) return
+
+    trackCTA('listen_to_note')
 
     const ttsText = [recipient || '', stripMarkup(message)]
       .filter(Boolean).join(' ').trim()

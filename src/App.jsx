@@ -8,7 +8,7 @@ import LegalFooter      from './components/LegalFooter/LegalFooter'
 import { decodeNote }   from './lib/shareUtils'
 import { getNoteById }  from './lib/supabase'
 import { STICKER_REGISTRY } from './components/WritingScreen/handDrawnStickers'
-import { trackScreen }  from './lib/analytics'
+import { trackScreen, trackCTA, trackEvent, clarityTag, clarityEvent, initAnalyticsSession }  from './lib/analytics'
 import './App.css'
 
 function rehydrateStickers(noteData) {
@@ -114,6 +114,7 @@ export default function App() {
   const [recipientData, setRecipientData] = useState(null)
   const [previewData,   setPreviewData]   = useState(null)
 
+  useEffect(() => { initAnalyticsSession() }, [])
   useEffect(() => { trackScreen(screen) }, [screen])
 
   // Handle shared links — ?id=<uuid> (new) or ?share=<base64> (legacy)
@@ -154,7 +155,7 @@ export default function App() {
       <AnimatePresence mode="wait">
         {screen === 'landing' && (
           <motion.div key="landing" {...FADE} style={{ width: '100%', height: '100%' }}>
-            <LoadingScreen onCta={() => setScreen('writing')} />
+            <LoadingScreen onCta={() => { trackCTA('start_writing'); setScreen('writing') }} />
           </motion.div>
         )}
 
@@ -182,7 +183,13 @@ export default function App() {
               mediaFrames={recipientData.mediaFrames}
               showRecipient={recipientData.showRecipient}
               textSize={recipientData.textSize}
-              onWriteOwn={() => setScreen('writing')}
+              onWriteOwn={() => {
+                trackEvent('send_back_started')
+                trackCTA('write_own', { context: 'recipient' })
+                clarityTag('send_back', 'yes')
+                clarityEvent('send_back_started')
+                setScreen('writing')
+              }}
             />
           </motion.div>
         )}
@@ -197,7 +204,11 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            style={{ position: 'fixed', inset: 0, zIndex: 500 }}
+            /* Opaque dark base (matches body in index.css) so the editor
+               behind never bleeds through — RecipientScreen's video/blur/
+               tint layers all sit on negative z-index and aren't fully
+               opaque, so without this the writing screen shows through. */
+            style={{ position: 'fixed', inset: 0, zIndex: 500, background: '#100e0b' }}
           >
             <RecipientScreen
               senderName={previewData.senderName}
@@ -209,7 +220,10 @@ export default function App() {
               textElements={previewData.textElements}
               showRecipient={previewData.showRecipient}
               textSize={previewData.textSize}
-              onWriteOwn={() => setPreviewData(null)}
+              onWriteOwn={() => {
+                trackCTA('write_own', { context: 'preview' })
+                setPreviewData(null)
+              }}
             />
             {/* Back to editing pill */}
             <motion.button

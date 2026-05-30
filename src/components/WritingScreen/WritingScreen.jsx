@@ -21,6 +21,7 @@ import { extractName } from './nameUtils'
 import { DEFAULT_FRAME } from '../../lib/mediaFrameConfig'
 import { computeFrameHeight } from '../../lib/mediaFrameHelpers'
 import { maybeShowStorageNotice } from '../../lib/storageNotice'
+import { trackCTA, trackEvent, markWritingStart, trackFirstShareClick } from '../../lib/analytics'
 import { exportNoteToJson, copyToClipboard, downloadAsFile, buildExportFilename, importNoteFromFile, pickJsonFile, exportPaperAsPng } from '../../lib/exportNoteJson'
 import {
   DEFAULT_PEN_COLOR,
@@ -201,6 +202,11 @@ const IS_DEV = import.meta.env.DEV
 export default function WritingScreen({ onBack = () => {}, onShare = null, onPreview = null }) {
   const [recipient,          setRecipient]          = useState('')
   const [message,            setMessage]            = useState('')
+  // Ghost-caret mirror: where the editor's caret sits, projected onto the
+  // paper. offset = visible-codepoint count before the caret; active only
+  // while the message editor is focused.
+  const [caretOffset,        setCaretOffset]        = useState(null)
+  const [caretActive,        setCaretActive]        = useState(false)
   const [senderName,         setSenderName]         = useState('')
   // Recipient name is metadata only — never rendered onto the paper canvas.
   const [showRecipient,      setShowRecipient]      = useState(false)
@@ -229,6 +235,11 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   const [shakeKey,           setShakeKey]           = useState(0)
   const [showShare,          setShowShare]          = useState(false)
   const [showHelpMenu,       setShowHelpMenu]       = useState(false)
+
+  // Start the time-to-first-send clock the moment the editor opens.
+  useEffect(() => { markWritingStart() }, [])
+  // Fire a one-time "drawing" media-attach the first time ink is laid down.
+  const drawingTrackedRef = useRef(false)
   const [toast,              setToast]              = useState(null)
   const toastTimerRef  = useRef(null)
   const toastCounterRef = useRef(0)
@@ -282,6 +293,12 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
      pen-up event by a fraction of a second. */
   const [strokeActive,       setStrokeActive]       = useState(false)
   const strokeReleaseTimerRef = useRef(null)
+
+  const handleCaretChange = useCallback(({ offset, focused }) => {
+    setCaretOffset(offset)
+    setCaretActive(!!focused)
+  }, [])
+
   const handleStrokeActiveChange = useCallback((active) => {
     if (active) {
       if (strokeReleaseTimerRef.current) {
@@ -614,6 +631,13 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     return true
   }, [syncHistoryFlags])
 
+  useEffect(() => {
+    if (!drawingTrackedRef.current && strokes.length > 0) {
+      drawingTrackedRef.current = true
+      trackEvent('media_attached', { type: 'drawing' })
+    }
+  }, [strokes.length])
+
   const clearStrokes = useCallback(() => {
     if (strokes.length === 0) return
     // Wipe both stacks — clear is a deliberate reset, not an undo point.
@@ -652,7 +676,10 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       setShakeKey(k => k + 1)
       return
     }
-    setShowShare(v => !v)
+    setShowShare(v => {
+      if (!v) { trackCTA('open_share'); trackFirstShareClick() }
+      return !v
+    })
   }, [isEmpty, showToast])
 
   /* Preview-nudge state. Most users skip the sender/recipient fields and
@@ -671,6 +698,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       setNudgeOpen(open => !open)
       return
     }
+    trackCTA('preview')
     if (onPreview) onPreview(getNoteData())
   }, [namesMissing, onPreview, getNoteData])
 
@@ -679,6 +707,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   // blank if the user chose to skip).
   const handlePreviewAnyway = useCallback(() => {
     setNudgeOpen(false)
+    trackCTA('preview', { names_missing: true })
     if (onPreview) onPreview(getNoteData())
   }, [onPreview, getNoteData])
 
@@ -1009,6 +1038,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     }
     // First image upload: one-time heads-up that uploads are stored & shareable.
     maybeShowStorageNotice(showToast)
+    trackEvent('media_attached', { type: 'image' })
     const id = `mf-${nextFrameIdRef.current++}`
     // Slight random offset so successive frames don't stack exactly
     const jitter = mediaFrames.length * 3
@@ -1153,6 +1183,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     }
     // First voice note: one-time heads-up that uploads are stored & shareable.
     maybeShowStorageNotice(showToast)
+    trackEvent('media_attached', { type: 'voice', duration_s: Math.round(duration || 0) })
     const id = `vn-${nextVoiceNoteIdRef.current++}`
     const jitter = voiceNotes.length * 4
 
@@ -1392,6 +1423,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       onRotateVoiceNote={rotateVoiceNote}
       onBgClick={handleCanvasClick}
       textSize={textSize}
+      caretOffset={caretOffset}
+      caretActive={caretActive}
       strokes={strokes}
       drawingTool={drawingTool}
       /* iPad: outside of the Draw tab the pen still draws, but only pen
@@ -1432,6 +1465,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       textSize={textSize}
       onTextSizeChange={setTextSize}
       editorResyncKey={editorResyncKey}
+      onCaretChange={handleCaretChange}
     />
   )
 

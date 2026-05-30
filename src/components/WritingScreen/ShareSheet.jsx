@@ -4,7 +4,7 @@ import styles from './ShareSheet.module.css'
 import { generateShareUrl } from '../../lib/shareUtils'
 import { saveNote } from '../../lib/supabase'
 import { captureCanvas } from '../../lib/captureUtils'
-import { trackEvent } from '../../lib/analytics'
+import { trackEvent, trackCTA, trackFirstSend } from '../../lib/analytics'
 // IconPlane is the same paper-airplane glyph used by the editor's To/From
 // tool — reused on the Send button so the "send a letter" verb visually
 // matches the "to/from a person" tool the user already knows.
@@ -194,7 +194,9 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
         return
       }
       const url = generateShareUrl(id, noteData)
+      trackCTA('create_link')
       trackEvent('note_link_created', { method: isMobileSheet ? 'mobile' : 'desktop' })
+      trackFirstSend('link')
 
       // On mobile: use native share sheet (iOS/Android) — no keyboard, no clipboard issues
       if (isMobileSheet && typeof navigator.share === 'function') {
@@ -215,6 +217,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
 
   const handleCopy = useCallback(() => {
     if (!linkUrl) return
+    trackCTA('copy_link')
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(linkUrl).then(() => {
         setCopied(true)
@@ -228,6 +231,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
 
   const handlePng = useCallback(async () => {
     if (loadingPng) return
+    trackCTA('download_png')
     setLoadingPng(true)
     setDownloadDone(false)
     setExportErr('')
@@ -371,7 +375,9 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
       // options for whatever note state the user has by then.
       setSubjectOptions([])
       onToast?.(`Sent to ${sentLabel}.`, 'info')
+      trackCTA('email_send', { count: recipients.length })
       trackEvent('email_sent', { source: 'share_sheet', count: recipients.length })
+      trackFirstSend('email')
       if (emailSentTimerRef.current) clearTimeout(emailSentTimerRef.current)
       emailSentTimerRef.current = setTimeout(() => setEmailSentTo(''), 5000)
     } catch (err) {
