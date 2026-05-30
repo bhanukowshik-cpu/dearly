@@ -38,13 +38,17 @@ function firstName(name) {
  * Plain-text fallback — what shows when an email client refuses to
  * render HTML. Rare these days but still standard practice.
  */
-export function buildEmailText({ fromName, recipientName, shareUrl, blurb }) {
+export function buildEmailText({ fromName, recipientName, shareUrl, blurb, summary }) {
   const sender = firstName(fromName) || 'Someone'
   const recip  = firstName(recipientName) || 'there'
-  const trimmed = String(blurb || '').trim().replace(/[.!?]+$/, '')
-  const line2 = trimmed
-    ? `${sender} wrote a small note for you, about ${trimmed}.`
-    : `${sender} wrote a small note for you.`
+  // Same precedence as the HTML path: AI summary wins, then blurb, then generic.
+  const trimmedSummary = String(summary || '').trim().replace(/^["']+|["']+$/g, '')
+  const trimmedBlurb   = String(blurb   || '').trim().replace(/[.!?]+$/, '')
+  const line2 = trimmedSummary
+    ? trimmedSummary
+    : trimmedBlurb
+      ? `${sender} wrote a small note for you, about ${trimmedBlurb}.`
+      : `${sender} wrote a small note for you.`
   const lines = [
     `Hi ${recip},`,
     '',
@@ -75,8 +79,20 @@ export function buildEmailHtml({
   // personalNote unused — kept for backward-compat with callers.
   // eslint-disable-next-line no-unused-vars
   personalNote,
-  // One-line AI-generated context about the note.
+  // One-line AI-generated context about the note. Legacy field — used
+  // ONLY when `summary` is empty (kept so the EmailPreview design tool
+  // still works for sketching the "about {blurb}" copy variant).
   blurb = '',
+  // AI-generated Emotional Hook (Option 2 of the 3 archetypes from
+  // /api/suggest-subject). Renders as the body H2 directly under the
+  // greeting — replaces the generic "X wrote a small note for you."
+  // when present. This is the line that confirms to the recipient,
+  // immediately after opening, that clicking through was worth it.
+  summary = '',
+  // AI-generated Short & Intriguing line (Option 3 of the 3 archetypes).
+  // Replaces the generic preheader. Surfaces as the inbox preview
+  // snippet beside the sender name — high-curiosity tease before open.
+  previewHook = '',
   assetOrigin = 'https://dearlynotes.app',
 }) {
   const senderFirst = firstName(fromName) || ''
@@ -89,19 +105,31 @@ export function buildEmailHtml({
 
   const line1 = recipFirst ? `Hi ${esc(recipFirst)},` : 'Hi there,'
   const subj  = senderFirst ? esc(senderFirst) : 'Someone'
-  const trimmedBlurb = String(blurb || '').trim().replace(/[.!?]+$/, '')
-  const line2 = trimmedBlurb
-    ? `${subj} wrote a small note for you, about ${esc(trimmedBlurb)}.`
-    : `${subj} wrote a small note for you.`
+  // Body H2 — precedence:
+  //   1. AI summary (Emotional Hook) when present — most personal
+  //   2. Legacy `blurb` field — "X wrote a small note for you, about Y."
+  //   3. Generic fallback — "X wrote a small note for you."
+  const trimmedSummary = String(summary || '').trim().replace(/^["']+|["']+$/g, '')
+  const trimmedBlurb   = String(blurb   || '').trim().replace(/[.!?]+$/, '')
+  const line2 = trimmedSummary
+    ? esc(trimmedSummary)
+    : trimmedBlurb
+      ? `${subj} wrote a small note for you, about ${esc(trimmedBlurb)}.`
+      : `${subj} wrote a small note for you.`
   const altGreeting = `${line1} ${line2}`
 
   // Preheader: hidden text Gmail/Apple Mail surface as the inbox preview
   // snippet (the ~90 chars beside the sender name in the inbox list).
   // Controlled here so we never leak random first-content into preview.
-  // Phrase is letter-themed, gentle, no clickbait — matches Dearly's tone.
-  const preheader = recipFirst
-    ? `A small note from ${subj}, sealed just for ${esc(recipFirst)}.`
-    : `A small note from ${subj}, sealed just for you.`
+  // Precedence:
+  //   1. AI previewHook (Short & Intriguing) when present
+  //   2. Letter-themed gentle template fallback
+  const trimmedPreviewHook = String(previewHook || '').trim().replace(/^["']+|["']+$/g, '')
+  const preheader = trimmedPreviewHook
+    ? trimmedPreviewHook
+    : recipFirst
+      ? `A small note from ${subj}, sealed just for ${esc(recipFirst)}.`
+      : `A small note from ${subj}, sealed just for you.`
 
   const bgUrl       = `${assetOrigin}/bg.jpg`
   const envelopeUrl = `${assetOrigin}/envelope.png`

@@ -121,6 +121,12 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
   // arriving LLM suggestion clobbering what they typed.
   const [subjectTouched, setSubjectTouched] = useState(false)
   const [subjectLoading, setSubjectLoading] = useState(false)
+  // Full archetype set returned alongside the chosen subject. Used to
+  // forward the Emotional Hook (options[1]) as the body H2 summary and
+  // the Short & Intriguing line (options[2]) as the inbox preheader.
+  // Empty array when the suggest-subject endpoint hits its template
+  // fallback — the email template falls through to its generic copy.
+  const [subjectOptions, setSubjectOptions] = useState([])
   const [emailSending,   setEmailSending]   = useState(false)
   const [emailSentTo,    setEmailSentTo]    = useState('')   // shows the success copy
   const [emailErr,       setEmailErr]       = useState('')
@@ -163,6 +169,12 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
         // and the suggestion arrives mid-keystroke.
         if (!subjectTouched && data?.ok && data?.subject) {
           setEmailSubject(data.subject)
+        }
+        // Always store the full archetype set when present (independent
+        // of subjectTouched), because they drive the body H2 and the
+        // preheader — not the subject input the user can edit.
+        if (data?.ok && Array.isArray(data?.options) && data.options.length > 0) {
+          setSubjectOptions(data.options)
         }
       })
       .catch(() => { /* template fallback returns 200; on hard failure just leave blank */ })
@@ -331,6 +343,12 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
           shareUrl:      url,
           personalNote:  emailNote.trim(),
           subject:       emailSubject.trim(),  // empty → server uses its template
+          // AI archetype payload — when present, the server uses these
+          // verbatim for the body H2 and the hidden preheader. When the
+          // array is empty (suggest-subject hit its fallback), both
+          // collapse to the template's generic copy.
+          summary:       subjectOptions[1] || '',
+          previewHook:   subjectOptions[2] || '',
         }),
       })
       const data = await resp.json().catch(() => ({}))
@@ -349,6 +367,9 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
       setEmailNote('')
       setEmailSubject('')
       setSubjectTouched(false)
+      // Clear the archetype payload so a re-opened form refetches fresh
+      // options for whatever note state the user has by then.
+      setSubjectOptions([])
       onToast?.(`Sent to ${sentLabel}.`)
       trackEvent('email_sent', { source: 'share_sheet', count: recipients.length })
       if (emailSentTimerRef.current) clearTimeout(emailSentTimerRef.current)
@@ -358,7 +379,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
     } finally {
       setEmailSending(false)
     }
-  }, [emailTo, emailNote, emailSubject, emailSending, ensureShareUrl, noteData, onToast])
+  }, [emailTo, emailNote, emailSubject, subjectOptions, emailSending, ensureShareUrl, noteData, onToast])
 
   const motionProps = isMobileSheet
     ? { initial: { opacity: 0, y: 40 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: 40 }, transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } }

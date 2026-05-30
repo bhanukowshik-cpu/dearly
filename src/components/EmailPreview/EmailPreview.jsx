@@ -30,12 +30,18 @@ export default function EmailPreview() {
   // when a pronoun is needed — never "we", since Dearly is the third-
   // party messenger, not a party to the conversation.
   const [blurb,         setBlurb]         = useState('the AI conference you both attended last week')
+  // AI-generated summary lines (the Emotional Hook + Short & Intriguing
+  // options from /api/suggest-subject). When `summary` is non-empty it
+  // replaces the entire body H2 — this is the production path. When
+  // empty, the template falls back to the legacy `blurb` clause.
+  const [summary,       setSummary]       = useState("I didn't want you to go, but I think you should have")
+  const [previewHook,   setPreviewHook]   = useState("Two years later, I need to tell you what I meant")
   const [assetOrigin,   setAssetOrigin]   = useState(window.location.origin)
   const [viewportId,    setViewportId]    = useState('mobile')
 
   const html = useMemo(() => buildEmailHtml({
-    fromName, recipientName, shareUrl, personalNote, blurb, assetOrigin,
-  }), [fromName, recipientName, shareUrl, personalNote, blurb, assetOrigin])
+    fromName, recipientName, shareUrl, personalNote, blurb, summary, previewHook, assetOrigin,
+  }), [fromName, recipientName, shareUrl, personalNote, blurb, summary, previewHook, assetOrigin])
 
   const viewport = VIEWPORTS.find(v => v.id === viewportId) ?? VIEWPORTS[0]
 
@@ -67,7 +73,39 @@ export default function EmailPreview() {
         </label>
 
         <label className={styles.field}>
-          <span className={styles.fieldLabel}>Context blurb (AI-generated)</span>
+          <span className={styles.fieldLabel}>Summary (Emotional Hook — replaces body H2)</span>
+          <textarea
+            className={`${styles.input} ${styles.textarea}`}
+            value={summary}
+            onChange={e => setSummary(e.target.value)}
+            placeholder="AI-generated emotional hook — e.g. 'I didn't want you to go, but I think you should have'"
+          />
+          <span className={styles.hint}>
+            Comes from <code>/api/suggest-subject</code> as <code>options[1]</code>.
+            When present, replaces the entire <em>"X wrote a small note for you, about Y"</em>{' '}
+            line under the greeting. Leave blank to see the legacy <strong>blurb</strong>{' '}
+            fallback below take over.
+          </span>
+        </label>
+
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Preview hook (Short & Intriguing — replaces preheader)</span>
+          <textarea
+            className={`${styles.input} ${styles.textarea}`}
+            value={previewHook}
+            onChange={e => setPreviewHook(e.target.value)}
+            placeholder="AI-generated short hook — e.g. 'Two years later, I need to tell you what I meant'"
+          />
+          <span className={styles.hint}>
+            Comes from <code>/api/suggest-subject</code> as <code>options[2]</code>.
+            Surfaces in Gmail's <strong>inbox preview snippet</strong> beside the
+            sender name — never visible inside the opened email. Leave blank for
+            the <em>"A small note from X, sealed just for Y"</em> template fallback.
+          </span>
+        </label>
+
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Context blurb (legacy — used only when Summary is empty)</span>
           <textarea
             className={`${styles.input} ${styles.textarea}`}
             value={blurb}

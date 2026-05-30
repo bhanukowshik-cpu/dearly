@@ -11,6 +11,15 @@
  *     subject:       string  optional  user-supplied / pre-generated subject;
  *                                      falls back to a contextual template
  *                                      if absent or blank
+ *     summary:       string  optional  AI-generated Emotional Hook (the
+ *                                      Option 2 archetype from
+ *                                      /api/suggest-subject). When present,
+ *                                      becomes the body H2 directly under
+ *                                      the "Hi {recipient}," greeting.
+ *     previewHook:   string  optional  AI-generated Short & Intriguing
+ *                                      line (Option 3). When present,
+ *                                      becomes the hidden preheader that
+ *                                      Gmail surfaces as the inbox snippet.
  *   }
  *
  * Env vars:
@@ -103,6 +112,13 @@ export default async function handler(req, res) {
   const recipientName = (payload.recipientName ?? '').trim().slice(0, 60)
   const shareUrl      = (payload.shareUrl      ?? '').trim()
   const personalNote  = (payload.personalNote  ?? '').trim().slice(0, 500)
+  // AI archetype payload from /api/suggest-subject (forwarded by the
+  // client). Both optional — when absent the template falls back to its
+  // generic "X wrote a small note for you." copy.
+  //   summary     → Emotional Hook  → body H2 under the greeting
+  //   previewHook → Short & Intriguing → hidden inbox preview snippet
+  const summary     = (payload.summary     ?? '').trim().slice(0, 200)
+  const previewHook = (payload.previewHook ?? '').trim().slice(0, 200)
   // Excerpt deliberately NOT derived from the letter body in production —
   // the sealed envelope's curiosity gap is the design intent. The template
   // still accepts an excerpt prop for the in-app preview / future A/B,
@@ -132,8 +148,8 @@ export default async function handler(req, res) {
   // Build the bodies once (identical content per recipient — only the
   // `to` field changes). Pre-building avoids re-doing the HTML/text work
   // five times in the loop.
-  const html = buildEmailHtml({ fromName, recipientName, shareUrl, personalNote, assetOrigin })
-  const text = buildEmailText({ fromName, recipientName, shareUrl, personalNote })
+  const html = buildEmailHtml({ fromName, recipientName, shareUrl, personalNote, summary, previewHook, assetOrigin })
+  const text = buildEmailText({ fromName, recipientName, shareUrl, personalNote, summary })
 
   // Send one PRIVATE email per recipient (not a single email with all
   // addresses in the TO header). Recipients don't see each other's
