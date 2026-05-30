@@ -25,20 +25,15 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 0; /* allow the email to shrink instead of pushing the layout wide */
   pointer-events: none;
 }
 
-.right {
-  flex: 0 0 auto; /* legal links keep their width; the left cluster gives way */
+.left {
+  flex: 0 0 auto; /* legal links keep their width */
 }
 
-.labels {
-  color: rgba(255, 255, 255, 0.32);
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
+.right {
+  min-width: 0; /* allow the email to shrink/ellipsis instead of pushing wide */
 }
 
 .email,
@@ -80,10 +75,6 @@
     gap: 10px;
   }
 
-  .labels {
-    display: none;
-  }
-
   .email,
   .link {
     font-size: 11px;
@@ -95,5 +86,16 @@
   .email,
   .link {
     font-size: 10px;
+  }
+}
+
+/* On the editor, hide the footer at the iPad/phone breakpoints where the tool
+   nav moves to the bottom edge (matches WritingScreen's isMobile + isIpad
+   queries). The editor's top-bar "⋯" menu carries the links there instead. */
+@media (max-width: 599px),
+       (max-width: 1180px) and (orientation: portrait),
+       (min-width: 600px) and (max-width: 1366px) and (any-pointer: coarse) {
+  .onEditor {
+    display: none;
   }
 }

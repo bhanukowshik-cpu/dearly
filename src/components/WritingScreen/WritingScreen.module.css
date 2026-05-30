@@ -1033,9 +1033,11 @@
    shake transform, so the two transforms never fight. */
 .toastAnchor {
   position: fixed;
-  /* Sit clear of the ~79px bottom tab bar (To/From · Write · …) rather than
-     overlapping it. */
-  bottom: max(96px, calc(env(safe-area-inset-bottom) + 96px));
+  /* Drop in from the top, clear of the Preview / Share bar. Anchoring up here
+     keeps the pill above the paper for the whole animation, so its
+     backdrop-filter never flickers behind the sheet mid-rise the way it did
+     when it climbed up from the bottom edge. */
+  top: max(72px, calc(env(safe-area-inset-top) + 72px));
   /* Center horizontally via auto margins (not transform) so framer-motion's
      y-axis enter/exit animation owns `transform` without fighting a
      translateX(-50%). */
@@ -1046,10 +1048,8 @@
   max-width: min(86vw, 440px);
   z-index: 1000;
   pointer-events: none;
-  /* Pre-promote the layer and give the toast its own stacking context up
-     front. Without this, the pill's backdrop-filter is composited late while
-     the anchor animates `transform`, and Chromium paints it behind the paper
-     for a frame on the way up. */
+  /* Own stacking context + promoted layer, belt-and-suspenders against any
+     backdrop-filter compositing reorder during the transform. */
   isolation: isolate;
   will-change: transform;
 }
@@ -1066,15 +1066,18 @@
   font-weight: 500;
   letter-spacing: 0.01em;
   line-height: 1.4;
-  /* Light frosted glass — same translucent-white surface as the "Your message"
-     input box (rgba 255 .055 + blur). The STATE is encoded purely by the colored
-     glow: an outer ambient bloom plus a one-directional inner glow rising from
-     the bottom edge. Text stays white and crisp over the dark app chrome. */
-  background: rgba(255, 255, 255, 0.055);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  /* Dark tinted glass — a deep near-black surface at ~82% with the same blur,
+     so it keeps a faint frosted translucency but stays dark enough that the
+     white text reads cleanly over the bright paper, not just the dark chrome.
+     STATE is still encoded by the colored inner glow rising from the bottom. */
+  background: rgba(22, 24, 30, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   color: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(16px) saturate(1.2);
   -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  /* Soft elevation so the pill reads as floating above the sheet. Kept on
+     `filter` so it composes with each tone's inset glow box-shadow. */
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.42));
   pointer-events: none;
 }
 

@@ -1637,9 +1637,11 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               <span>{exportingPng ? 'Capturing…' : 'PNG'}</span>
             </motion.button>
           )}
-          {/* Overflow menu — support + legal. Lives in the top bar so it
-              never competes with the bottom tool nav. Legal pages open in a
-              new tab so an in-progress letter is never lost. */}
+          {/* Overflow menu — support + legal. Only on iPad/phone, where the
+              tool nav sits at the bottom edge; on desktop the bottom-of-screen
+              footer carries these links instead. Legal pages open in a new tab
+              so an in-progress letter is never lost. */}
+          {(isMobile || isIpad) && (
           <div className={styles.helpWrap} ref={helpWrapRef}>
             <motion.button
               className={styles.helpBtn}
@@ -1674,8 +1676,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
                     role="menuitem"
                     onClick={() => setShowHelpMenu(false)}
                   >
-                    <span>Questions · Support · Appreciate</span>
-                    <span className={styles.helpMenuItemSub}>hello@dearlynotes.app</span>
+                    hello@dearlynotes.app
                   </a>
                   <div className={styles.helpMenuDivider} />
                   <a
@@ -1702,6 +1703,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               )}
             </AnimatePresence>
           </div>
+          )}
           <div className={styles.shareWrap} ref={shareWrapRef}>
             <motion.button
               className={`${styles.shareNavBtn} ${isEmpty ? styles.shareNavBtnDisabled : ''}`}
@@ -1965,9 +1967,9 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
           <motion.div
             key={toast.id}
             className={styles.toastAnchor}
-            initial={{ opacity: 0, y: 14 }}
+            initial={{ opacity: 0, y: -14 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 14 }}
+            exit={{ opacity: 0, y: -14 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
             {/* Inner pill carries the visible glass + tone glow. The shake is a
