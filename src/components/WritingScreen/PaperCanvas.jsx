@@ -878,23 +878,29 @@ export default function PaperCanvas({
       const { computedLineHeight: period, scaledBaselineY: blY, scaledHeight } = getScaledMetrics(textSize, viewportWidth)
       if (!isFinite(period) || period <= 0) return
 
-      // Prefer direct glyph measurement: find the first rendered glyph span,
-      // measure its top from letterContent, add scaledBaselineY → exact baseline.
-      // data-glyph is set on every glyph container in GlyphChar — explicit,
-      // browser-independent (works in Safari/Firefox/Chrome the same way).
-      const firstGlyph = bd.querySelector('span[data-glyph]')
-      let baseline
-      if (firstGlyph) {
-        baseline = firstGlyph.getBoundingClientRect().top - lc.top + blY
-      } else {
-        // Empty-paper fallback. Glyphs use verticalAlign: 'top' (see
-        // GlyphChar) so they sit at the TOP of the line-box, not centered.
-        // halfLeading would have shifted the predicted baseline down by
-        // (period - scaledHeight)/2 — but with vertical-align: top that
-        // distance is 0. Drop the term entirely so empty/non-empty paths
-        // predict the same baseline.
-        baseline = bd.getBoundingClientRect().top - lc.top + blY
-      }
+      // Baseline is derived DETERMINISTICALLY from the glyph frame metadata —
+      // we do NOT measure a rendered glyph. In reading mode (RecipientScreen /
+      // Preview) words reveal progressively, so span[data-glyph] is absent on
+      // first paint; DOM-measuring the "first glyph" then fell back to a branch
+      // that mispredicted the baseline by ~(period - scaledHeight), floating the
+      // ruler a third of a row off the text. Computing from metadata sidesteps
+      // that entirely and matches what the glyph measurement WOULD return:
+      //
+      //   • Each line box is `period` (computedLineHeight) tall. A glyph's ink
+      //     box is `scaledHeight` (= fontSize) tall and lands `period - scaledHeight`
+      //     below the line-box top (the line's leading sits above the ink).
+      //   • Within the glyph frame the baseline is `scaledBaselineY` below the
+      //     ink-box top (the (baselineY - capHeightY) span of the 0-120 frame).
+      //
+      // So the first line's baseline, in letterContent space:
+      //   baseline = bodyTop + (period - scaledHeight) + scaledBaselineY
+      //
+      // The only DOM read left is the body's top, which legitimately varies:
+      // the greeting above it and letterContent's clamp() padding both shift
+      // the body vertically without changing any glyph metric.
+      const bodyTop  = bd.getBoundingClientRect().top - lc.top
+      const leading  = Math.max(0, period - scaledHeight)
+      const baseline = bodyTop + leading + blY
 
       // We deliberately drop the line a couple px into the upper descender
       // area instead of placing it exactly on the baseline. At larger sizes
