@@ -861,8 +861,14 @@
 }
 
 .mobilePaperInner {
-  width: 100%;
-  max-width: 480px;
+  /* Bound the sheet by BOTH the column width (≤480px) AND the slot height.
+     The slot is max-height:46vh with 16px vertical padding (10+6); a tall
+     sheet (A4, --paper-ar-hw ≈ 1.414) would otherwise overflow that clamp
+     and get clipped — the bottom zig-zag edge disappeared on iPad. Dividing
+     the available height by the paper's height/width ratio yields the widest
+     the sheet can be while still fitting top-to-bottom. Falls back to the
+     postcard ratio (0.667) when the var is absent. */
+  width: min(100%, 480px, (46vh - 16px) / var(--paper-ar-hw, 0.667));
 }
 
 .mobilePanelArea {

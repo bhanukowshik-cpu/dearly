@@ -874,9 +874,11 @@ export default function RecipientScreen({
   // column + FAB layout (see fabMode) so the long sheet scrolls with the page.
   const a4Letter     = isA4 && isLetterPhase && !IS_TOUCH
   const a4Experience = isA4 && phase !== 'greeting' && !IS_TOUCH   // envelope, opening, letter
-  // FAB layout: any letter, on touch, once unfolded. Controls + prompts become
-  // floating buttons so the scrollable letter owns the full viewport.
-  const fabMode      = IS_TOUCH && isLetterPhase
+  // FAB layout: A4 letters on touch, once unfolded. The floating buttons exist
+  // for the full-bleed scrollable A4 sheet that owns the whole viewport.
+  // Postcard / strip stay compact and centered, so they keep the inline
+  // control bar (listen / pause music / download) instead of the FAB stack.
+  const fabMode      = IS_TOUCH && isLetterPhase && isA4
   const feedbackOpen = showRatingToast && !ratingDone
   // Render the A4 card at full width (overflowing + scrolling) on desktop for
   // the whole experience, and on touch only once unfolded (the envelope stays
@@ -1130,7 +1132,7 @@ export default function RecipientScreen({
         {(phase === 'greeting' || phase === 'envelope') && (
           <motion.div
             layout="position"
-            className={`${styles.greetingWrap} ${isA4 && phase === 'envelope' ? styles.greetingRightCol : ''}`}
+            className={`${styles.greetingWrap} ${a4Experience && phase === 'envelope' ? styles.greetingRightCol : ''}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, y: -14, transition: { duration: 0.25 } }}
@@ -1182,10 +1184,11 @@ export default function RecipientScreen({
               {senderName ? `${senderName} wrote a message for you` : 'Someone wrote a message for you'}
             </motion.p>
 
-            {/* A4: the Open CTA lives with the greeting in the right column.
-                Other sizes render it below the letter (see experience block). */}
+            {/* Desktop A4: the Open CTA lives with the greeting in the right
+                column. Other sizes — and touch A4, which uses the generic
+                vertical layout — render it below the letter (experience block). */}
             <AnimatePresence>
-              {isA4 && phase === 'envelope' && readCtaNode}
+              {a4Experience && phase === 'envelope' && readCtaNode}
             </AnimatePresence>
           </motion.div>
         )}
@@ -1222,10 +1225,11 @@ export default function RecipientScreen({
               freeHeight={a4FullCard}
             />
 
-            {/* Open envelope CTA — non-A4 only (A4 renders it in the right
-                column with the greeting). */}
+            {/* Open envelope CTA — rendered below the letter for every layout
+                except desktop A4 (which renders it in the right column with the
+                greeting). Touch A4 falls here too, avoiding the card/CTA overlap. */}
             <AnimatePresence>
-              {phase === 'envelope' && !isA4 && readCtaNode}
+              {phase === 'envelope' && !a4Experience && readCtaNode}
             </AnimatePresence>
 
             {/* Controls — below the letter for non-A4 desktop. A4 desktop
@@ -1312,7 +1316,7 @@ export default function RecipientScreen({
             transition={{ duration: 0.5, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
           >
             <button
-              className={`${styles.fab} ${isSpeaking ? styles.fabActive : ''} ${isLoadingAudio ? styles.fabLoading : ''}`}
+              className={`${styles.fab} ${!isSpeaking && !isLoadingAudio ? styles.fabGold : ''} ${isSpeaking ? styles.fabActive : ''} ${isLoadingAudio ? styles.fabLoading : ''}`}
               onClick={handleReadAloud}
               disabled={isLoadingAudio}
               aria-label={isSpeaking ? 'Stop reading' : 'Read note aloud'}

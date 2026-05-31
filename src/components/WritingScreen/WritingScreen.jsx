@@ -19,13 +19,21 @@ import styles from './WritingScreen.module.css'
 import { DEFAULT_PAPER, PAPER_SIZES } from './stylePresets'
 import { extractName } from './nameUtils'
 import { DEFAULT_FRAME } from '../../lib/mediaFrameConfig'
-import { computeFrameHeight } from '../../lib/mediaFrameHelpers'
+import { computeFrameHeightPct } from '../../lib/mediaFrameHelpers'
 import { maybeShowStorageNotice } from '../../lib/storageNotice'
 import { trackCTA, trackEvent, markWritingStart, trackFirstShareClick } from '../../lib/analytics'
 import FeedbackToast from '../FeedbackToast/FeedbackToast'
 
 // One-time-per-device flag so the authoring feedback prompt never nags.
 const AUTHORING_FEEDBACK_KEY = 'dearly_authoring_feedback_done'
+
+// Paper width ÷ height from a size's declared aspect ratio (postcard 3/2 = 1.5).
+// Used to derive media-frame heights deterministically — see computeFrameHeightPct.
+function paperAspectWH(size) {
+  const d = PAPER_SIZES[size] ?? PAPER_SIZES.postcard
+  const [w, h] = d.aspectRatio.split('/').map(parseFloat)
+  return w / h
+}
 import { exportNoteToJson, copyToClipboard, downloadAsFile, buildExportFilename, importNoteFromFile, pickJsonFile, exportPaperAsPng } from '../../lib/exportNoteJson'
 import {
   DEFAULT_PEN_COLOR,
@@ -487,12 +495,13 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     const reY       = y => (typeof y === 'number' ? y * yScale : y)
     const sameY     = (a, b) => typeof a !== 'number' || Math.abs(a - b) < 0.01
 
+    const newR = paperAspectWH(size)
     setMediaFrames(prev => prev.map(f => {
       let next = f
       if (f.imageWidth > 0 && f.imageHeight > 0) {
-        const frameW_px = (f.width / 100) * paperW
-        const newH_px   = computeFrameHeight(frameW_px, f.imageWidth / f.imageHeight, f.frameStyle)
-        const newHeight = (newH_px / newPaperH) * 100
+        // Width % is fixed across sizes; re-derive height % from the NEW size's
+        // aspect so the photo keeps its shape on the reshaped sheet.
+        const newHeight = computeFrameHeightPct(f.width, f.imageWidth / f.imageHeight, f.frameStyle, newR)
         if (Math.abs(newHeight - f.height) >= 0.01) next = { ...next, height: newHeight }
       }
       const ny = reY(next.y)
@@ -1232,29 +1241,23 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
 
     let widthPct  = DEFAULT_FRAME.width
     let heightPct = DEFAULT_FRAME.height
-    const paperEl = paperRef.current?.querySelector('[data-paper-canvas]')
-                 ?? document.querySelector('[data-paper-canvas]')
     const initialFrameStyle = framePatch.frameStyle ?? DEFAULT_FRAME.frameStyle
-    if (imageWidth > 0 && imageHeight > 0 && paperEl) {
-      const paperW = paperEl.clientWidth
-      const paperH = paperEl.clientHeight
-      if (paperW > 0 && paperH > 0) {
-        const imgAspect = imageWidth / imageHeight
-        // Target ~38% of paper width as the outer frame width. Then derive
-        // the outer height so the INNER photo area (after padding) keeps
-        // the image's aspect ratio — no cream bars, no crop.
-        let targetW = paperW * 0.38
-        let targetH = computeFrameHeight(targetW, imgAspect, initialFrameStyle)
-        // Clamp so the frame can't dominate the letter — scale both dims
-        // together to preserve the aspect-matching relationship.
-        const maxH = paperH * 0.70
-        if (targetH > maxH) {
-          const scale = maxH / targetH
-          targetW *= scale
-          targetH = maxH
-        }
-        widthPct  = (targetW / paperW) * 100
-        heightPct = (targetH / paperH) * 100
+    if (imageWidth > 0 && imageHeight > 0) {
+      const imgAspect = imageWidth / imageHeight
+      const R = paperAspectWH(paperConfig?.size)
+      // Outer frame ≈ 38% of paper width; derive the outer height so the INNER
+      // photo area (after the style's padding) keeps the image's aspect ratio —
+      // no cream bars, no crop. Deterministic (no live paper measurement) so
+      // it's identical on every device; iPad's clamped editor slot used to read
+      // a stale/zero size and collapse the frame to a square, letterboxing it.
+      widthPct  = 38
+      heightPct = computeFrameHeightPct(widthPct, imgAspect, initialFrameStyle, R)
+      // Clamp so a tall photo's frame can't dominate the sheet — scale width
+      // down with it to preserve the aspect-matching relationship.
+      const MAX_H_PCT = 70
+      if (heightPct > MAX_H_PCT) {
+        widthPct *= MAX_H_PCT / heightPct
+        heightPct = MAX_H_PCT
       }
     }
 
@@ -1338,19 +1341,11 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       const imageChanged      = 'imageWidth' in patch || 'imageHeight' in patch
       // Re-fit the outer height so the inner photo area keeps the image's
       // aspect — done whenever the style changes OR a new image is loaded.
+      // Deterministic from the paper's known aspect (no DOM read) so a style
+      // switch on iPad can't collapse the frame to a mis-sized box.
       if ((frameStyleChanged || imageChanged) && imgW > 0 && imgH > 0) {
-        const paperEl = paperRef.current?.querySelector('[data-paper-canvas]')
-                     ?? document.querySelector('[data-paper-canvas]')
-        if (paperEl) {
-          const paperW = paperEl.clientWidth
-          const paperH = paperEl.clientHeight
-          if (paperW > 0 && paperH > 0) {
-            const imgAspect = imgW / imgH
-            const frameW_px = (next.width / 100) * paperW
-            const newH_px   = computeFrameHeight(frameW_px, imgAspect, next.frameStyle)
-            next.height = (newH_px / paperH) * 100
-          }
-        }
+        const R = paperAspectWH(paperConfig?.size)
+        next.height = computeFrameHeightPct(next.width, imgW / imgH, next.frameStyle, R)
       }
       return next
     }))
@@ -2043,11 +2038,17 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               <div
                 ref={paperRef}
                 className={styles.mobilePaperInner}
-                style={isIpad && activeTool === 'text' ? {
-                  transform: `scale(${zoomLevel})`,
-                  transformOrigin: 'center center',
-                  transition: pinchStateRef.current ? 'none' : 'transform 0.18s ease',
-                } : undefined}
+                /* --paper-ar-hw = paper height ÷ width for the current size.
+                   The CSS uses it to bound the sheet by the slot HEIGHT too,
+                   so a tall A4 fits instead of being clipped by the 46vh slot. */
+                style={{
+                  '--paper-ar-hw': 1 / paperAspectWH(paperConfig?.size),
+                  ...(isIpad && activeTool === 'text' ? {
+                    transform: `scale(${zoomLevel})`,
+                    transformOrigin: 'center center',
+                    transition: pinchStateRef.current ? 'none' : 'transform 0.18s ease',
+                  } : {}),
+                }}
               >
                 {paperCanvas}
               </div>

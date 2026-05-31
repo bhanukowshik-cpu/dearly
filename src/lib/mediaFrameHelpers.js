@@ -47,6 +47,24 @@ export function computeFrameHeight(frameWidth, imageAspect, frameStyle) {
   return frameWidth * ((1 - horizontal) / imageAspect + vertical)
 }
 
+/* The frame's outer HEIGHT as a % of paper height, given its WIDTH as a % of
+   paper width. Pure: derives from the image aspect, the style's padding, and
+   the paper's width/height aspect ratio — NO DOM measurement. A live
+   paper.clientWidth/Height read can be mid-layout or zero on iPad (the editor
+   paper sits in a max-height-clamped slot), which collapsed frames to the
+   square DEFAULT_FRAME and letterboxed the photo with grey bars on all sides.
+
+   paperAspectWH = paperW / paperH (e.g. postcard 3/2 = 1.5). computeFrameHeight(1, …)
+   gives the outer height per unit outer width (heightPx / widthPx). Converting
+   that px ratio into percentages of the respective paper dimensions multiplies
+   by paperW / paperH:
+     heightPct = widthPct · (heightPx/widthPx) · (paperW/paperH).            */
+export function computeFrameHeightPct(widthPct, imageAspect, frameStyle, paperAspectWH) {
+  if (!widthPct || !imageAspect || !Number.isFinite(imageAspect) || !paperAspectWH) return widthPct
+  const boxHW = computeFrameHeight(1, imageAspect, frameStyle)
+  return widthPct * boxHW * paperAspectWH
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    loadImageMeta — turn the user's file into something the renderer can
    safely paint, and report its natural pixel dimensions.
