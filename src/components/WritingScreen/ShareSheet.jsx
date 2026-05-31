@@ -110,7 +110,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
   const [imageOverlayUrl, setImageOverlayUrl] = useState(null)
   // Section open/closed state — both email and link start COLLAPSED. The
   // user has to tap a header to expand. This keeps the sheet compact and
-  // doesn't push the friendlier "Download your image" CTA off-screen.
+  // doesn't push the friendlier "Download as image" CTA off-screen.
   const [emailOpen,      setEmailOpen]      = useState(false)
   const [linkOpen,       setLinkOpen]       = useState(false)
   const [emailTo,        setEmailTo]        = useState('')
@@ -404,7 +404,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
                        Caveat, expands to reveal the form on tap)
            Section 2 → Share link    (COLLAPSED by default — header in
                        Caveat, expands to the existing create/copy flow)
-           Section 3 → Download your image (always EXPANDED — direct
+           Section 3 → Download as image (always EXPANDED — direct
                        full-width action button, Caveat label, no nesting)
            Headers all use the same .collapseHeader style so the three
            sections read as siblings; the third one is just a "live" header
@@ -550,7 +550,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
           </AnimatePresence>
         </div>
 
-        {/* ── Section 3: Download your image (always expanded, direct
+        {/* ── Section 3: Download as image (always expanded, direct
              action — no nesting). Same .collapseHeader shell so the row
              height/typography matches the other two. */}
         <button
@@ -558,14 +558,14 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
           className={`${styles.collapseHeader} ${styles.downloadHeader}`}
           onClick={handlePng}
           disabled={loadingPng}
-          aria-label="Download your image"
+          aria-label="Download as image"
         >
           <span className={styles.collapseHeaderIcon}><IconPNG /></span>
           <span className={styles.collapseHeaderLabel}>
             {loadingPng                ? 'Preparing your image…' :
              downloadDone === 'done'   ? 'Saved ✓' :
              downloadDone === 'ios'    ? 'Long press to save' :
-                                          'Download your image'}
+                                          'Download as image'}
           </span>
         </button>
 
