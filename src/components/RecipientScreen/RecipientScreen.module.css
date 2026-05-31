@@ -788,8 +788,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 38px;
+  /* Content-width by default (tablet): padding keeps the label clear of the
+     hand-drawn SVG background, whose white fill curves ~6% inward on the
+     sides and ~13% top/bottom. width:100% "fill" is re-applied only on
+     desktop (inline banner) and mobile below. */
+  width: auto;
+  min-height: 40px;
+  box-sizing: border-box;
   background: none;
   border: none;
   color: #252525;
@@ -803,7 +808,7 @@
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   transition: opacity 0.14s;
-  padding: 0;
+  padding: 7px 30px;
 }
 .toastCtaCompact:hover { opacity: 0.88; }
 
@@ -840,6 +845,12 @@
   .shareBanner {
     width: calc(100vw - 24px);
     bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  }
+
+  /* Fill width on mobile too: the CTA stretches across the banner. */
+  .shareBanner .toastRight,
+  .shareBanner .toastCtaCompact {
+    width: 100%;
   }
 
   .shareBannerLifted {
@@ -1017,6 +1028,9 @@
 /* In the stacked inline banner, let the CTA wrapper span the full column so
    the "Write a note" button fills the toast width (matches the rating Send). */
 .shareBannerInline .toastRight {
+  width: 100%;
+}
+.shareBannerInline .toastCtaCompact {
   width: 100%;
 }
 
