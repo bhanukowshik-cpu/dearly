@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { segmentGraphemes } from './segmentGraphemes'
 
 /* Module-level monotonic counter — survives HMR, never collides */
 let _uid = 0
@@ -28,14 +29,14 @@ export function useCharList(text) {
   if (!ref.current) {
     ref.current = {
       text,
-      chars: Array.from(text).map(ch => ({ id: newId(), ch })),
+      chars: segmentGraphemes(text).map(ch => ({ id: newId(), ch })),
     }
   }
 
   /* Subsequent renders — diff synchronously so keys are correct this render */
   if (ref.current.text !== text) {
-    const oldArr   = Array.from(ref.current.text)
-    const newArr   = Array.from(text)
+    const oldArr   = segmentGraphemes(ref.current.text)
+    const newArr   = segmentGraphemes(text)
     const existing = ref.current.chars
 
     /* Find common prefix */

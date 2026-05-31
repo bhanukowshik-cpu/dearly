@@ -13,7 +13,10 @@
 
   /* Darken every surface */
   --rgb-background:  8, 13, 24;
-  --rgb-input:       255, 255, 255;
+  /* --rgb-input is the SEARCH FIELD background, not its text. Keep it a dark
+     elevated tone so the white --rgb-color text stays readable (a white input
+     background made the typed text invisible — white on white). */
+  --rgb-input:       28, 36, 52;
   --rgb-color:       255, 255, 255;
   --rgb-accent:      120, 160, 255;
 

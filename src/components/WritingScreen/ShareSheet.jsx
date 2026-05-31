@@ -104,7 +104,6 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
   const [linkUrl,        setLinkUrl]        = useState('')
   const [copied,         setCopied]         = useState(false)
   const [creatingLink,   setCreatingLink]   = useState(false)
-  const [linkErr,        setLinkErr]        = useState('')
   const [loadingPng,     setLoadingPng]     = useState(false)
   const [downloadDone,   setDownloadDone]   = useState(false) // 'done' | 'ios' | false
   const [exportErr,      setExportErr]      = useState('')
@@ -186,11 +185,10 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
   const handleCreateLink = useCallback(async () => {
     if (creatingLink) return
     setCreatingLink(true)
-    setLinkErr('')
     try {
       const id = await saveNote(noteData)
       if (!id) {
-        setLinkErr('Could not save note. Please try again.')
+        onToast?.('Couldn\'t create your link. Try again, or reach out to hello@dearlynotes.app for help.', 'error')
         return
       }
       const url = generateShareUrl(id, noteData)
@@ -263,7 +261,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
             setTimeout(() => URL.revokeObjectURL(url), 1000)
             setDownloadDone('done')
             trackEvent('png_downloaded', { source: 'share_sheet', platform: 'desktop' })
-            onToast?.('Image downloaded. Check your Downloads folder.', 'info')
+            onToast?.('Image downloaded. Check your Downloads folder.', 'success')
             resolve()
           }, 'image/png')
         })
@@ -272,7 +270,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
     } catch (e) {
       console.error('PNG export failed', e)
       setExportErr('Export failed. Please try again.')
-      onToast?.('Could not export image, please try again.', 'error')
+      onToast?.('Couldn\'t export your image. Try again, or reach out to hello@dearlynotes.app for help.', 'error')
     } finally {
       setLoadingPng(false)
     }
@@ -329,7 +327,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
 
     const url = await ensureShareUrl()
     if (!url) {
-      setEmailErr('Could not save the note. Please try again.')
+      onToast?.('Couldn\'t save your note, so it couldn\'t be sent. Try again, or reach out to hello@dearlynotes.app for help.', 'error')
       setEmailSending(false)
       return
     }
@@ -358,7 +356,10 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
       const data = await resp.json().catch(() => ({}))
       if (!resp.ok || data.ok === false) {
         const msg = data?.error || `Email send failed (${resp.status})`
-        setEmailErr(msg.length > 120 ? msg.slice(0, 117) + '…' : msg)
+        const failMsg = recipients.length === 1
+          ? `Couldn't send to ${recipients[0]}. Try again, or reach out to hello@dearlynotes.app for help.`
+          : `Couldn't send your note. Try again, or reach out to hello@dearlynotes.app for help.`
+        onToast?.(failMsg, 'error')
         trackEvent('email_send_failed', { reason: msg.slice(0, 60), count: recipients.length })
         return
       }
@@ -374,14 +375,15 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
       // Clear the archetype payload so a re-opened form refetches fresh
       // options for whatever note state the user has by then.
       setSubjectOptions([])
-      onToast?.(`Sent to ${sentLabel}.`, 'info')
+      onToast?.(`Sent to ${sentLabel}.`, 'success')
       trackCTA('email_send', { count: recipients.length })
       trackEvent('email_sent', { source: 'share_sheet', count: recipients.length })
       trackFirstSend('email')
       if (emailSentTimerRef.current) clearTimeout(emailSentTimerRef.current)
       emailSentTimerRef.current = setTimeout(() => setEmailSentTo(''), 5000)
     } catch (err) {
-      setEmailErr(err?.message || 'Network error. Please try again.')
+      onToast?.('Couldn\'t send your note — looks like a network hiccup. Try again, or reach out to hello@dearlynotes.app for help.', 'error')
+      trackEvent('email_send_failed', { reason: (err?.message || 'network').slice(0, 60), count: recipients.length })
     } finally {
       setEmailSending(false)
     }
@@ -543,20 +545,6 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
                     </button>
                   </div>
                 )}
-
-                <AnimatePresence>
-                  {linkErr && (
-                    <motion.p
-                      className={styles.errorText}
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      {linkErr}
-                    </motion.p>
-                  )}
-                </AnimatePresence>
               </motion.div>
             )}
           </AnimatePresence>

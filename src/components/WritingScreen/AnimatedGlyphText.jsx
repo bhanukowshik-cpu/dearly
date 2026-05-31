@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import GlyphChar from './GlyphChar'
 import { useCharList } from '../../lib/useCharList'
+import { segmentGraphemes } from '../../lib/segmentGraphemes'
 import { getScaledMetricsForPx } from '../../lib/typographyMetadata'
 
 /**
@@ -29,7 +30,7 @@ function useTypewriter(text, { msPerChar = 80, startDelayMs = 0, onComplete } = 
   useEffect(() => {
     // Restart from empty whenever the text changes.
     setRevealed('')
-    const chars  = Array.from(text)
+    const chars  = segmentGraphemes(text)
     const timers = []
 
     for (let i = 0; i < chars.length; i++) {
@@ -50,9 +51,9 @@ function useTypewriter(text, { msPerChar = 80, startDelayMs = 0, onComplete } = 
   return revealed
 }
 
-// String.prototype.slice operates on UTF-16 code units; Array.from(text)
-// gives us proper code-point chars (so emoji and astral chars stay intact).
-// Map a code-point index → code-unit index so revealed slices align.
+// String.prototype.slice operates on UTF-16 code units; segmentGraphemes(text)
+// gives us proper grapheme clusters (so ZWJ / skin-tone emoji stay intact).
+// Map a grapheme index → code-unit index so revealed slices align.
 function charIndexToCodeUnitIndex(chars, k) {
   let out = 0
   for (let i = 0; i < k && i < chars.length; i++) out += chars[i].length

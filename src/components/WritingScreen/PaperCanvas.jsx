@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, useEffect, useLayoutEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCharList } from '../../lib/useCharList'
+import { segmentGraphemes } from '../../lib/segmentGraphemes'
 import { PAPER_TYPES, PAPER_SIZES } from './stylePresets'
 import { STICKER_REGISTRY } from './handDrawnStickers'
 import GlyphChar from './GlyphChar'
@@ -49,11 +50,12 @@ function normalizeMarkup(text) {
    'strike' | 'bold' | 'size-sm' | 'size-lg' | 'delim'
    ───────────────────────────────────────────────────────────────────────── */
 function computeCharTypes(text) {
-  // Replace astral-plane codepoints (emoji etc.) with a single BMP placeholder so
-  // regex match indices align with codepoint indices, not UTF-16 code units.
-  const codepoints = Array.from(text)
-  const safeText   = codepoints.map(cp => cp.length > 1 ? '' : cp).join('')
-  const types = new Array(codepoints.length).fill('text')
+  // Segment by grapheme cluster (not code point) so ZWJ / skin-tone emoji stay
+  // as one unit. Replace any multi-unit grapheme (emoji etc.) with a single BMP
+  // placeholder so regex match indices align 1:1 with grapheme indices.
+  const graphemes = segmentGraphemes(text)
+  const safeText   = graphemes.map(g => g.length > 1 ? '￼' : g).join('')
+  const types = new Array(graphemes.length).fill('text')
   /* ==text==  ==pink::text==  ==sage::text==  ~~text~~  **text**  @@sm::text@@  @@lg::text@@ */
   const re = /==((?:pink|sage)::)?([^=]+)==|~~([^~\n]+)~~|\*\*([^*\n]+)\*\*|@@(sm|lg)::([^@\n]+)@@/g
   let m
@@ -101,7 +103,7 @@ function buildSegments(text, types, chars) {
   // against — the contentEditable editor's caret offset, counted the same way
   // (codepoints before the caret, newlines excluded), lines up exactly.
   let vis = 0
-  const textArr = Array.from(text)
+  const textArr = segmentGraphemes(text)
   for (let i = 0; i < textArr.length; i++) {
     const ch = textArr[i]
     const t  = types[i] ?? 'text'
@@ -491,6 +493,7 @@ function StickerIcon({ sticker, isSelected, onSelect, paperRef, onMove, paperSca
   return (
     <motion.div
       className={styles.stickerRoot}
+      data-paper-media
       style={{
         left:   `${sticker.x}%`,
         top:    `${sticker.y}%`,

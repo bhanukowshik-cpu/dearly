@@ -263,10 +263,6 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     }, 1000)
     return () => clearInterval(id)
   }, [])
-  const dismissFeedback = useCallback(() => {
-    setShowFeedback(false)
-    try { localStorage.setItem(AUTHORING_FEEDBACK_KEY, '1') } catch { /* storage blocked */ }
-  }, [])
   const [toast,              setToast]              = useState(null)
   const toastTimerRef  = useRef(null)
   const toastCounterRef = useRef(0)
@@ -446,93 +442,138 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     }
   }, [message, textSize, paperConfig])
 
-  /* ── Keep photo frames the same physical size across paper sizes ────────────
+  /* ── Keep placed media fixed in place across paper sizes ────────────────────
      Paper WIDTH is constant across sizes (the center column is fixed-width),
-     but HEIGHT changes with each size's aspect ratio. A frame stores width as
-     a % of paper width and height as a % of paper height — so leaving height%
-     untouched on a size change stretches the photo (taller paper) or squashes
-     it (shorter paper).
+     but HEIGHT changes with each size's aspect ratio. Every placed item —
+     photo frames, voice notes, stickers — stores its position as x%/y% of the
+     paper. x% maps to a constant pixel offset (width is fixed), but y% maps to
+     a DIFFERENT pixel offset on each size, so changing size would slide media
+     up or down. The user's contract is "only the sheet length changes; media
+     stays put." So on a size change we convert each item's y% so its ABSOLUTE
+     pixel offset is preserved:  newY% = y% × (oldPaperH ÷ newPaperH).
 
-     The frame's width% already maps to a constant pixel width. So after a size
-     change we re-derive each frame's height% from its width% using the NEW
-     paper height: the pixel height that keeps the image's aspect is constant,
-     only the % needs to track the new denominator. Result: the photo's
-     orientation and size stay put — resizing remains the user's call.        */
+     Photo frames additionally store height as a % of paper height; left as-is
+     a taller sheet would stretch the photo, so we also re-derive each frame's
+     height% from its (constant-pixel) width% against the new paper height. */
   const prevPaperSizeRef = useRef(paperConfig?.size)
   useLayoutEffect(() => {
-    const size = paperConfig?.size
-    if (size === prevPaperSizeRef.current) return
+    const size     = paperConfig?.size
+    const prevSize = prevPaperSizeRef.current
+    if (size === prevSize) return
     prevPaperSizeRef.current = size
-    if (mediaFrames.length === 0) return
+    if (mediaFrames.length === 0 && voiceNotes.length === 0 && stickers.length === 0) return
     const paperEl = paperRef.current?.querySelector('[data-paper-canvas]')
                  ?? document.querySelector('[data-paper-canvas]')
     if (!paperEl) return
-    const paperW = paperEl.clientWidth
-    const paperH = paperEl.clientHeight
-    if (paperW <= 0 || paperH <= 0) return
-    setMediaFrames(prev => prev.map(f => {
-      if (!(f.imageWidth > 0 && f.imageHeight > 0)) return f
-      const frameW_px = (f.width / 100) * paperW
-      const newH_px   = computeFrameHeight(frameW_px, f.imageWidth / f.imageHeight, f.frameStyle)
-      const newHeight = (newH_px / paperH) * 100
-      return Math.abs(newHeight - f.height) < 0.01 ? f : { ...f, height: newHeight }
-    }))
-  }, [paperConfig?.size, mediaFrames.length])
+    const paperW    = paperEl.clientWidth
+    const newPaperH = paperEl.clientHeight
+    if (paperW <= 0 || newPaperH <= 0) return
 
-  /* ── Predict which paper sizes the message would overflow ───────────────────
+    // Each size's paper height is paperW × (h/w) from its aspect — derive the
+    // previous size's height to convert y% into a fixed pixel offset.
+    const aspectH = s => {
+      const d = PAPER_SIZES[s]; if (!d) return null
+      const [w, h] = (isMobile ? d.mobileAspect : d.aspectRatio).split('/').map(parseFloat)
+      return h / w
+    }
+    const prevRatio = aspectH(prevSize)
+    const oldPaperH = prevRatio ? paperW * prevRatio : newPaperH
+    const yScale    = oldPaperH > 0 ? oldPaperH / newPaperH : 1
+    const reY       = y => (typeof y === 'number' ? y * yScale : y)
+    const sameY     = (a, b) => typeof a !== 'number' || Math.abs(a - b) < 0.01
+
+    setMediaFrames(prev => prev.map(f => {
+      let next = f
+      if (f.imageWidth > 0 && f.imageHeight > 0) {
+        const frameW_px = (f.width / 100) * paperW
+        const newH_px   = computeFrameHeight(frameW_px, f.imageWidth / f.imageHeight, f.frameStyle)
+        const newHeight = (newH_px / newPaperH) * 100
+        if (Math.abs(newHeight - f.height) >= 0.01) next = { ...next, height: newHeight }
+      }
+      const ny = reY(next.y)
+      if (!sameY(next.y, ny)) next = { ...next, y: ny }
+      return next
+    }))
+    if (yScale !== 1) {
+      setVoiceNotes(prev => prev.map(n => { const ny = reY(n.y); return sameY(n.y, ny) ? n : { ...n, y: ny } }))
+      setStickers(prev   => prev.map(s => { const ny = reY(s.y); return sameY(s.y, ny) ? s : { ...s, y: ny } }))
+    }
+  }, [paperConfig?.size, mediaFrames.length, voiceNotes.length, stickers.length, isMobile])
+
+  /* ── Predict which paper sizes the content would overflow ───────────────────
      "No content may spill off the sheet" is the rule. The overflow guard above
      enforces it for the CURRENT size by reverting edits. This effect looks
-     ahead: it greys out any OTHER size whose body is too short for the message
-     the writer already has, so they can't switch into an overflow.
+     ahead: it greys out any OTHER size that the writer's current content (text
+     AND placed media) wouldn't fit on, so they can't switch into an overflow.
+     It re-runs on every text/media change, so a size re-enables the moment the
+     content shrinks enough to fit.
 
-     Paper WIDTH is fixed across sizes, so the message's natural height is the
-     same everywhere (it wraps identically) — we read it once from the live
-     body's scrollHeight. For each candidate size we reconstruct the body's
-     available height from that size's paper height and padding:
+     Two independent checks per candidate size:
 
-       paperH(size)  = paperW × (h ÷ w)          // from the size's aspect ratio
-       padV(size)    = strip ? clamp(20,16%,36) : clamp(16,5%,32), ×2 sides
-       constChrome   = greeting + gaps + borders  // size-independent; measured
-       bodyClient(s) = paperH(s) − padV(s) − constChrome
+     1. TEXT. Paper WIDTH is fixed across sizes, so the message's natural height
+        is the same everywhere (it wraps identically). The body is flex:1
+        (stretched to fill the sheet), so its scrollHeight is floored at the
+        current paper height — we must break that stretch to read the message's
+        TRUE height, else trimming text would never re-enable a smaller size.
+        Per size:  bodyClient = paperH(size) − padV(size) − constChrome.
 
-     constChrome is derived from the current measured state so we never hardcode
-     the greeting/gap pixels — only the padding clamp (which keys off the fixed
-     width) is replicated from CSS.                                            */
+          paperH(size)  = paperW × (h ÷ w)          // from the size's aspect ratio
+          padV(size)    = strip ? clamp(20,16%,36) : clamp(16,5%,32), ×2 sides
+          constChrome   = greeting + gaps + borders  // size-independent; measured
+
+     2. MEDIA. Photos / voice notes / stickers keep a constant pixel position
+        across sizes (see the resize effect above), so the lowest pixel any of
+        them reaches — measured live from the DOM — is size-independent. A size
+        whose sheet is shorter than that floor would clip the media, so it's
+        blocked.                                                              */
   useLayoutEffect(() => {
     const paperEl = paperRef.current?.querySelector('[data-paper-canvas]')
                  ?? document.querySelector('[data-paper-canvas]')
     if (!paperEl) return
-    // No body element ⇒ the message is empty, so nothing can overflow any size.
-    // Clear any stale disabled state rather than leaving the last computation.
-    const bodyEl = paperEl.querySelector('[data-paper-body]')
-    if (!bodyEl) { setDisabledSizes(prev => (prev.length ? [] : prev)); return }
-    const paperW       = paperEl.clientWidth
-    const curPaperH    = paperEl.clientHeight
-    const curBodyClient = bodyEl.clientHeight
-    const contentH     = bodyEl.scrollHeight   // natural message height (width-fixed → size-independent)
+    const paperW    = paperEl.clientWidth
+    const curPaperH = paperEl.clientHeight
     if (paperW <= 0 || curPaperH <= 0) return
 
     const clampPx = (min, pct, max) => Math.min(Math.max(min, pct * paperW), max)
     const padV    = size => 2 * (size === 'strip' ? clampPx(20, 0.16, 36) : clampPx(16, 0.05, 32))
     const paperHFor = size => {
       const d = PAPER_SIZES[size]
-      const aspect = isMobile ? d.mobileAspect : d.aspectRatio
-      const [w, h] = aspect.split('/').map(parseFloat)
+      const [w, h] = (isMobile ? d.mobileAspect : d.aspectRatio).split('/').map(parseFloat)
       return paperW * (h / w)
     }
+    const curSize = paperConfig?.size ?? 'postcard'
 
-    const curSize    = paperConfig?.size ?? 'postcard'
-    const constChrome = curPaperH - curBodyClient - padV(curSize)
+    // Text height — break the flex:1 stretch so scrollHeight reflects the
+    // message's real height (not the body stretched to fill the sheet).
+    const bodyEl = paperEl.querySelector('[data-paper-body]')
+    let contentH = 0
+    let constChrome = 0
+    if (bodyEl) {
+      constChrome = curPaperH - bodyEl.clientHeight - padV(curSize)
+      const f0 = bodyEl.style.flex, h0 = bodyEl.style.height, o0 = bodyEl.style.overflow
+      bodyEl.style.flex = 'none'; bodyEl.style.height = 'auto'; bodyEl.style.overflow = 'visible'
+      contentH = bodyEl.scrollHeight
+      bodyEl.style.flex = f0; bodyEl.style.height = h0; bodyEl.style.overflow = o0
+    }
+
+    // Media floor — lowest pixel reached by any placed item, from the paper top.
+    const paperTop = paperEl.getBoundingClientRect().top
+    let mediaBottomPx = 0
+    paperEl.querySelectorAll('[data-paper-media]').forEach(el => {
+      mediaBottomPx = Math.max(mediaBottomPx, el.getBoundingClientRect().bottom - paperTop)
+    })
 
     const blocked = Object.keys(PAPER_SIZES).filter(size => {
       if (size === curSize) return false   // current size already fits (guard enforces it)
-      const bodyClient = paperHFor(size) - padV(size) - constChrome
-      return contentH > bodyClient + 2     // +2 mirrors the overflow guard's slop
+      const ph = paperHFor(size)
+      const textOverflows  = bodyEl ? contentH > (ph - padV(size) - constChrome) + 2 : false
+      const mediaOverflows = mediaBottomPx > ph - 4   // small gutter to the deckled edge
+      return textOverflows || mediaOverflows
     })
     setDisabledSizes(prev =>
       prev.length === blocked.length && prev.every(s => blocked.includes(s)) ? prev : blocked
     )
-  }, [message, textSize, paperConfig, isMobile, recipient])
+  }, [message, textSize, paperConfig, isMobile, recipient, mediaFrames, voiceNotes, stickers])
 
   /* Respond to viewport width changes. On a real iPad device the flags stay
      true regardless of orientation; the matchMedia only matters for
@@ -610,8 +651,12 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   )
   const recipientName = extractName(recipient)
 
-  // tone: 'caution' (default — warnings, limits, failures) or 'info'
-  // (non-emergency: in-progress / sent / downloaded). Drives color + icon.
+  // tone drives color + icon + entry direction:
+  //   'caution'  (default) — warnings / limits        → yellow, drops from top
+  //   'overflow'            — paper is full            → yellow, drops from top
+  //   'info'                — in-progress / neutral    → blue, drops from top
+  //   'success'             — feedback/mail sent, saved → green, drops from top
+  //   'error'               — a failure                → red, drops from top
   const showToast = useCallback((msg, tone = 'caution') => {
     const active = activeToastRef.current
     // Repeating the same action while its toast is still up: don't stack a
@@ -635,12 +680,22 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     setToast(null)
   }, [])
 
+  /* FeedbackToast.onDone(submitted) — `submitted` is true when a rating was
+     actually recorded (Send, or dismiss-after-rating, which both persist).
+     Defined here, after showToast, so it can fire the green success toast
+     without tripping showToast's temporal-dead-zone. */
+  const dismissFeedback = useCallback((submitted = false) => {
+    setShowFeedback(false)
+    try { localStorage.setItem(AUTHORING_FEEDBACK_KEY, '1') } catch { /* storage blocked */ }
+    if (submitted) showToast('Feedback successfully sent. Thank you!', 'success')
+  }, [showToast])
+
   /* Tapping a paper size the message can't fit into. Both size pickers call
      this instead of switching, so the writer gets a clear reason rather than a
      silently dead button. */
   const handleBlockedSize = useCallback((size) => {
     const label = PAPER_SIZES[size]?.label ?? 'that size'
-    showToast(`Too much message for the ${label}. Trim it or keep a larger size.`, 'overflow')
+    showToast(`Your note won't fit on the ${label}. Trim the text or move your photos up, or keep a larger size.`, 'overflow')
   }, [showToast])
 
   // Keep a ref of the visible toast so showToast can detect a repeated action
@@ -2126,6 +2181,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       )}
 
       {/* ── Toast notifications ─────────────────────────────────────────── */}
+      {/* All tones drop in from the top bar; the tone only drives color + icon. */}
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -2144,7 +2200,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
                 binding framer controls here stalled the anchor's enter. */}
             <div
               key={shakeId}
-              className={`${styles.toast} ${toast.tone === 'info' ? styles.toastInfo : toast.tone === 'error' ? styles.toastError : toast.tone === 'overflow' ? styles.toastOverflow : styles.toastCaution} ${shakeId > 0 ? styles.toastShake : ''}`}
+              className={`${styles.toast} ${toast.tone === 'success' ? styles.toastSuccess : toast.tone === 'info' ? styles.toastInfo : toast.tone === 'error' ? styles.toastError : toast.tone === 'overflow' ? styles.toastOverflow : styles.toastCaution} ${shakeId > 0 ? styles.toastShake : ''}`}
               role="status"
               aria-live="polite"
               aria-atomic="true"

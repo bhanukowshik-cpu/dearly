@@ -191,6 +191,7 @@ export default function MediaFrameRenderer({
           drop our rotate. Position + size + rotation all live in style. */}
       <div
         className={styles.body}
+        data-paper-media
         style={{
           left:      `${frame.x}%`,
           top:       `${frame.y}%`,

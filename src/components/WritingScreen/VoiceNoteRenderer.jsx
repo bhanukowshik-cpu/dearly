@@ -383,6 +383,7 @@ export default function VoiceNoteRenderer({
       // voice pill for the export-mode card (waveform + caption + QR).
       // They have no effect on the live interactive experience.
       data-voice-note
+      data-paper-media
       data-voice-note-id={note.id}
       data-voice-note-audio={note.audioUrl}
       data-voice-note-duration={note.duration ?? 0}
