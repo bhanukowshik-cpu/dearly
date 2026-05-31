@@ -5,6 +5,7 @@ import App from './App.jsx'
 import LaunchFilm from './components/LaunchFilm/LaunchFilm.jsx'
 import EmailPreview from './components/EmailPreview/EmailPreview.jsx'
 import VoicePlayback from './components/VoicePlayback/VoicePlayback.jsx'
+import DebugOverlay from './components/DebugOverlay/DebugOverlay.jsx'
 
 const path = window.location.pathname
 const Root = path === '/launch-film'   ? LaunchFilm
@@ -15,5 +16,6 @@ const Root = path === '/launch-film'   ? LaunchFilm
 createRoot(document.getElementById('root')).render(
     <StrictMode>
         <Root />
+        <DebugOverlay />
     </StrictMode>
 )

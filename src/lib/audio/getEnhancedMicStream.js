@@ -20,6 +20,8 @@
    `useVoiceRecorder.start()`. No other behaviour changes.
    ───────────────────────────────────────────────────────────────────────── */
 
+import { dlog } from '../debugLog'
+
 const DESIRED = {
   echoCancellation: true,
   noiseSuppression: true,
@@ -53,6 +55,7 @@ export async function getEnhancedMicStream({ deviceId = null } = {}) {
     const stream = await navigator.mediaDevices.getUserMedia({ audio })
     return { stream, constraints: audio, tier: 'full' }
   } catch (e) {
+    dlog('gUM tier full failed', e?.name, e?.message)
     if (e?.name !== 'OverconstrainedError' && e?.name !== 'TypeError') throw e
   }
 
@@ -62,6 +65,7 @@ export async function getEnhancedMicStream({ deviceId = null } = {}) {
     const stream = await navigator.mediaDevices.getUserMedia({ audio })
     return { stream, constraints: audio, tier: 'reduced' }
   } catch (e) {
+    dlog('gUM tier reduced failed', e?.name, e?.message)
     if (e?.name !== 'OverconstrainedError' && e?.name !== 'TypeError') throw e
   }
 

@@ -1,6 +1,7 @@
 import { toPng } from 'html-to-image'
 import { uploadVoiceNote, uploadMediaFrame, saveNote } from './supabase'
 import { renderVoiceBarcodeSVG } from './voiceBarcode'
+import { dlog } from './debugLog'
 
 /* ─────────────────────────────────────────────────────────────────────────
    Single source of truth for capturing the live paper as a PNG.
@@ -462,29 +463,74 @@ function swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId) {
  * capture renders as empty. Swapping to data: URLs (which are embeddable
  * inline) is the reliable fix; same technique we use for the QR PNG.
  */
+/* Longest-edge cap for photos embedded into the capture on iOS. A multi-MB
+   phone photo (e.g. 4032×3024 ≈ 12M px) embedded at full resolution inside
+   html-to-image's SVG <foreignObject> exceeds Safari's in-SVG image budget
+   and is silently dropped — the downloaded PNG shows everything EXCEPT the
+   photo. Downscaling to ≤2000px (≤4M px decoded) keeps it under that ceiling
+   while staying sharp at the size the frame actually prints. */
+const IOS_INLINE_MAX_EDGE = 2000
+
+/* Decode a blob, downscale so its longest edge ≤ maxEdge (never upscales),
+   and return a PNG data URL. PNG keeps any transparency intact. */
+async function blobToDownscaledDataUrl(blob, maxEdge) {
+  const url = URL.createObjectURL(blob)
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image()
+      i.onload  = () => resolve(i)
+      i.onerror = () => reject(new Error('decode failed'))
+      i.src = url
+    })
+    const w = img.naturalWidth
+    const h = img.naturalHeight
+    const scale = Math.min(1, maxEdge / Math.max(w, h))
+    const tw = Math.max(1, Math.round(w * scale))
+    const th = Math.max(1, Math.round(h * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width  = tw
+    canvas.height = th
+    canvas.getContext('2d').drawImage(img, 0, 0, tw, th)
+    return canvas.toDataURL('image/png')
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
 async function inlineBlobImages(paperEl) {
   const imgs = paperEl.querySelectorAll('img')
   const originals = []
-  await Promise.all(Array.from(imgs).map(async (img) => {
+  // On iOS, downscale embedded photos so they don't blow Safari's in-SVG
+  // image budget (which drops the photo from the capture entirely). Desktop
+  // keeps the full-fidelity data URL — its capture path has no such limit,
+  // so this change can't regress the working desktop download.
+  const downscaleForIOS = isIOSDevice()
+  const blobImgs = Array.from(imgs).filter(i => /^blob:/.test(i.getAttribute('src') || ''))
+  dlog('inlineBlobImages: total imgs', imgs.length, 'blob imgs', blobImgs.length, 'downscaleForIOS', downscaleForIOS)
+  await Promise.all(blobImgs.map(async (img, idx) => {
     const src = img.getAttribute('src') || ''
-    if (!/^blob:/.test(src)) return
     try {
       const blob   = await fetch(src).then(r => r.blob())
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload  = () => resolve(reader.result)
-        reader.onerror = () => reject(reader.error)
-        reader.readAsDataURL(blob)
-      })
+      dlog(`img[${idx}] blob`, blob.type, (blob.size / 1024).toFixed(0) + 'KB')
+      const dataUrl = downscaleForIOS
+        ? await blobToDownscaledDataUrl(blob, IOS_INLINE_MAX_EDGE)
+        : await new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload  = () => resolve(reader.result)
+            reader.onerror = () => reject(reader.error)
+            reader.readAsDataURL(blob)
+          })
       originals.push({ img, prevSrc: src })
       img.setAttribute('src', dataUrl)
       // Force the swapped data URL to fully decode before capture. Without
       // this, Safari may clone the <img> while it's still re-decoding the
       // new src and paint an empty box where the photo should be.
       if (typeof img.decode === 'function') {
-        await img.decode().catch(() => {})
+        await img.decode().catch(e => dlog(`img[${idx}] decode failed`, e))
       }
+      dlog(`img[${idx}] inlined`, (dataUrl.length / 1024).toFixed(0) + 'KB dataurl', img.naturalWidth + 'x' + img.naturalHeight)
     } catch (err) {
+      dlog(`img[${idx}] INLINE FAILED`, err)
       console.warn('[dearly] inline blob image failed', err)
     }
   }))
@@ -635,6 +681,15 @@ export async function captureCanvas(refOrElement, { noteData, swapVoiceForBarcod
 
   const paperEl = containerEl.querySelector?.('[data-paper-canvas]') ?? containerEl
 
+  const _r = paperEl.getBoundingClientRect?.()
+  const _cs = window.getComputedStyle(paperEl)
+  dlog('captureCanvas START',
+    'paper', Math.round(_r?.width || 0) + 'x' + Math.round(_r?.height || 0),
+    'iOS', isIOSDevice(),
+    'reqRatio', pixelRatio,
+    'swapVoice', swapVoiceForBarcode)
+  dlog('clip-path', (_cs.clipPath || _cs.webkitClipPath || 'none').slice(0, 60))
+
   // Drop the .paperWrap drop-shadow during capture so it doesn't get
   // baked INSIDE the bitmap. Restored in `finally` below — leaving it
   // off would corrupt the live editor view.
@@ -673,6 +728,7 @@ export async function captureCanvas(refOrElement, { noteData, swapVoiceForBarcod
     // the effective ratio on iOS so the output always lands inside the cap
     // (with margin) and never exceeds 4096 on either edge.
     const safeRatio = clampPixelRatioForIOS(paperEl, pixelRatio)
+    dlog('safeRatio', safeRatio.toFixed(3), 'fontEmbed', !!fontEmbedCSS, 'bg', bgColor)
 
     const opts = {
       pixelRatio: safeRatio,
@@ -685,8 +741,12 @@ export async function captureCanvas(refOrElement, { noteData, swapVoiceForBarcod
     // (images, fonts) for the cloned document; the second actually captures.
     // Without the warmup, Safari produces a blank or partial image on the
     // first paint of any letter that includes uploaded media frames.
-    await toPng(paperEl, opts).catch(() => {})
+    await toPng(paperEl, opts).catch(e => dlog('warmup toPng threw', e))
     dataUrl = await toPng(paperEl, opts)
+    dlog('toPng OK', (dataUrl.length / 1024).toFixed(0) + 'KB dataurl')
+  } catch (err) {
+    dlog('captureCanvas toPng FAILED', err)
+    throw err
   } finally {
     // Always restore the drop-shadow, even if capture threw — leaving
     // it off would make the live editor view look flat.
@@ -711,9 +771,10 @@ export async function captureCanvas(refOrElement, { noteData, swapVoiceForBarcod
       ctx.fillStyle = bgColor
       ctx.fillRect(0, 0, out.width, out.height)
       ctx.drawImage(img, 0, 0)
+      dlog('captureCanvas DONE', out.width + 'x' + out.height)
       resolve(out)
     }
-    img.onerror = reject
+    img.onerror = (e) => { dlog('final raster img.onerror', e); reject(e) }
     img.src = dataUrl
   })
 }

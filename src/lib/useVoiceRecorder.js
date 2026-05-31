@@ -13,6 +13,7 @@ import inkAudio from '../audio/inkSoundManager'
 import * as Tone from 'tone'
 import { getEnhancedMicStream } from './audio/getEnhancedMicStream'
 import { enhanceAudio, isBlobAudible } from './audio/enhanceAudio'
+import { dlog } from './debugLog'
 
 /* ─────────────────────────────────────────────────────────────────────────
    useVoiceRecorder — V2 audio stack
@@ -208,6 +209,17 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
     silenceAppAudio(true)
 
     // ── 1. Open our own mic stream for the analyser tap + VAD ─────────
+    // NOTE: getUserMedia MUST be the first await in this gesture — inserting
+    // any awaited call before it (e.g. permissions.query) can consume the
+    // user-activation on Safari and trigger a spurious NotAllowedError.
+    let inIframe = false
+    try { inIframe = window.self !== window.top } catch { inIframe = true }
+    dlog('rec.start',
+      'secureContext', window.isSecureContext,
+      'inIframe', inIframe,
+      'hasMediaDevices', !!navigator.mediaDevices,
+      'hasGUM', !!navigator.mediaDevices?.getUserMedia,
+      'deviceId', deviceId || 'default')
     let stream
     try {
       // Use the feature-detected mic helper. Returns the stream + the
@@ -215,15 +227,26 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
       // down fallback for browsers that reject specific properties.
       const opened = await getEnhancedMicStream({ deviceId })
       stream = opened.stream
+      dlog('getUserMedia OK', 'tier', opened.tier, 'tracks', stream.getAudioTracks().map(t => t.label || 'mic').join(','))
     } catch (e) {
       silenceAppAudio(false)
       const name = e?.name || ''
+      dlog('getUserMedia FAILED', name, e?.message || '')
+      // Safe to await here — the gesture is already spent and we're on the
+      // error path. Permission state tells us whether this is a hard browser
+      // block vs. an iframe allow-attribute / first-prompt situation.
+      try {
+        const ps = await navigator.permissions?.query?.({ name: 'microphone' })
+        if (ps) dlog('mic permission state', ps.state)
+      } catch (pe) { dlog('permissions.query unavailable', pe?.name) }
       const msg =
         name === 'NotAllowedError' || name === 'SecurityError'
           ? "We couldn't access your microphone. Check your browser's mic permission for this site and try again."
         : name === 'NotFoundError'
           ? "No microphone found. Plug one in or check your input device, then try again."
-        : "Your browser couldn't start recording. Try refreshing the page."
+        : name === 'NotReadableError' || name === 'AbortError'
+          ? "Your mic is busy in another app or browser tab. Close it (and any other open tabs), then try again."
+          : "Your browser couldn't start recording. Try refreshing the page."
       setError(msg)
       setState('error')
       return
@@ -235,7 +258,8 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext
       audioCtx = new Ctx()
-    } catch {
+    } catch (e) {
+      dlog('AudioContext FAILED', e?.name, e?.message)
       teardown()
       setError("Your browser doesn't support audio recording.")
       setState('error')
@@ -278,6 +302,7 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
     } catch (e) {
       // VAD failure is non-fatal — recording still works without it.
       // (Most often this is a CDN reach failure for the ONNX/WASM assets.)
+      dlog('VAD unavailable (non-fatal)', e?.name, e?.message)
       console.warn('[VoiceRecorder] VAD unavailable — continuing without speech detection', e)
       vadRef.current = null
     }
@@ -308,6 +333,7 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
         renderRecordedAudio: false,
       }
       const mime = pickMimeType()
+      dlog('wavesurfer create OK', 'mime', mime || '(browser default)')
       if (mime) recordOptions.mimeType = mime
       record = ws.registerPlugin(RecordPlugin.create(recordOptions))
       recordPluginRef.current = record
@@ -320,6 +346,7 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
       // why recordings were coming out empty.
       record.stream = stream
     } catch (e) {
+      dlog('wavesurfer/RecordPlugin FAILED', e?.name, e?.message)
       teardown()
       setError("Your browser doesn't support audio recording.")
       setState('error')
@@ -453,8 +480,10 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
       startedAtRef.current = performance.now()
       setDuration(0)
       await record.startRecording(recOpts)
+      dlog('recording STARTED')
       setState('recording')
     } catch (e) {
+      dlog('startRecording FAILED', e?.name, e?.message)
       teardown()
       setError("Recording couldn't start. Try refreshing the page.")
       setState('error')
