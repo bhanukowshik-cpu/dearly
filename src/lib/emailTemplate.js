@@ -162,12 +162,15 @@ export function buildEmailHtml({
   const FF = `'Caveat', 'Segoe Script', 'Bradley Hand', 'Snell Roundhand', 'Brush Script MT', cursive`
 
   // ── Ink palette ───────────────────────────────────────────────────────
-  // Dialed back from the previous high-contrast Caveat — the H1 and H2
-  // were reading as "loud" and bold-y. Lower opacity + lower weight
-  // gives a quieter, more elegant feel.
-  const INK_HI   = 'rgba(255, 251, 240, 0.92)'  // H1 (was 0.97)
-  const INK      = 'rgba(255, 247, 230, 0.70)'  // H2 (was 0.78)
-  const INK_SOFT = 'rgba(255, 247, 230, 0.55)'  // footer
+  // FULLY OPAQUE (no rgba alpha). On the solid dark card these read crisp
+  // and white, and — critically — opaque hex colors survive dark-mode
+  // recoloring far better than semi-transparent ones, which clients treat
+  // as "low-contrast light text" and aggressively darken. Paired with the
+  // solid .em-card background + data-ogsc overrides, the text stays white.
+  const INK_HI   = '#fffaf0'  // H1 + wordmark — warm white
+  const INK      = '#ece2d0'  // H2 body — soft warm white
+  const INK_SOFT = '#bcae98'  // footer + caption — muted, still legible
+  const CARD_BG  = '#120c06'  // solid dark "stage" the text sits on
 
   // CTA — exact white-wavy-pill from the landing screen
   // (src/components/LoadingScreen/LoadingScreen.jsx ~line 257). The SVG
@@ -183,6 +186,11 @@ export function buildEmailHtml({
 <html><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Tell clients we ship a dark design on purpose. Apple Mail, iOS Mail and
+     iOS Gmail honor this and STOP auto-inverting our colors. Outlook/Gmail
+     Android ignore it (handled via the data-ogsc overrides + solid card). -->
+<meta name="color-scheme" content="dark light">
+<meta name="supported-color-schemes" content="dark light">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -200,6 +208,23 @@ export function buildEmailHtml({
     font-display: swap;
     src: url('https://fonts.gstatic.com/s/caveat/v18/WnznHAc5bAfYB2QRah7pcpNvOx-pjfJ9SIKjYBxPigs.woff2') format('woff2');
   }
+
+  /* ── Stage + card ───────────────────────────────────────────────────
+     The photo lives on the outer cell (.em-stage); .em-stage's padding
+     turns the photo into a thin FRAME around a solid dark card. All the
+     text sits on .em-card (solid #120c06), never directly on the photo —
+     which is the whole reason the white ink now survives dark mode. */
+  .em-stage    { padding: 16px; }
+  .em-card     { background-color: ${CARD_BG}; border-radius: 22px; }
+
+  /* Outlook.com + Outlook iOS/Android partial dark mode injects
+     data-ogsc (text) / data-ogsb (background) attributes onto recolored
+     elements. We re-assert our palette so white stays white there. */
+  [data-ogsc] .em-h1, [data-ogsc] .em-wordmark, [data-ogsc] .em-cta-btn { color: ${INK_HI} !important; }
+  [data-ogsc] .em-h2        { color: ${INK} !important; }
+  [data-ogsc] .em-foot,
+  [data-ogsc] .em-env-cap   { color: ${INK_SOFT} !important; }
+  [data-ogsb] .em-card      { background-color: ${CARD_BG} !important; }
 
   /* Mobile-first base sizes — tuned so the whole email fits inside a
      single iPhone viewport (~720px usable). H1 + H2 are smaller and
@@ -219,6 +244,7 @@ export function buildEmailHtml({
 
   /* iPad / wide tablet / Gmail web reading-pane at moderate width */
   @media only screen and (min-width: 520px) {
+    .em-stage    { padding: 30px; }
     .em-wrap     { padding-top: 44px; padding-bottom: 36px; }
     .em-h1       { font-size: 50px; padding: 0 32px 6px; font-weight: 400; }
     .em-h2       { font-size: 22px; padding: 0 32px 26px; max-width: 600px; }
@@ -233,6 +259,7 @@ export function buildEmailHtml({
 
   /* Desktop Gmail, full-width preview */
   @media only screen and (min-width: 760px) {
+    .em-stage    { padding: 44px; }
     .em-wrap     { padding-top: 56px; padding-bottom: 44px; }
     .em-h1       { font-size: 60px; line-height: 1.05; padding: 0 32px 8px; font-weight: 400; }
     .em-h2       { font-size: 24px; line-height: 1.3; padding: 0 32px 32px; max-width: 720px; }
@@ -247,12 +274,9 @@ export function buildEmailHtml({
 
   /* ── Envelope hero ──────────────────────────────────────────────────
      Envelope.png is the visual centerpiece — keeps the reveal intact
-     (recipient has to click through to read the actual letter). Two
-     hand-written corner labels overlay it: "from {sender}" top-left,
-     "to {recipient}" bottom-right, anchored to where the envelope's
-     ribbon crosses each quadrant. */
+     (recipient has to click through to read the actual letter). The
+     "from / to" caption is a normal centered line below it (see body). */
   .em-env-wrap {
-    position: relative;
     display: inline-block;
     width: 100%;
     max-width: 280px;
@@ -267,37 +291,19 @@ export function buildEmailHtml({
     outline: none;
     -ms-interpolation-mode: bicubic;
   }
-  /* Caption shared base — Caveat, slight rotation per side so they
-     read as actually hand-written. Very soft graphite mark (#252525
-     @ 10% opacity) — reads like a faint pencil note on the envelope
-     rather than competing ink. No drop shadow at this opacity (would
-     muddy the mark). */
+  /* "from {sender} · to {recipient}" caption — Caveat, soft warm white so
+     it reads on the dark card without competing with the greeting. */
+  .em-env-cap-row { padding: 0 24px 18px; }
   .em-env-cap {
-    position: absolute;
-    z-index: 2;
     font-family: ${FF};
     font-weight: 500;
-    font-size: 16px;
-    line-height: 1;
-    color: rgba(37, 37, 37, 0.30);
+    font-size: 17px;
+    line-height: 1.2;
     white-space: nowrap;
-    pointer-events: none;
-  }
-  .em-env-from {
-    top: 13%;
-    left: 11%;
-    transform: rotate(-3deg);
-    transform-origin: left top;
-  }
-  .em-env-to {
-    bottom: 13%;
-    right: 11%;
-    transform: rotate(2deg);
-    transform-origin: right bottom;
   }
   @media only screen and (min-width: 520px) {
     .em-env-wrap { max-width: 360px; }
-    .em-env-cap  { font-size: 19px; }
+    .em-env-cap  { font-size: 20px; }
   }
   @media only screen and (min-width: 760px) {
     .em-env-wrap { max-width: 420px; }
@@ -349,18 +355,21 @@ export function buildEmailHtml({
        set as a safety net for older Outlook builds. -->
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
          style="background-color:#0e0a05;min-height:100vh;">
-    <tr><td align="center" valign="top" background="${esc(bgUrl)}"
-            style="padding:0;position:relative;background-color:#0e0a05;background-image:linear-gradient(rgba(14,10,5,0.82),rgba(14,10,5,0.82)),url('${esc(bgUrl)}');background-size:cover;background-position:center center;background-repeat:no-repeat;">
+    <tr><td align="center" valign="top" class="em-stage" background="${esc(bgUrl)}"
+            style="position:relative;background-color:#0e0a05;background-image:linear-gradient(rgba(14,10,5,0.86),rgba(14,10,5,0.86)),url('${esc(bgUrl)}');background-size:cover;background-position:center center;background-repeat:no-repeat;">
 
       <!-- (No standalone image layer — the bg lives on the <td> above.
            Previous version used position:absolute which Gmail strips,
            causing the photo to collapse into a sharp top strip.) -->
       ${''}
 
-      <!-- Content column -->
+      <!-- Content column — SOLID dark card. The text sits on this card,
+           never on the photo, so white ink keeps its contrast and dark-mode
+           clients can't darken it into the background. The photo shows only
+           as the frame created by .em-stage's padding. -->
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-             class="em-wrap"
-             style="max-width:780px;position:relative;z-index:1;">
+             class="em-wrap em-card"
+             style="max-width:600px;position:relative;z-index:1;background-color:${CARD_BG};border-radius:22px;">
 
         <!-- H1 — "Hi Marcus," — Caveat, big, intimate -->
         <tr><td align="center" style="padding:0 32px 10px;">
@@ -379,17 +388,22 @@ export function buildEmailHtml({
           </p>
         </td></tr>
 
-        <!-- Envelope hero — keeps the reveal intact. Two hand-written
-             corner labels overlay the envelope image: "from Bhanu" sits
-             in the upper-left quadrant (above where the ribbon crosses),
-             "to Marcus" sits in the lower-right quadrant. -->
+        <!-- Envelope hero — keeps the reveal intact. The "from / to"
+             caption sits as a real centered line BELOW the envelope.
+             (The previous version overlaid the two labels on the image with
+             position:absolute, which Outlook/Gmail strip — they collapsed
+             into one faint, mis-placed line. A normal flowed caption renders
+             identically in every client.) -->
         <tr><td align="center" class="em-env">
           <div class="em-env-wrap">
             <img src="${esc(envelopeUrl)}" alt="${esc(altGreeting)}"
                  class="em-env-img"
                  width="100%" height="auto"/>
-            <span class="em-env-cap em-env-from">${envFrom}</span>
-            <span class="em-env-cap em-env-to">${envTo}</span>
+          </div>
+        </td></tr>
+        <tr><td align="center" class="em-env-cap-row">
+          <div class="em-env-cap" style="font-family:${FF};color:${INK_SOFT};">
+            ${envFrom} &nbsp;&middot;&nbsp; ${envTo}
           </div>
         </td></tr>
         <!-- (No excerpt teaser. The sealed envelope is the entire hook —
@@ -417,7 +431,7 @@ export function buildEmailHtml({
         <tr><td class="em-foot-row" align="center">
           <div class="em-foot"
                style="font-family:${FF};color:${INK_SOFT};line-height:1;">
-            made with <span style="color:${INK_HI};font-weight:600;">dearly</span>
+            made with <span class="em-wordmark" style="color:${INK_HI};font-weight:600;">dearly</span>
           </div>
         </td></tr>
 
