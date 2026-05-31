@@ -284,24 +284,17 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     if (isIpadDevice) return true
     return window.matchMedia('(max-width: 599px), (max-width: 1180px) and (orientation: portrait)').matches
   })
-  /* iPad gets a contenteditable paper (Scribble-ready) + a Write-mode UX
-     (centered canvas, zoom controls, floating Write toolbar, FABs). Phones
-     keep the InputPanel below the paper since the paper itself is too small
-     to comfortably write on with a finger. */
-  const [isIpad,             setIsIpad]             = useState(() => {
-    if (typeof window === 'undefined') return false
-    if (isIpadDevice) return true
-    return window.matchMedia('(min-width: 600px) and (max-width: 1366px) and (any-pointer: coarse)').matches
-  })
-  /* iPad defaults to Write (so the user lands ready to type/scribble on the
-     paper); everything else defaults to To/From so the first thing you see
-     is the recipient picker. */
-  const [activeTool,         setActiveTool]         = useState(() => {
-    if (typeof window === 'undefined') return 'people'
-    if (isIpadDevice) return 'text'
-    const ipadInit = window.matchMedia('(min-width: 600px) and (max-width: 1366px) and (any-pointer: coarse)').matches
-    return ipadInit ? 'text' : 'people'
-  })
+  /* Stylus / handwriting "Write mode" is disabled. iPad now uses the same
+     text-box-primary layout as phones (isMobile stays true above), so this
+     flag is forced false. That collapses every iPad-only stylus surface —
+     the pen-armed contenteditable paper, the floating Write toolbar, the
+     Text/Emoji FABs, the text popup, and zoom/pinch — back to the standard
+     mobile flow with the InputPanel as the primary input. Restore the
+     matchMedia/UA detection here to bring handwriting back. */
+  const isIpad = false
+  /* Everything defaults to To/From so the first thing you see is the
+     recipient picker (matches mobile + desktop). */
+  const [activeTool,         setActiveTool]         = useState('people')
 
   // ── Drawing layer state ────────────────────────────────────────────────
   // Strokes are vector records — the SVG path is derived on the fly so we
@@ -582,13 +575,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     const mq = window.matchMedia('(max-width: 599px), (max-width: 1180px) and (orientation: portrait)')
     const handler = e => setIsMobile(e.matches || isIpadDevice)
     mq.addEventListener('change', handler)
-    const ipadMq = window.matchMedia('(min-width: 600px) and (max-width: 1366px) and (any-pointer: coarse)')
-    const ipadHandler = e => setIsIpad(e.matches || isIpadDevice)
-    ipadMq.addEventListener('change', ipadHandler)
-    return () => {
-      mq.removeEventListener('change', handler)
-      ipadMq.removeEventListener('change', ipadHandler)
-    }
+    return () => mq.removeEventListener('change', handler)
   }, [isIpadDevice])
 
 
