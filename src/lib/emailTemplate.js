@@ -140,6 +140,11 @@ export function buildEmailHtml({
 
   const bgUrl       = `${assetOrigin}/bg.jpg`
   const envelopeUrl = `${assetOrigin}/envelope.png`
+  // CTA button rendered as a baked Caveat PNG (see api/cta.js) so the
+  // handwriting + hand-drawn arrow render in every client. The whole image is
+  // wrapped in the share <a>; the label is the alt text so an images-off
+  // client still shows a working text link.
+  const ctaUrl = `${assetOrigin}/api/cta?s=${encodeURIComponent(senderFirst || '')}`
 
   // Corner annotations overlaid on the envelope — "from Bhanu" top-left,
   // "to Marcus" bottom-right. Hand-written-looking captions that match
@@ -148,18 +153,19 @@ export function buildEmailHtml({
   const envTo   = `to ${esc(recipFirst   || 'you')}`
 
   // ── Font stack ────────────────────────────────────────────────────────
-  // Caveat is the target, loaded via @font-face below (works in Apple Mail
-  // and any client that respects embedded web fonts). Gmail/Outlook/Yahoo
-  // strip web fonts entirely and fall back — so the chain after Caveat is
-  // every *handwritten* font that actually ships preinstalled on each OS:
-  //   - 'Segoe Script'    → Windows (Outlook desktop)
-  //   - 'Bradley Hand'    → macOS / iOS (belt-and-suspenders w/ Apple Mail)
-  //   - 'Snell Roundhand' → macOS formal script fallback
-  //   - 'Brush Script MT' → legacy Windows/Office
-  //   - cursive           → generic last resort
-  // The point: even when Caveat can't load, the email still reads as
-  // handwriting on every platform instead of dropping to a system serif.
-  const FF = `'Caveat', 'Segoe Script', 'Bradley Hand', 'Snell Roundhand', 'Brush Script MT', cursive`
+  // Caveat is the target, loaded via @font-face below — it renders in Apple
+  // Mail and any client that respects embedded web fonts, so the greeting is
+  // genuine handwriting there. Gmail/Outlook/Yahoo strip web fonts entirely;
+  // rather than fall to another (often ugly) handwriting face, we deliberately
+  // drop to a CLEAN SYSTEM SANS in those clients — the same neutral, highly
+  // legible look as Instrument Sans, but using only fonts already installed:
+  //   - -apple-system / BlinkMacSystemFont → San Francisco on iOS / macOS
+  //   - 'Segoe UI'                         → Windows (Outlook desktop)
+  //   - Roboto                             → Android (Gmail app)
+  //   - Helvetica, Arial, sans-serif       → universal last resorts
+  // Net effect: handwritten Caveat in Apple Mail; a clean modern sans
+  // everywhere it's stripped — never a janky handwriting fallback.
+  const FF = `'Caveat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`
 
   // ── Ink palette ───────────────────────────────────────────────────────
   // FULLY OPAQUE (no rgba alpha). On the solid dark card these read crisp
@@ -172,15 +178,8 @@ export function buildEmailHtml({
   const INK_SOFT = '#bcae98'  // footer + caption — muted, still legible
   const CARD_BG  = '#120c06'  // solid dark "stage" the text sits on
 
-  // CTA — exact white-wavy-pill from the landing screen
-  // (src/components/LoadingScreen/LoadingScreen.jsx ~line 257). The SVG
-  // is the chrome; the label + arrow are HTML-overlayed via flex so they
-  // stay perfectly centred regardless of label length, while the pill
-  // shape stretches via preserveAspectRatio="none".
-  const ctaPillPath = 'M 14,8 C 95,4 245,5 326,8 C 330,22 331,40 326,54 C 245,58 95,57 14,54 C 10,40 10,22 14,8 Z'
-  // Hand-drawn arrow path lifted from IconArrow (LoadingScreen.jsx ~line 18)
-  const ctaArrowPath = 'M23.639 4.87137L5.72378 5.28607L0.668197 5.40637C-0.221121 5.42536 -0.224343 6.78343 0.668197 6.76444L18.5867 6.34657L23.639 6.23577C24.5283 6.20728 24.5316 4.84921 23.639 4.87137ZM28.6592 4.80489C25.495 3.34236 22.3867 1.77113 19.3342 0.0912199C18.5609 -0.336145 17.8617 0.854144 18.6382 1.26568C21.4028 2.78942 24.2126 4.2203 27.0674 5.55832C24.1864 8.08249 21.5934 10.907 19.3342 13.9821C19.2433 14.1383 19.2183 14.3233 19.2647 14.4973C19.3111 14.6713 19.4251 14.8205 19.5823 14.9129C19.7413 14.9996 19.9283 15.0226 20.1042 14.9772C20.2801 14.9318 20.4313 14.8214 20.5264 14.6691C22.9212 11.4258 25.6987 8.47276 28.8009 5.87172C28.8748 5.79773 28.9306 5.70821 28.964 5.60993C28.9975 5.51166 29.0078 5.40719 28.9941 5.30443C28.9805 5.20167 28.9432 5.1033 28.8852 5.01676C28.8272 4.93022 28.7499 4.85777 28.6592 4.80489Z'
-  const CTA_INK = '#1A2A3A' // dark navy ink — matches landing CTA label
+  // (The CTA pill, its handwritten label and the hand-drawn arrow are baked
+  // into a PNG by api/cta.js — see ctaUrl above. Nothing to render inline.)
 
   return `<!DOCTYPE html>
 <html><head>
@@ -234,9 +233,7 @@ export function buildEmailHtml({
   .em-h1       { font-size: 38px; line-height: 1.1; font-weight: 400; padding: 0 24px 4px; }
   .em-h2       { font-size: 18px; line-height: 1.35; font-weight: 400; padding: 0 28px 18px; max-width: 460px; }
   .em-env      { max-width: 320px; padding: 4px 24px 22px; }
-  .em-cta-svg  { width: 220px; }
-  .em-cta-lbl  { font-size: 18px; gap: 10px; }
-  .em-cta-arr  { width: 18px; height: 9px; }
+  .em-cta-img  { display: block; width: 300px; max-width: 84%; height: auto; border: 0; outline: none; -ms-interpolation-mode: bicubic; }
   .em-cta-wrap { padding: 0 24px 22px; }
   /* Footer — single-line "made with dearly". Quiet attribution. */
   .em-foot-row { padding: 0 24px 14px; }
@@ -249,9 +246,7 @@ export function buildEmailHtml({
     .em-h1       { font-size: 50px; padding: 0 32px 6px; font-weight: 400; }
     .em-h2       { font-size: 22px; padding: 0 32px 26px; max-width: 600px; }
     .em-env      { max-width: 400px; padding: 6px 24px 32px; }
-    .em-cta-svg  { width: 280px; }
-    .em-cta-lbl  { font-size: 22px; gap: 12px; }
-    .em-cta-arr  { width: 22px; height: 11px; }
+    .em-cta-img  { width: 340px; }
     .em-cta-wrap { padding: 0 24px 32px; }
     .em-foot-row { padding: 0 32px 20px; }
     .em-foot     { font-size: 18px; }
@@ -264,9 +259,7 @@ export function buildEmailHtml({
     .em-h1       { font-size: 60px; line-height: 1.05; padding: 0 32px 8px; font-weight: 400; }
     .em-h2       { font-size: 24px; line-height: 1.3; padding: 0 32px 32px; max-width: 720px; }
     .em-env      { max-width: 460px; padding: 8px 24px 36px; }
-    .em-cta-svg  { width: 320px; }
-    .em-cta-lbl  { font-size: 24px; gap: 14px; }
-    .em-cta-arr  { width: 26px; height: 13px; }
+    .em-cta-img  { width: 380px; }
     .em-cta-wrap { padding: 0 24px 40px; }
     .em-foot-row { padding: 0 48px 28px; }
     .em-foot     { font-size: 20px; }
@@ -310,11 +303,9 @@ export function buildEmailHtml({
     .em-env-cap  { font-size: 22px; }
   }
 
-  /* Subtle floor-shadow lift on the CTA (matches the landing button) */
-  a.em-cta-link { transition: transform 0.18s ease, filter 0.18s ease; }
-  a.em-cta-link:hover { transform: translateY(-1px); }
-  a.em-cta-link:hover .em-cta-arr { transform: translateX(4px); }
-  .em-cta-arr { transition: transform 0.2s ease; }
+  /* Subtle lift on the CTA image on hover (desktop webmail only). */
+  a.em-cta-btn { transition: transform 0.18s ease; }
+  a.em-cta-btn:hover { transform: translateY(-1px); }
 </style>
 </head>
 <body style="margin:0;padding:0;background:#0e0a05;font-family:${FF};">
@@ -340,13 +331,16 @@ export function buildEmailHtml({
 
   <!-- Outer wrapper carries the atmospheric backdrop.
 
-       Strategy: a multi-layer inline background-image with the dark wash
-       gradient stacked ABOVE the photo URL. Modern email clients
-       (Gmail web, Gmail iOS/Android, Apple Mail, Yahoo) respect this and
-       render the bg.jpg behind a 80%-opacity warm-dark tint, so the text
-       stays legible while the photo provides texture/warmth. Outlook
-       desktop strips background-image entirely and falls back to the
-       solid 0e0a05 -- which still looks intentional (just no photo).
+       Strategy: a multi-layer inline background-image with a LIGHT dark
+       wash gradient stacked ABOVE the sharp photo URL. bg.jpg is a sharp,
+       un-blurred landscape; only a thin frame of it shows around the solid
+       card (the card covers the centre), so we keep the tint light (~32%)
+       to let the photo read crisply in that frame while still anchoring the
+       warm-dark mood. All text sits on the solid card, never on the photo,
+       so legibility never depends on the tint. Modern email clients
+       (Gmail web, Gmail iOS/Android, Apple Mail, Yahoo) respect this.
+       Outlook desktop strips background-image entirely and falls back to
+       the solid 0e0a05 -- which still looks intentional (just no photo).
 
        Why this works where the previous attempt did not: no
        position:absolute, no separate div or img layer. It is a CSS
@@ -356,7 +350,7 @@ export function buildEmailHtml({
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
          style="background-color:#0e0a05;min-height:100vh;">
     <tr><td align="center" valign="top" class="em-stage" background="${esc(bgUrl)}"
-            style="position:relative;background-color:#0e0a05;background-image:linear-gradient(rgba(14,10,5,0.86),rgba(14,10,5,0.86)),url('${esc(bgUrl)}');background-size:cover;background-position:center center;background-repeat:no-repeat;">
+            style="position:relative;background-color:#0e0a05;background-image:linear-gradient(rgba(14,10,5,0.32),rgba(14,10,5,0.32)),url('${esc(bgUrl)}');background-size:cover;background-position:center center;background-repeat:no-repeat;">
 
       <!-- (No standalone image layer — the bg lives on the <td> above.
            Previous version used position:absolute which Gmail strips,
@@ -412,16 +406,17 @@ export function buildEmailHtml({
              ~140 chars as a whisper, but it overshadowed the envelope and
              CTA visually. Removed by design. -->
 
-        <!-- CTA — bulletproof rounded button. The previous version used
-             an inline SVG pill with an absolute-positioned label overlay,
-             which Gmail stripped down to a plain blue link. This version
-             uses a styled <a> with background-color + border-radius +
-             padding — every major mail client respects those. -->
+        <!-- CTA — baked Caveat PNG (see api/cta.js): white pill + handwritten
+             label + hand-drawn arrow, so the handwriting renders in EVERY
+             client (Gmail/Outlook strip @font-face + inline SVG, which is why
+             the live-text version fell back to a plain sans). The image is
+             wrapped in the share <a>; the label is the alt text, so an
+             images-off client still shows a tappable text link. -->
         <tr><td align="center" class="em-cta-wrap">
-          <a href="${esc(shareUrl)}" target="_blank"
-             class="em-cta-btn"
-             style="display:inline-block;background:#ffffff;color:${CTA_INK};font-family:${FF};font-weight:700;font-size:22px;line-height:1;letter-spacing:0.01em;text-decoration:none;padding:16px 36px;border-radius:999px;box-shadow:0 8px 22px rgba(0,0,0,0.24),0 2px 4px rgba(0,0,0,0.14);-webkit-tap-highlight-color:transparent;mso-padding-alt:0;">
-            ${esc(ctaLabel)} &nbsp;→
+          <a href="${esc(shareUrl)}" target="_blank" class="em-cta-btn"
+             style="display:inline-block;text-decoration:none;-webkit-tap-highlight-color:transparent;">
+            <img src="${esc(ctaUrl)}" alt="${esc(ctaLabel)} →"
+                 class="em-cta-img" width="320" height="auto"/>
           </a>
         </td></tr>
 

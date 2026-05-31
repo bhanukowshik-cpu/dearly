@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
+import { pathToFileURL } from 'url'
 
 // Dev-only middleware: proxies /api/tts to ElevenLabs using VITE_ELEVENLABS_API_KEY.
 // In production (Vercel) the real api/tts.js serverless function runs instead.
@@ -69,6 +70,35 @@ function emailDevApi() {
   }
 }
 
+// Dev-only middleware: renders /api/cta (the email's Caveat CTA-button PNG)
+// using the SAME api/cta.js handler that runs on Vercel's edge in prod.
+// We import the file natively (not via Vite's SSR transform) because
+// @vercel/og ships WASM that Vite's SSR pipeline mangles — native ESM import
+// runs it just like the edge runtime would. Cache-busted per request so edits
+// hot-reload. (Mirrors the pattern the og/greeting routes use.)
+function ctaDevApi() {
+  return {
+    name: 'cta-dev-api',
+    configureServer(server) {
+      server.middlewares.use('/api/cta', async (req, res) => {
+        try {
+          const fileUrl = pathToFileURL(resolve('./api/cta.js')).href
+          const mod = await import(`${fileUrl}?t=${Date.now()}`)
+          const fullUrl = `http://${req.headers.host || 'localhost:5173'}${req.originalUrl || req.url}`
+          const response = await mod.default(new Request(fullUrl))
+          res.statusCode = response.status
+          response.headers.forEach((v, k) => res.setHeader(k, v))
+          res.end(Buffer.from(await response.arrayBuffer()))
+        } catch (e) {
+          res.statusCode = 500
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ error: e?.message || 'cta dev api error' }))
+        }
+      })
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   // Make RESEND_API_KEY + EMAIL_FROM available to api/email.js at dev time —
@@ -81,7 +111,7 @@ export default defineConfig(({ mode }) => {
       // Allow cloudflared quick-tunnel hosts so real devices can reach the dev server over HTTPS.
       allowedHosts: ['.trycloudflare.com'],
     },
-    plugins: [react(), elevenLabsDevApi(env.VITE_ELEVENLABS_API_KEY), emailDevApi()],
+    plugins: [react(), elevenLabsDevApi(env.VITE_ELEVENLABS_API_KEY), emailDevApi(), ctaDevApi()],
     resolve: {
       // Force all packages to share the same React instance
       alias: {
