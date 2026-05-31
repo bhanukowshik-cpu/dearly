@@ -473,7 +473,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     // previous size's height to convert y% into a fixed pixel offset.
     const aspectH = s => {
       const d = PAPER_SIZES[s]; if (!d) return null
-      const [w, h] = (isMobile ? d.mobileAspect : d.aspectRatio).split('/').map(parseFloat)
+      const [w, h] = d.aspectRatio.split('/').map(parseFloat)
       return h / w
     }
     const prevRatio = aspectH(prevSize)
@@ -538,7 +538,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     const padV    = size => 2 * (size === 'strip' ? clampPx(20, 0.16, 36) : clampPx(16, 0.05, 32))
     const paperHFor = size => {
       const d = PAPER_SIZES[size]
-      const [w, h] = (isMobile ? d.mobileAspect : d.aspectRatio).split('/').map(parseFloat)
+      const [w, h] = d.aspectRatio.split('/').map(parseFloat)
       return paperW * (h / w)
     }
     const curSize = paperConfig?.size ?? 'postcard'

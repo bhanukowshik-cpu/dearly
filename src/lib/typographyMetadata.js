@@ -113,6 +113,25 @@ export function getScaledMetrics(size, viewportWidth = null) {
   })
 }
 
+// Returns metrics for a size token scaled CONTINUOUSLY by `fontScale` (a
+// fraction relative to the desktop design width). This is the paper-relative
+// sizing path used by PaperCanvas: font size = desktop base × (paperWidth/REF).
+// Because the font then tracks the paper's width linearly, characters-per-line
+// stay constant at any device width, so text wraps identically everywhere and
+// %-positioned media keeps its authored relationship to the text. Tier-based
+// getScaledMetrics() is kept for callers that still want viewport breakpoints.
+export function getMetricsForScale(size, fontScale = 1) {
+  const key   = SIZE_ALIAS[size] ?? size
+  const token = typographyMetadata.sizes[key] ?? typographyMetadata.sizes[typographyMetadata.defaultSize]
+  const base  = responsiveTypography.desktop.sizes[key]
+    ?? responsiveTypography.desktop.sizes.medium
+  const spacingMult = token.spacingMultiplier ?? 1.0
+  return getScaledMetricsForPx(base * fontScale, {
+    lineHeightMultiplier: token.lineHeightMultiplier,
+    spacingMultiplier:    spacingMult,
+  })
+}
+
 // Returns metrics for an arbitrary pixel font-size — used for hero / display
 // text that lives outside the sm/md/lg scale (LoadingScreen, LaunchFilm, etc).
 // Same math as getScaledMetrics, but driven by a raw px input instead of a

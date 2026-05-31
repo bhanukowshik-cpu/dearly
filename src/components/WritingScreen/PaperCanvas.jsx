@@ -10,10 +10,19 @@ import VoiceNoteRenderer from './VoiceNoteRenderer'
 import DrawingLayer from './DrawingLayer'
 import { TextElementRenderer, TextElementControls } from './TextElementRenderer'
 import { IconClose, IconRotate } from './editorIcons'
-import { getScaledMetrics, getScaledMetricsForPx } from '../../lib/typographyMetadata'
+import { getScaledMetricsForPx, getMetricsForScale } from '../../lib/typographyMetadata'
 import styles from './PaperCanvas.module.css'
 
 const BASE_SIZE = 52
+
+/* Reference content-box width (px) at the desktop design size. Paper-relative
+   font sizing scales the desktop type by (measuredContentWidth / REF), so at
+   this width the canvas renders the original desktop sizes (fontScale = 1) and
+   any narrower paper scales the whole layout down proportionally — identical
+   wrapping on every device. Calibrated to the full-size desktop paper's text
+   column (760px paper max-width − 2×52px horizontal padding = 656px), so
+   fontScale ≤ 1 everywhere and text only scales down from the canonical size. */
+const REF_CONTENT_WIDTH = 656
 
 /* IconClose + IconRotate come from editorIcons.jsx now (hand-drawn).
    IconMove stays geometric below — there isn't a hand-drawn move/drag
@@ -120,7 +129,7 @@ function buildSegments(text, types, chars) {
    CharPath — single character, drawn via hand-made SVG glyph animation.
    Space chars are plain inline spans so word-wrapping works naturally.
    ───────────────────────────────────────────────────────────────────────── */
-function CharPath({ ch, inkColor, fontWeight, fontSize, size, viewportWidth, customMetrics }) {
+function CharPath({ ch, inkColor, fontWeight, fontSize, size, customMetrics }) {
   if (ch === ' ') {
     return <span>{' '}</span>
   }
@@ -131,7 +140,6 @@ function CharPath({ ch, inkColor, fontWeight, fontSize, size, viewportWidth, cus
       fontWeight={fontWeight ?? 700}
       fontSize={fontSize ?? 'inherit'}
       size={size ?? null}
-      viewportWidth={viewportWidth ?? null}
       customMetrics={customMetrics ?? null}
     />
   )
@@ -223,26 +231,14 @@ function renderWordWrapped(items, renderChar, readingConfig = null, wordStyle = 
    strike, @@sm/lg:: size) so the recipient contenteditable formats
    correctly appear on the canvas.
    ───────────────────────────────────────────────────────────────────────── */
-const GREETING_FS_MAP = {
-  sm: 'clamp(18px, 2.4vw, 26px)',
-  md: 'clamp(24px, 3.2vw, 34px)',
-  lg: 'clamp(30px, 4.0vw, 42px)',
-}
-const GREETING_FS = GREETING_FS_MAP.md
-
-// Px equivalents of the CSS clamps above — used to drive metadata-aware
-// GlyphChar sizing (advance widths + bearings) instead of the legacy em
-// fallback. Each tier mirrors clamp(MIN, VW%, MAX) so the rendered size
-// tracks the same responsive curve as the CSS would.
-const GREETING_PX_MAP = {
-  sm: { min: 18, vwPct: 0.024, max: 26 },
-  md: { min: 24, vwPct: 0.032, max: 34 },
-  lg: { min: 30, vwPct: 0.040, max: 42 },
-}
-function resolveGreetingPx(tier, viewportWidth) {
-  const spec = GREETING_PX_MAP[tier] ?? GREETING_PX_MAP.md
-  const vw   = viewportWidth ?? (typeof window !== 'undefined' ? window.innerWidth : 1024)
-  return Math.max(spec.min, Math.min(spec.vwPct * vw, spec.max))
+// Desktop design sizes for the greeting tiers (px). The greeting is sized
+// paper-relatively just like the body: greetingPx = desktopPx × fontScale,
+// so the greeting wraps identically across devices and stays in step with the
+// body text it sits above.
+const GREETING_DESKTOP_PX = { sm: 26, md: 34, lg: 42 }
+function resolveGreetingPx(tier, fontScale = 1) {
+  const base = GREETING_DESKTOP_PX[tier] ?? GREETING_DESKTOP_PX.md
+  return base * fontScale
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -253,9 +249,9 @@ function resolveGreetingPx(tier, viewportWidth) {
    when `resyncKey` bumps (eg. the overflow guard reverts an invalid edit).
    Paste is forced to plain text so users don't bring foreign HTML styling.
    ───────────────────────────────────────────────────────────────────────── */
-function EditablePaperBody({ message, onMessageChange, onBlur, resyncKey, inkColor, textSize, viewportWidth, autoFocus = false }) {
+function EditablePaperBody({ message, onMessageChange, onBlur, resyncKey, inkColor, textSize, fontScale = 1, autoFocus = false }) {
   const ref = useRef(null)
-  const baseMetrics = getScaledMetrics(textSize, viewportWidth)
+  const baseMetrics = getMetricsForScale(textSize, fontScale)
 
   // Set initial content on mount + whenever the parent forces a resync.
   // We deliberately do NOT depend on `message` here — that would re-write
@@ -331,7 +327,7 @@ function EditablePaperBody({ message, onMessageChange, onBlur, resyncKey, inkCol
   )
 }
 
-function GreetingText({ text, inkColor, readingConfig, wordIndexStart = 0, viewportWidth = null }) {
+function GreetingText({ text, inkColor, readingConfig, wordIndexStart = 0, fontScale = 1 }) {
   const normText = useMemo(() => normalizeMarkup(text), [text])
   const chars = useCharList(normText)
   const types = useMemo(() => computeCharTypes(normText), [normText])
@@ -340,13 +336,13 @@ function GreetingText({ text, inkColor, readingConfig, wordIndexStart = 0, viewp
   // Pre-resolve the three greeting tiers into customMetrics objects so each
   // segment can pick the right size + get metadata-driven advance widths and
   // bearings (rather than the loose 0.68em fallback that produced
-  // "D e a r  M a y a" gappy spacing). Memo keyed on viewportWidth so it
-  // re-resolves on responsive breakpoints.
+  // "D e a r  M a y a" gappy spacing). Memo keyed on fontScale so it
+  // re-resolves as the paper width changes.
   const greetingMetrics = useMemo(() => ({
-    sm: getScaledMetricsForPx(resolveGreetingPx('sm', viewportWidth)),
-    md: getScaledMetricsForPx(resolveGreetingPx('md', viewportWidth)),
-    lg: getScaledMetricsForPx(resolveGreetingPx('lg', viewportWidth)),
-  }), [viewportWidth])
+    sm: getScaledMetricsForPx(resolveGreetingPx('sm', fontScale)),
+    md: getScaledMetricsForPx(resolveGreetingPx('md', fontScale)),
+    lg: getScaledMetricsForPx(resolveGreetingPx('lg', fontScale)),
+  }), [fontScale])
 
   // Each segment's wordIndexStart chains from the previous segment's nextIdx.
   // This is a plain variable mutated during render — safe because it's local
@@ -401,12 +397,12 @@ const HL_CLASS = {
   'highlight-sage': styles.highlightSage,
 }
 
-function BodyText({ text, inkColor, textSize = 'lg', readingConfig, wordIndexStart = 0, viewportWidth = null }) {
+function BodyText({ text, inkColor, textSize = 'lg', readingConfig, wordIndexStart = 0, fontScale = 1 }) {
   const normText = useMemo(() => normalizeMarkup(text), [text])
   const chars  = useCharList(normText)
   const types  = useMemo(() => computeCharTypes(normText), [normText])
   const segs   = useMemo(() => buildSegments(normText, types, chars), [normText, types, chars])
-  const baseMetrics = getScaledMetrics(textSize, viewportWidth)
+  const baseMetrics = getMetricsForScale(textSize, fontScale)
 
   // Chain wordIndexStart across segments locally — no shared external state.
   let segWordIdx = wordIndexStart
@@ -428,11 +424,11 @@ function BodyText({ text, inkColor, textSize = 'lg', readingConfig, wordIndexSta
         const segSizeKey = seg.type === 'size-sm' ? 'sm'
                          : seg.type === 'size-lg' ? 'lg'
                          : textSize
-        const segMetrics = getScaledMetrics(segSizeKey, viewportWidth)
+        const segMetrics = getMetricsForScale(segSizeKey, fontScale)
         const isBold     = seg.type === 'bold'
         const ws         = readingConfig ? { inkColor, fontWeight: 700, fontSize: `${segMetrics.fontSize}px` } : null
         const { els, nextIdx } = renderWordWrapped(seg.items, (id, ch) => (
-          <CharPath key={id} ch={ch} inkColor={inkColor} fontWeight={700} size={segSizeKey} viewportWidth={viewportWidth} />
+          <CharPath key={id} ch={ch} inkColor={inkColor} fontWeight={700} size={segSizeKey} customMetrics={segMetrics} />
         ), readingConfig, ws, segWordIdx, segMetrics.wordSpacingPx)
         const allRevealed = !readingConfig || readingConfig.revealedWordIdx >= nextIdx
         segWordIdx = nextIdx
@@ -829,31 +825,38 @@ export default function PaperCanvas({
   const [rulerOffset,    setRulerOffset]    = useState(21)
   const [contentScale,   setContentScale]   = useState(1)
   const [bodyFitStyle,   setBodyFitStyle]   = useState(null)
-  const [viewportWidth, setViewportWidth] = useState(
-    typeof window !== 'undefined' ? window.innerWidth : 1024
-  )
+  const [contentWidth,   setContentWidth]   = useState(REF_CONTENT_WIDTH)
 
-  // Track viewport width for breakpoint-based font scaling (mobile/tablet/desktop).
-  // useLayoutEffect fires before paint so the correct tier is applied from frame 1.
+  // Drive on-paper type off the paper's measured TEXT-COLUMN width, not the
+  // viewport. fontSize = desktop base × (contentWidth / REF), so the number of
+  // characters per line is constant at any device width: text wraps identically
+  // on desktop, tablet and mobile, and %-positioned media (photos, voice notes,
+  // stickers) keeps its authored relationship to the text. useLayoutEffect +
+  // ResizeObserver so the right size is applied from frame 1 and keeps tracking
+  // the paper through its unfold animation / window resizes.
   useLayoutEffect(() => {
-    const update = () => setViewportWidth(window.innerWidth)
-    window.addEventListener('resize', update)
-    update()
-    return () => window.removeEventListener('resize', update)
+    const measure = () => {
+      const el = letterRef.current
+      if (!el) return
+      const cs   = getComputedStyle(el)
+      const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
+      const w    = el.clientWidth - padX
+      // Width is independent of font size, so this never feeds back into a
+      // resize loop; the >0.5px guard just damps sub-pixel jitter.
+      if (w > 0) setContentWidth(prev => (Math.abs(prev - w) > 0.5 ? w : prev))
+    }
+    measure()
+    const el = letterRef.current
+    if (!el) return
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [])
 
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 599px), (max-width: 1180px) and (orientation: portrait)').matches : false
-  )
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 599px), (max-width: 1180px) and (orientation: portrait)')
-    const h = e => setIsMobile(e.matches)
-    mq.addEventListener('change', h)
-    return () => mq.removeEventListener('change', h)
-  }, [])
+  const fontScale = contentWidth / REF_CONTENT_WIDTH
 
-  // Ruler period and baseline position from metadata — responsive to paper width
-  const { computedLineHeight, scaledBaselineY } = getScaledMetrics(textSize, viewportWidth)
+  // Ruler period and baseline position from metadata — paper-relative type
+  const { computedLineHeight, scaledBaselineY } = getMetricsForScale(textSize, fontScale)
 
   const hasMessage = !!message
   useEffect(() => {
@@ -883,7 +886,7 @@ export default function PaperCanvas({
       // and the rulers would drift by ~one row.
       const lc = bd.parentElement.getBoundingClientRect()
 
-      const { computedLineHeight: period, scaledBaselineY: blY, scaledHeight } = getScaledMetrics(textSize, viewportWidth)
+      const { computedLineHeight: period, scaledBaselineY: blY, scaledHeight } = getMetricsForScale(textSize, fontScale)
       if (!isFinite(period) || period <= 0) return
 
       // Baseline is derived DETERMINISTICALLY from the glyph frame metadata —
@@ -977,7 +980,7 @@ export default function PaperCanvas({
     // size stayed constant), and the ruler stayed pinned at whatever
     // offset the first measurement computed — visibly drifting from the
     // actual first-glyph baseline as content reflowed.
-  }, [showRuler, liveRecipient, message, textSize, viewportWidth]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showRuler, liveRecipient, message, textSize, fontScale]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scale letter content to fit within the fixed paper dimensions.
   // Scale letter content to fit within the paper on the recipient screen.
@@ -1045,15 +1048,12 @@ export default function PaperCanvas({
       let contentH = naturalH
 
       if (overflows) {
-        // Glyph size is fixed to the viewport tier, NOT the paper, so at the
-        // recipient paper's (narrow) width the letter wraps into more lines
-        // than the writer saw and overflows. Scaling that narrow layout would
-        // squeeze the text into a thin column. Instead we find the logical
+        // Paper-relative type means the letter normally wraps exactly as the
+        // writer saw it and fits, so this is now only a safety net for genuine
+        // overflow (the writer truly overfilled the sheet). We find the logical
         // width at which the content's height/width ratio matches the paper's
-        // aspect ratio — that is the width the writer effectively composed at —
-        // then uniform-scale it down to the paper. Because the recipient paper
-        // shares the writer's aspect ratio, this reproduces the writer's
-        // layout exactly and fills the page. Width → height is monotonic
+        // aspect ratio, then uniform-scale it down to the paper, reproducing the
+        // writer's layout and filling the page. Width → height is monotonic
         // (wider ⇒ fewer lines ⇒ shorter), so we expand, then binary-search.
         const targetRatio = paperH / paperW
         let lo = paperW
@@ -1116,11 +1116,14 @@ export default function PaperCanvas({
 
   const bgHex = type === 'color' ? color : typeData.bg
   const rulerColors = computeRulerColors(bgHex)
-  const fullMetrics = getScaledMetrics(textSize, viewportWidth)
+  const fullMetrics = getMetricsForScale(textSize, fontScale)
   const rulerLines = showRuler ? buildRulerGradient(rulerColors, fullMetrics) : null
   const paperStyle = {
     backgroundColor: bg,
-    aspectRatio: isMobile ? sizeData.mobileAspect : sizeData.aspectRatio,
+    // ONE aspect ratio per size on every device. A device-specific mobile
+    // aspect would reshape the paper, reflowing text relative to %-positioned
+    // media — the recipient must see the exact shape the author composed on.
+    aspectRatio: sizeData.aspectRatio,
   }
   const letterContentStyle = rulerLines
     ? { backgroundColor: bg, backgroundImage: rulerLines, backgroundSize: `100% ${fullMetrics.computedLineHeight}px`, backgroundPositionY: `${rulerOffset}px` }
@@ -1188,7 +1191,7 @@ export default function PaperCanvas({
                   <GreetingText
                     text={liveRecipient} inkColor={inkColor}
                     readingConfig={readingConfig} wordIndexStart={0}
-                    viewportWidth={viewportWidth}
+                    fontScale={fontScale}
                   />
                 </div>
               )}
@@ -1203,7 +1206,7 @@ export default function PaperCanvas({
                   <BodyText
                     text={message} inkColor={inkColor}
                     textSize={textSize} readingConfig={readingConfig}
-                    wordIndexStart={greetingWordCount} viewportWidth={viewportWidth}
+                    wordIndexStart={greetingWordCount} fontScale={fontScale}
                   />
                 </div>
               ) : null}
