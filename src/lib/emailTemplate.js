@@ -56,7 +56,7 @@ export function buildEmailText({ fromName, recipientName, shareUrl, blurb, summa
     '',
     `Open the letter: ${shareUrl}`,
     '',
-    '— Dearly · Letters people actually keep',
+    'Dearly · Letters people actually keep',
   ]
   return lines.join('\n')
 }
@@ -135,8 +135,8 @@ export function buildEmailHtml({
   const preheader = trimmedPreviewHook
     ? trimmedPreviewHook
     : recipFirst
-      ? `Sealed and waiting for you, ${esc(recipFirst)} — unfold it whenever you have a quiet moment.`
-      : `Sealed and waiting inside — unfold it whenever you have a quiet moment.`
+      ? `Sealed and waiting for you, ${esc(recipFirst)}. Unfold it whenever you have a quiet moment.`
+      : `Sealed and waiting inside. Unfold it whenever you have a quiet moment.`
 
   const bgUrl       = `${assetOrigin}/bg.jpg`
   const envelopeUrl = `${assetOrigin}/envelope.png`

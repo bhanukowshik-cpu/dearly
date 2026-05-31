@@ -135,7 +135,7 @@ export default async function handler(req) {
             textAlign:   'center',
             display:     'flex',
           },
-        }, `${sender} wrote you a note — read it now.`),
+        }, `${sender} wrote you a note. Read it now.`),
 
         // Rule
         h('div', {

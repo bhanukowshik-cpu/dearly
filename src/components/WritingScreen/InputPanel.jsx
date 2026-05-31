@@ -828,7 +828,7 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
               key={id}
               className={`${styles.sizePick} ${textSize === id ? styles.sizePickActive : ''}`}
               onClick={() => onSizeChange?.(id)}
-              title={id === 'sm' ? 'Small — up to 440 words' : id === 'md' ? 'Medium — up to 220 words' : 'Large — up to 100 words'}
+              title={id === 'sm' ? 'Small, up to 440 words' : id === 'md' ? 'Medium, up to 220 words' : 'Large, up to 100 words'}
             >
               {label}
             </button>

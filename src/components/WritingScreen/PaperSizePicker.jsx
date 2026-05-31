@@ -25,11 +25,13 @@ import styles from './PaperSizePicker.module.css'
  *           top edge (active tab is paper-colored and merges into the
  *           sheet below). Used on mobile + iPad.
  */
-export default function PaperSizePicker({ paperConfig, onChangePaper, variant = 'pill' }) {
+export default function PaperSizePicker({ paperConfig, onChangePaper, variant = 'pill', disabledSizes = [], onBlocked }) {
   const current = paperConfig?.size ?? 'postcard'
 
   function pick(size) {
     if (size === current) return
+    // The message would spill off this (smaller) size — explain instead of switching.
+    if (disabledSizes.includes(size)) { onBlocked?.(size); return }
     onChangePaper?.({ ...paperConfig, size })
   }
 
@@ -45,17 +47,21 @@ export default function PaperSizePicker({ paperConfig, onChangePaper, variant = 
   return (
     <div className={rootClass} role="radiogroup" aria-label="Paper size">
       {Object.entries(PAPER_SIZES).map(([id, data]) => {
-        const active = current === id
+        const active   = current === id
+        const disabled = disabledSizes.includes(id) && !active
         return (
           <button
             key={id}
             type="button"
-            className={`${segClass} ${active ? activeClass : ''}`}
+            // Not natively disabled — we keep the click alive so tapping a
+            // greyed-out size still fires the "too much message" toast.
+            className={`${segClass} ${active ? activeClass : ''} ${disabled ? styles.segDisabled : ''}`}
             onClick={() => pick(id)}
             role="radio"
             aria-checked={active}
-            aria-label={`${data.label} paper`}
-            title={data.label}
+            aria-disabled={disabled || undefined}
+            aria-label={`${data.label} paper${disabled ? ' (too much message to fit)' : ''}`}
+            title={disabled ? `Too much message for the ${data.label}` : data.label}
           >
             {active && isTabs && (
               <motion.span

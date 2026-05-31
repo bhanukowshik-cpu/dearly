@@ -109,7 +109,7 @@ export default function FeedbackToast({ onDone = () => {}, source = 'authoring' 
                 ? 'How’s your experience so far?'
                 : positive
                   ? 'Love that! What did you like the most?'
-                  : 'Thanks — what could we do better?'}
+                  : 'Thanks! What could we do better?'}
             </p>
             <button
               className={styles.close}
@@ -161,7 +161,10 @@ export default function FeedbackToast({ onDone = () => {}, source = 'authoring' 
                   }}
                 />
                 <button className={styles.submit} onClick={send}>
-                  Send
+                  <svg className={styles.submitBg} viewBox="0 0 160 38" preserveAspectRatio="none" fill="none" aria-hidden>
+                    <path d="M 10,5 C 48,2 112,3 150,5 C 152,14 153,24 150,33 C 112,36 48,35 10,33 C 7,24 7,14 10,5 Z" fill="white"/>
+                  </svg>
+                  <span>Send</span>
                 </button>
               </motion.div>
             )}

@@ -144,7 +144,7 @@ export default function LoadingScreen({ onCta = () => {} }) {
               <motion.img
                 key={current.id}
                 src={current.img}
-                alt={`A handwritten letter — ${current.audience}`}
+                alt={`A handwritten letter for ${current.audience}`}
                 className={styles.letterImage}
                 style={{ aspectRatio: current.aspect }}
                 draggable={false}

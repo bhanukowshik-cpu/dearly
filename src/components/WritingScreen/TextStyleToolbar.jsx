@@ -15,9 +15,9 @@
 import styles from './TextStyleToolbar.module.css'
 
 const SIZES = [
-  { id: 'sm', label: 'S', title: 'Small — up to 440 words' },
-  { id: 'md', label: 'M', title: 'Medium — up to 220 words' },
-  { id: 'lg', label: 'L', title: 'Large — up to 100 words' },
+  { id: 'sm', label: 'S', title: 'Small, up to 440 words' },
+  { id: 'md', label: 'M', title: 'Medium, up to 220 words' },
+  { id: 'lg', label: 'L', title: 'Large, up to 100 words' },
 ]
 
 function IconAa({ size = 18 }) {

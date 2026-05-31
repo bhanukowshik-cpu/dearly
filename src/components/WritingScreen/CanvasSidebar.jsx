@@ -76,10 +76,18 @@ function Toggle({ icon, label, active, onClick }) {
    On mobile + iPad, paper size is surfaced via the floating
    PaperSizePicker pill above the paper instead.
    ───────────────────────────────────────────────────────────────────────── */
-export default function CanvasSidebar({ paperConfig, onChangePaper }) {
+export default function CanvasSidebar({ paperConfig, onChangePaper, disabledSizes = [], onBlocked }) {
   const { size = 'postcard', type, color, showRuler, showZigzag } = paperConfig
 
   function set(patch) { onChangePaper({ ...paperConfig, ...patch }) }
+
+  // Picking a paper size: if the message can't fit it, explain via toast
+  // instead of switching into an overflow.
+  function pickSize(id) {
+    if (id === size) return
+    if (disabledSizes.includes(id)) { onBlocked?.(id); return }
+    set({ size: id })
+  }
 
   return (
     <aside className={styles.wrap} aria-label="Canvas options">
@@ -90,17 +98,23 @@ export default function CanvasSidebar({ paperConfig, onChangePaper }) {
       <section className={styles.section}>
         <h2 className={styles.heading}>Paper size</h2>
         <div className={styles.sizeCol}>
-          {Object.entries(PAPER_SIZES).map(([id, sizeData]) => (
-            <button
-              key={id}
-              type="button"
-              className={`${styles.sizePill} ${size === id ? styles.sizePillActive : ''}`}
-              onClick={() => set({ size: id })}
-              aria-pressed={size === id}
-            >
-              {sizeData.label}
-            </button>
-          ))}
+          {Object.entries(PAPER_SIZES).map(([id, sizeData]) => {
+            const disabled = disabledSizes.includes(id) && size !== id
+            return (
+              <button
+                key={id}
+                type="button"
+                // Kept clickable when disabled so the tap can toast a reason.
+                className={`${styles.sizePill} ${size === id ? styles.sizePillActive : ''} ${disabled ? styles.sizePillDisabled : ''}`}
+                onClick={() => pickSize(id)}
+                aria-pressed={size === id}
+                aria-disabled={disabled || undefined}
+                title={disabled ? `Too much message for the ${sizeData.label}` : undefined}
+              >
+                {sizeData.label}
+              </button>
+            )
+          })}
         </div>
       </section>
 

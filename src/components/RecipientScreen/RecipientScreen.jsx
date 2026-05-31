@@ -769,7 +769,7 @@ export default function RecipientScreen({
       stopReading()
       const msg = err?.message ?? ''
       if (msg.toLowerCase().includes('quota')) {
-        setTtsError('Voice credits ran out — try again later.')
+        setTtsError('Voice credits ran out. Try again later.')
       } else {
         setTtsError('Audio unavailable right now.')
       }
@@ -997,8 +997,8 @@ export default function RecipientScreen({
           <div className={styles.toastLeft}>
             <p className={styles.toastText}>
               {senderName
-                ? <>You have a lovely smile — pass it on by sending a note to <strong>{senderName}</strong> or anyone you care about.</>
-                : <>You have a lovely smile — pass it on by sending a note to someone you care about.</>
+                ? <>You have a lovely smile. Pass it on by sending a note to <strong>{senderName}</strong> or anyone you care about.</>
+                : <>You have a lovely smile. Pass it on by sending a note to someone you care about.</>
               }
             </p>
           </div>

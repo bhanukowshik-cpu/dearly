@@ -245,7 +245,7 @@ export default function VoiceNoteRenderer({
     const a = audioRef.current
     console.log('[VoiceNote] play tapped. audioRef=', !!a, 'src=', note.audioUrl, 'paused=', a?.paused, 'readyState=', a?.readyState, 'networkState=', a?.networkState, 'error=', a?.error?.code)
     if (!a) {
-      setPlaybackError('Audio element not mounted yet — try again in a moment.')
+      setPlaybackError('Audio element not mounted yet. Try again in a moment.')
       return
     }
     // Surface "no audio source" early — most common cause of a dead-feeling

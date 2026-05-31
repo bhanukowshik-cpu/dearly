@@ -102,10 +102,21 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  /* Tighten the space between the waveform and the timestamp (counters the
+     card's 10px row gap down to ~5px). */
+  margin-top: -5px;
+  padding: 0 6px;
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 13px;
   letter-spacing: 0.4px;
   color: rgba(245, 240, 230, 0.92);
+}
+
+/* Elapsed time that slides in on the left edge during playback. Dimmer than
+   the total so the full duration stays the anchor value. */
+.timerElapsed {
+  font-variant-numeric: tabular-nums;
+  color: rgba(245, 240, 230, 0.62);
 }
 
 .recDot {

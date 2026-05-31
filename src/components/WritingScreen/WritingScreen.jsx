@@ -16,7 +16,7 @@ import EditorFABs from './EditorFABs'
 import TextPopup from './TextPopup'
 import PaperSizePicker from './PaperSizePicker'
 import styles from './WritingScreen.module.css'
-import { DEFAULT_PAPER } from './stylePresets'
+import { DEFAULT_PAPER, PAPER_SIZES } from './stylePresets'
 import { extractName } from './nameUtils'
 import { DEFAULT_FRAME } from '../../lib/mediaFrameConfig'
 import { computeFrameHeight } from '../../lib/mediaFrameHelpers'
@@ -210,6 +210,10 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
   // Recipient name is metadata only — never rendered onto the paper canvas.
   const [showRecipient,      setShowRecipient]      = useState(false)
   const [paperConfig,        setPaperConfig]        = useState(DEFAULT_PAPER)
+  // Paper sizes whose body is too short for the current message (smaller sizes
+  // can't hold what fits on a bigger sheet). Computed in a layout effect below;
+  // PaperSizePicker greys these out and toasts when one is tapped.
+  const [disabledSizes,      setDisabledSizes]      = useState([])
   /* Default text size is Large everywhere. */
   const [textSize,           setTextSize]           = useState('lg')
   const [stickers,           setStickers]           = useState([])
@@ -442,6 +446,94 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     }
   }, [message, textSize, paperConfig])
 
+  /* ── Keep photo frames the same physical size across paper sizes ────────────
+     Paper WIDTH is constant across sizes (the center column is fixed-width),
+     but HEIGHT changes with each size's aspect ratio. A frame stores width as
+     a % of paper width and height as a % of paper height — so leaving height%
+     untouched on a size change stretches the photo (taller paper) or squashes
+     it (shorter paper).
+
+     The frame's width% already maps to a constant pixel width. So after a size
+     change we re-derive each frame's height% from its width% using the NEW
+     paper height: the pixel height that keeps the image's aspect is constant,
+     only the % needs to track the new denominator. Result: the photo's
+     orientation and size stay put — resizing remains the user's call.        */
+  const prevPaperSizeRef = useRef(paperConfig?.size)
+  useLayoutEffect(() => {
+    const size = paperConfig?.size
+    if (size === prevPaperSizeRef.current) return
+    prevPaperSizeRef.current = size
+    if (mediaFrames.length === 0) return
+    const paperEl = paperRef.current?.querySelector('[data-paper-canvas]')
+                 ?? document.querySelector('[data-paper-canvas]')
+    if (!paperEl) return
+    const paperW = paperEl.clientWidth
+    const paperH = paperEl.clientHeight
+    if (paperW <= 0 || paperH <= 0) return
+    setMediaFrames(prev => prev.map(f => {
+      if (!(f.imageWidth > 0 && f.imageHeight > 0)) return f
+      const frameW_px = (f.width / 100) * paperW
+      const newH_px   = computeFrameHeight(frameW_px, f.imageWidth / f.imageHeight, f.frameStyle)
+      const newHeight = (newH_px / paperH) * 100
+      return Math.abs(newHeight - f.height) < 0.01 ? f : { ...f, height: newHeight }
+    }))
+  }, [paperConfig?.size, mediaFrames.length])
+
+  /* ── Predict which paper sizes the message would overflow ───────────────────
+     "No content may spill off the sheet" is the rule. The overflow guard above
+     enforces it for the CURRENT size by reverting edits. This effect looks
+     ahead: it greys out any OTHER size whose body is too short for the message
+     the writer already has, so they can't switch into an overflow.
+
+     Paper WIDTH is fixed across sizes, so the message's natural height is the
+     same everywhere (it wraps identically) — we read it once from the live
+     body's scrollHeight. For each candidate size we reconstruct the body's
+     available height from that size's paper height and padding:
+
+       paperH(size)  = paperW × (h ÷ w)          // from the size's aspect ratio
+       padV(size)    = strip ? clamp(20,16%,36) : clamp(16,5%,32), ×2 sides
+       constChrome   = greeting + gaps + borders  // size-independent; measured
+       bodyClient(s) = paperH(s) − padV(s) − constChrome
+
+     constChrome is derived from the current measured state so we never hardcode
+     the greeting/gap pixels — only the padding clamp (which keys off the fixed
+     width) is replicated from CSS.                                            */
+  useLayoutEffect(() => {
+    const paperEl = paperRef.current?.querySelector('[data-paper-canvas]')
+                 ?? document.querySelector('[data-paper-canvas]')
+    if (!paperEl) return
+    // No body element ⇒ the message is empty, so nothing can overflow any size.
+    // Clear any stale disabled state rather than leaving the last computation.
+    const bodyEl = paperEl.querySelector('[data-paper-body]')
+    if (!bodyEl) { setDisabledSizes(prev => (prev.length ? [] : prev)); return }
+    const paperW       = paperEl.clientWidth
+    const curPaperH    = paperEl.clientHeight
+    const curBodyClient = bodyEl.clientHeight
+    const contentH     = bodyEl.scrollHeight   // natural message height (width-fixed → size-independent)
+    if (paperW <= 0 || curPaperH <= 0) return
+
+    const clampPx = (min, pct, max) => Math.min(Math.max(min, pct * paperW), max)
+    const padV    = size => 2 * (size === 'strip' ? clampPx(20, 0.16, 36) : clampPx(16, 0.05, 32))
+    const paperHFor = size => {
+      const d = PAPER_SIZES[size]
+      const aspect = isMobile ? d.mobileAspect : d.aspectRatio
+      const [w, h] = aspect.split('/').map(parseFloat)
+      return paperW * (h / w)
+    }
+
+    const curSize    = paperConfig?.size ?? 'postcard'
+    const constChrome = curPaperH - curBodyClient - padV(curSize)
+
+    const blocked = Object.keys(PAPER_SIZES).filter(size => {
+      if (size === curSize) return false   // current size already fits (guard enforces it)
+      const bodyClient = paperHFor(size) - padV(size) - constChrome
+      return contentH > bodyClient + 2     // +2 mirrors the overflow guard's slop
+    })
+    setDisabledSizes(prev =>
+      prev.length === blocked.length && prev.every(s => blocked.includes(s)) ? prev : blocked
+    )
+  }, [message, textSize, paperConfig, isMobile, recipient])
+
   /* Respond to viewport width changes. On a real iPad device the flags stay
      true regardless of orientation; the matchMedia only matters for
      browsers without iPad UA (eg. desktop Chrome simulating a tablet). */
@@ -542,6 +634,14 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     setToast(null)
   }, [])
+
+  /* Tapping a paper size the message can't fit into. Both size pickers call
+     this instead of switching, so the writer gets a clear reason rather than a
+     silently dead button. */
+  const handleBlockedSize = useCallback((size) => {
+    const label = PAPER_SIZES[size]?.label ?? 'that size'
+    showToast(`Too much message for the ${label}. Trim it or keep a larger size.`, 'overflow')
+  }, [showToast])
 
   // Keep a ref of the visible toast so showToast can detect a repeated action
   // without a stale closure.
@@ -1525,6 +1625,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       <CanvasSidebar
         paperConfig={paperConfig}
         onChangePaper={setPaperConfig}
+        disabledSizes={disabledSizes}
+        onBlocked={handleBlockedSize}
       />
       <div className={styles.sidebarDivider} />
       {stickerPanel}
@@ -1836,6 +1938,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
                 variant="tabs"
                 paperConfig={paperConfig}
                 onChangePaper={setPaperConfig}
+                disabledSizes={disabledSizes}
+                onBlocked={handleBlockedSize}
               />
             </div>
 
@@ -2014,6 +2118,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
             <CanvasSidebar
               paperConfig={paperConfig}
               onChangePaper={setPaperConfig}
+              disabledSizes={disabledSizes}
+              onBlocked={handleBlockedSize}
             />
           </motion.div>
         </main>

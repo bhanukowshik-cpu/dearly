@@ -77,9 +77,9 @@ function templateSubject({ fromName, recipientName, plain }) {
   const who   = (recipientName || '').trim()
   const from  = (fromName || 'Someone').trim()
   const snippet = plain.split(/[.!?\n]/)[0]?.trim().slice(0, 50) || ''
-  if (who && snippet) return `A letter from ${from} — ${snippet}`
+  if (who && snippet) return `A letter from ${from}: ${snippet}`
   if (who)            return `A letter from ${from}, for ${who}.`
-  if (snippet)        return `A letter from ${from} — ${snippet}`
+  if (snippet)        return `A letter from ${from}: ${snippet}`
   return                  `A letter from ${from}.`
 }
 
@@ -132,14 +132,14 @@ export default async function handler(req, res) {
   // User-authored prompt — kept verbatim so copy changes happen here
   // without touching helper code. The `{{USER_LETTER_TEXT}}` placeholder
   // is replaced inline at request time with the markup-stripped letter.
-  const FLAWLESS_HOOK_PROMPT = `You are a master of human psychology and the lead UX writer for "Dearly"—a cinematic, multimedia letter-sending platform. Your job is to analyze a letter written by a user and generate 3 "On-Screen Teaser Lines" (MAX 60 characters each).
+  const FLAWLESS_HOOK_PROMPT = `You are a master of human psychology and the lead UX writer for "Dearly", a cinematic, multimedia letter-sending platform. Your job is to analyze a letter written by a user and generate 3 "On-Screen Teaser Lines" (MAX 60 characters each).
 
 This teaser line will be prominently displayed directly beneath the recipient's greeting (e.g., "Hi Marcus,") and right above the envelope asset. Its sole psychological purpose is to make the user freeze and immediately tap to open the letter.
 
 ### The Formula for a "Flawless" Hook:
 1. THE "RIPPED FROM THE MIDDLE" RULE: Do not summarize the letter. Do not introduce the letter. Instead, take a raw sentence or phrase from the *middle* of the text that feels heavy, blunt, or deeply specific. It should look like an accidental leak of a private thought.
 2. ZERO RE-WRITING: Whenever possible, extract the exact 3-to-7 word phrase the user wrote. Real human phrasing is messy and authentic; AI summaries are polished and fake.
-3. STRIP THE POLISH: Use lowercase, conversational punctuation (like em-dashes or ellipses), and zero corporate or formal etiquette.
+3. STRIP THE POLISH: Use lowercase and conversational punctuation (ellipses, commas, periods). NEVER use em dashes (—) or en dashes (–); use ellipses, commas, or periods instead. Keep zero corporate or formal etiquette.
 4. NO FILLER WORDS: Never use words like "about," "regarding," "stay," "update," "note," or "letter."
 
 ---
@@ -264,6 +264,11 @@ Return ONLY a valid JSON object. Do not include markdown code blocks (like \`\`\
     const clean = s => (typeof s === 'string' ? s : '')
       .trim()
       .replace(/^["'`]+|["'`]+$/g, '')
+      // No em/en dashes anywhere in Dearly copy. Collapse " — "-style asides
+      // to an ellipsis (matches the casual teaser tone), bare ones to a comma.
+      .replace(/\s*[—–]\s*$/g, '')
+      .replace(/\s+[—–]\s+/g, '... ')
+      .replace(/[—–]/g, ', ')
       .replace(/\s+/g, ' ')
       .slice(0, 80)
 

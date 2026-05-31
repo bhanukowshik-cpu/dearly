@@ -141,7 +141,7 @@ function SceneWriting() {
               animate={{ opacity: noteVisible ? 1 : 0 }}
               transition={{ duration: 1.1, ease: 'easeOut' }}
             >
-              {"I've been thinking about you lately —\nwanted you to know I care. 💌"}
+              {"I've been thinking about you lately,\nwanted you to know I care. 💌"}
             </motion.p>
           </div>
         </motion.div>

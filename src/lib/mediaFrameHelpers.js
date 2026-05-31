@@ -72,7 +72,7 @@ export async function loadImageMeta(file) {
       const i = new Image()
       i.onload  = () => resolve(i)
       i.onerror = () => reject(new Error(
-        "This browser can't read that image — try a PNG, JPG, or GIF (HEIC opens in Safari)."
+        "This browser can't read that image. Try a PNG, JPG, or GIF (HEIC opens in Safari)."
       ))
       i.src = srcUrl
     })

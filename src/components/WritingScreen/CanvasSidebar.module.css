@@ -97,3 +97,14 @@
   color: rgba(220, 235, 255, 0.95);
 }
 
+/* Size the current message can't fit into — greyed but still clickable so
+   the tap surfaces a "too much message" toast. */
+.sizePillDisabled,
+.sizePillDisabled:hover {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
+}
+

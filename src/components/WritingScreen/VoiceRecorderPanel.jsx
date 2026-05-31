@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useVoiceRecorder } from '../../lib/useVoiceRecorder'
 import VoiceWaveform from './VoiceWaveform'
 import { claim, release } from '../../lib/voiceNotePlayback'
@@ -85,6 +86,7 @@ export default function VoiceRecorderPanel({
   const audioRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [previewProgress, setPreviewProgress] = useState(0)
+  const [previewTime, setPreviewTime] = useState(0)
 
   const atLimit = voiceNoteCount >= maxVoiceNotes
 
@@ -122,8 +124,9 @@ export default function VoiceRecorderPanel({
       claim(a)
     }
     function onPause() { setIsPlaying(false) }
-    function onEnded() { setIsPlaying(false); setPreviewProgress(0); release(a) }
+    function onEnded() { setIsPlaying(false); setPreviewProgress(0); setPreviewTime(0); release(a) }
     function onTime() {
+      setPreviewTime(a.currentTime)
       if (!a.duration || !isFinite(a.duration)) return
       setPreviewProgress(Math.min(1, a.currentTime / a.duration))
     }
@@ -135,6 +138,7 @@ export default function VoiceRecorderPanel({
     // where the audio element is brand-new but the audioUrl hasn't
     // changed value, so prior progress would otherwise stick.
     setPreviewProgress(0)
+    setPreviewTime(0)
     setIsPlaying(false)
     return () => {
       a.removeEventListener('play',  onPlay)
@@ -158,7 +162,7 @@ export default function VoiceRecorderPanel({
 
   function handleStartClick() {
     if (atLimit) {
-      onLimitToast?.(`You've added ${maxVoiceNotes} voice notes already — remove one to add another.`)
+      onLimitToast?.(`You've added ${maxVoiceNotes} voice notes already. Remove one to add another.`)
       return
     }
     rec.start()
@@ -166,7 +170,7 @@ export default function VoiceRecorderPanel({
 
   function handleAddToPostcard() {
     if (atLimit) {
-      onLimitToast?.(`You've added ${maxVoiceNotes} voice notes already — remove one to add another.`)
+      onLimitToast?.(`You've added ${maxVoiceNotes} voice notes already. Remove one to add another.`)
       return
     }
     const payload = rec.consume()
@@ -176,6 +180,7 @@ export default function VoiceRecorderPanel({
     if (a) { try { a.pause() } catch { /* ignore */ } }
     setIsPlaying(false)
     setPreviewProgress(0)
+    setPreviewTime(0)
     onAddVoiceNote(payload)
   }
 
@@ -274,9 +279,29 @@ export default function VoiceRecorderPanel({
               dimColor={VOICE_ACCENT_FADE}
             />
           </div>
-          <div className={styles.timerRow}>
-            <span className={styles.timer}>{fmtTime(rec.duration)}</span>
-          </div>
+          {/* While playing (or paused mid-clip) the single centered duration
+              splits into elapsed-left / total-right; it recenters once the
+              clip ends or before the first play. */}
+          <motion.div
+            className={styles.timerRow}
+            style={{ justifyContent: (isPlaying || previewProgress > 0) ? 'space-between' : 'center' }}
+          >
+            <AnimatePresence>
+              {(isPlaying || previewProgress > 0) && (
+                <motion.span
+                  key="elapsed"
+                  className={styles.timerElapsed}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  {fmtTime(previewTime)}
+                </motion.span>
+              )}
+            </AnimatePresence>
+            <motion.span layout className={styles.timer}>{fmtTime(rec.duration)}</motion.span>
+          </motion.div>
           <div className={styles.actionRow}>
             <button
               className={styles.secondaryBtn}
@@ -381,7 +406,7 @@ export default function VoiceRecorderPanel({
       </div>
       {atLimit && (
         <div className={styles.atLimitNote}>
-          You've added {maxVoiceNotes} voice notes already — remove one to add another.
+          You've added {maxVoiceNotes} voice notes already. Remove one to add another.
         </div>
       )}
       <div className={styles.hint}>

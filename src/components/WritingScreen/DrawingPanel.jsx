@@ -167,7 +167,7 @@ export default function DrawingPanel({
           className={styles.actionBtn}
           onClick={onUndo}
           disabled={!canUndo}
-          title={`Undo (${MOD}Z) — works for drawing AND erasing`}
+          title={`Undo (${MOD}Z), works for drawing AND erasing`}
           type="button"
         >
           Undo

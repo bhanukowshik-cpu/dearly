@@ -100,7 +100,7 @@ export default function MediaFramePicker({
   function openPicker() {
     clearError()                  // any prior error is the previous attempt
     if (atLimit) {
-      showError(`You've added the max of ${maxFrames} photos — remove one to add another.`)
+      showError(`You've added the max of ${maxFrames} photos. Remove one to add another.`)
       return
     }
     inputRef.current?.click()
@@ -110,7 +110,7 @@ export default function MediaFramePicker({
   async function acceptNewFile(file) {
     if (!file) return
     if (atLimit) {
-      showError(`You've added the max of ${maxFrames} photos — remove one to add another.`)
+      showError(`You've added the max of ${maxFrames} photos. Remove one to add another.`)
       return
     }
     const v = validateMediaFile(file)

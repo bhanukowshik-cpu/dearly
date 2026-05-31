@@ -77,6 +77,10 @@ export default defineConfig(({ mode }) => {
   if (env.EMAIL_FROM)     process.env.EMAIL_FROM     = env.EMAIL_FROM
   return {
     base: '/',
+    server: {
+      // Allow cloudflared quick-tunnel hosts so real devices can reach the dev server over HTTPS.
+      allowedHosts: ['.trycloudflare.com'],
+    },
     plugins: [react(), elevenLabsDevApi(env.VITE_ELEVENLABS_API_KEY), emailDevApi()],
     resolve: {
       // Force all packages to share the same React instance

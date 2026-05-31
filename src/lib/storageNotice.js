@@ -17,7 +17,7 @@
 const STORAGE_KEY = 'dearly_storage_notice_seen'
 
 const MESSAGE =
-  'Heads up — voice notes and images you add are stored and can be opened by anyone you share the link with.'
+  'Heads up: voice notes and images you add are stored and can be opened by anyone you share the link with.'
 
 export function maybeShowStorageNotice(showToast) {
   let seen = null

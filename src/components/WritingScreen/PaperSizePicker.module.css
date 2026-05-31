@@ -63,6 +63,15 @@
   cursor: default;
 }
 
+/* Size the current message can't fit into. Greyed but still clickable so the
+   tap surfaces a "too much message" toast (works for both pill + tab variants). */
+.segDisabled,
+.segDisabled:hover {
+  opacity: 0.38;
+  cursor: not-allowed;
+  background: transparent;
+}
+
 
 /* ══════════════════════════════════════════════════════════════════════════
    TABS VARIANT (mobile)

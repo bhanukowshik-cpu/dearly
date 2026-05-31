@@ -190,7 +190,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
     try {
       const id = await saveNote(noteData)
       if (!id) {
-        setLinkErr('Could not save note — please try again.')
+        setLinkErr('Could not save note. Please try again.')
         return
       }
       const url = generateShareUrl(id, noteData)
@@ -263,7 +263,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
             setTimeout(() => URL.revokeObjectURL(url), 1000)
             setDownloadDone('done')
             trackEvent('png_downloaded', { source: 'share_sheet', platform: 'desktop' })
-            onToast?.('Image downloaded — check your Downloads folder.', 'info')
+            onToast?.('Image downloaded. Check your Downloads folder.', 'info')
             resolve()
           }, 'image/png')
         })
@@ -271,7 +271,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
       downloadTimerRef.current = setTimeout(() => setDownloadDone(false), 4000)
     } catch (e) {
       console.error('PNG export failed', e)
-      setExportErr('Export failed — please try again.')
+      setExportErr('Export failed. Please try again.')
       onToast?.('Could not export image, please try again.', 'error')
     } finally {
       setLoadingPng(false)
@@ -315,7 +315,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
       return
     }
     if (recipients.length > MAX_RECIPIENTS) {
-      setEmailErr(`That's ${recipients.length} addresses — please keep it to ${MAX_RECIPIENTS} or fewer.`)
+      setEmailErr(`That's ${recipients.length} addresses. Please keep it to ${MAX_RECIPIENTS} or fewer.`)
       return
     }
     const invalid = recipients.find(r => !EMAIL_RE.test(r))
@@ -329,7 +329,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
 
     const url = await ensureShareUrl()
     if (!url) {
-      setEmailErr('Could not save the note — please try again.')
+      setEmailErr('Could not save the note. Please try again.')
       setEmailSending(false)
       return
     }
@@ -381,7 +381,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
       if (emailSentTimerRef.current) clearTimeout(emailSentTimerRef.current)
       emailSentTimerRef.current = setTimeout(() => setEmailSentTo(''), 5000)
     } catch (err) {
-      setEmailErr(err?.message || 'Network error — please try again.')
+      setEmailErr(err?.message || 'Network error. Please try again.')
     } finally {
       setEmailSending(false)
     }

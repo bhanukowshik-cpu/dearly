@@ -104,7 +104,7 @@ export default async function handler(req, res) {
   }
   recipients = Array.from(new Set(recipients.map(r => r.toLowerCase())))
   if (recipients.length === 0)                return badRequest(res, 'At least one recipient email is required.')
-  if (recipients.length > MAX_RECIPIENTS)     return badRequest(res, `Too many recipients — keep it to ${MAX_RECIPIENTS} or fewer.`)
+  if (recipients.length > MAX_RECIPIENTS)     return badRequest(res, `Too many recipients. Keep it to ${MAX_RECIPIENTS} or fewer.`)
   const invalid = recipients.find(r => !EMAIL_RE.test(r))
   if (invalid)                                 return badRequest(res, `"${invalid}" is not a valid email.`)
 
