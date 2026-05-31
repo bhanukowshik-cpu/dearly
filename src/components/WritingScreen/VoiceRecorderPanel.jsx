@@ -367,6 +367,19 @@ export default function VoiceRecorderPanel({
         <div className={styles.error}>
           <span className={styles.errorTitle}>Mic isn't available</span>
           <span>{rec.error}</span>
+          {rec.errorDetail && (
+            <span
+              style={{
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                fontSize: 11,
+                opacity: 0.6,
+                wordBreak: 'break-word',
+                marginTop: 2,
+              }}
+            >
+              {rec.errorDetail}
+            </span>
+          )}
           <button className={styles.secondaryBtn} onClick={() => rec.reset()}>
             Try again
           </button>

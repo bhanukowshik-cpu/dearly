@@ -116,6 +116,10 @@ function silenceAppAudio(silent) {
 export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = null } = {}) {
   const [state, setState]         = useState('idle')
   const [error, setError]         = useState(null)
+  // Short technical string surfaced in the error card so a single
+  // screenshot tells us the real failure mode (error name + context)
+  // without needing the ?debug=1 overlay.
+  const [errorDetail, setErrorDetail] = useState(null)
   const [duration, setDuration]   = useState(0)
   const [audioUrl, setAudioUrl]   = useState(null)
   const [blob, setBlob]           = useState(null)
@@ -202,6 +206,7 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
   const start = useCallback(async () => {
     if (state === 'recording' || state === 'requesting') return
     setError(null)
+    setErrorDetail(null)
     setState('requesting')
 
     // Silence in-app audio for the entire recording window — no pen ticks
@@ -262,6 +267,13 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
           ? "Your mic is busy in another app or browser tab. Close it (and any other open tabs), then try again."
           : "Your browser couldn't start recording. Try refreshing the page."
       setError(msg)
+      setErrorDetail(
+        `${name || 'UnknownError'}` +
+        (e?.message ? ` · ${String(e.message).slice(0, 80)}` : '') +
+        ` · iframe:${inIframe ? 'yes' : 'no'}` +
+        ` · secure:${window.isSecureContext ? 'yes' : 'no'}` +
+        (permState ? ` · perm:${permState}` : '')
+      )
       setState('error')
       return
     }
@@ -549,6 +561,7 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
     setWaveformData(null)
     setDuration(0)
     setError(null)
+    setErrorDetail(null)
     setState('idle')
   }, [audioUrl, teardown])
 
@@ -569,7 +582,7 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
   }, [state, audioUrl, blob, duration, waveformData])
 
   return {
-    state, error, duration, audioUrl, blob, waveformData,
+    state, error, errorDetail, duration, audioUrl, blob, waveformData,
     analyserRef,
     isSpeaking,
     start, stop, reset, consume, useOriginal,
