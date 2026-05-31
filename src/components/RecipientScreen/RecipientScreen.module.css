@@ -923,8 +923,12 @@
   justify-content: flex-start;
   gap: 16px;
   padding: 40px 0;
-  scrollbar-width: thin;
+  /* Scroll still works — just hide the bar. The overflowing paper already
+     signals "scroll down" on its own, so the visible track is just noise. */
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* legacy Edge / IE */
 }
+.experienceA4::-webkit-scrollbar { display: none; }  /* Chromium Edge, Chrome, Safari */
 
 /* The fold scene + outer are shrink-to-fit flex/auto items by default (the
    centered single-column layout relies on that). In the A4 grid layout that

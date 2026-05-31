@@ -51,16 +51,21 @@ function makeAmbient() {
       }, durationMs / steps)
     }
 
-    function loadAndPlay(idx, targetVol) {
+    function buildAudio(idx) {
       if (audio) { audio.pause(); audio.onended = null }
       cancelFade()
       audio = new Audio(playlist[idx % playlist.length])
+      audio.preload = 'auto'
       audio.volume = 0
       audio.onended = () => {
         if (!active) return
         trackIdx++
         loadAndPlay(trackIdx, audio.volume)
       }
+    }
+
+    function loadAndPlay(idx, targetVol) {
+      buildAudio(idx)
       if (active) {
         const promise = audio.play()
         if (promise) promise.then(() => fadeTo(targetVol ?? 0.08, 800)).catch(() => {})
@@ -70,10 +75,13 @@ function makeAmbient() {
     loadAndPlay(0)
 
     return {
-      // Returns raw play() Promise so caller can detect autoplay blocks
+      // Returns raw play() Promise so caller can detect autoplay blocks.
+      // Rebuilds the <audio> if it died (network error / ended / was closed)
+      // so a failed first attempt — common on Edge's stricter autoplay — can
+      // still recover on the next user click instead of staying silent.
       play(volume) {
         active = true
-        if (!audio) return Promise.resolve()
+        if (!audio || audio.error || audio.ended || !audio.src) buildAudio(trackIdx)
         const promise = audio.play()
         if (promise) promise.then(() => fadeTo(volume ?? 0.08, 600)).catch(() => {})
         return promise ?? Promise.resolve()
@@ -607,7 +615,10 @@ export default function RecipientScreen({
     const a = ambientRef.current
     if (!a) return
     if (musicOn) { a.pause(); setMusicOn(false) }
-    else         { a.play();  setMusicOn(true)  }
+    // Only flip to "playing" once playback actually starts — otherwise a
+    // blocked/failed play (seen on Edge) would leave the button reading
+    // "pause music" with no sound. On failure it stays "play music" to retry.
+    else { a.play(0.08).then(() => setMusicOn(true)).catch(() => setMusicOn(false)) }
   }, [musicOn])
 
   const downloadTimerRef = useRef(null)
