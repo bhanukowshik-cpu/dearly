@@ -191,12 +191,6 @@ export default function DrawingPanel({
           Clear
         </button>
       </div>
-
-      <p className={styles.hint}>
-        {activeTool === 'pen'         && 'Press harder for thicker, more confident strokes.'}
-        {activeTool === 'highlighter' && 'Sweep across the words you want to remember.'}
-        {activeTool === 'eraser'      && 'Drag across any stroke to remove it.'}
-      </p>
     </div>
   )
 }

@@ -159,10 +159,3 @@
   border-color: rgba(255, 120, 110, 0.32);
   color: #ffd7d2;
 }
-
-.hint {
-  margin: 4px 0 0;
-  font: 400 12px/1.4 'Caveat', cursive;
-  font-size: 15px;
-  color: rgba(255, 255, 255, 0.58);
-}
