@@ -195,11 +195,15 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
     // Restore in-app audio.
     silenceAppAudio(false)
 
-    // Hand the WebKit AudioSession back to the browser so normal playback
-    // (pen/ink sounds, voice preview) isn't pinned to the record category.
+    // Restore the WebKit AudioSession to 'playback' — NOT 'auto'.
+    // penSoundManager deliberately opts into 'playback' on the first user
+    // gesture so the Web Audio pen/ink scratch stays audible on iPad
+    // regardless of the hardware mute switch ('auto'/'ambient' is silenced
+    // by it). Leaving the session in 'auto' after recording is what made
+    // the pen sound go quiet, so hand it back to the mode the app expects.
     try {
       if (navigator.audioSession && 'type' in navigator.audioSession) {
-        navigator.audioSession.type = 'auto'
+        navigator.audioSession.type = 'playback'
       }
     } catch { /* ignore */ }
 
