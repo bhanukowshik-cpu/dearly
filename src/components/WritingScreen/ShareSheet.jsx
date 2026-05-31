@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import styles from './ShareSheet.module.css'
 import { generateShareUrl } from '../../lib/shareUtils'
-import { saveNote } from '../../lib/supabase'
+import { saveNote, uploadNoteMedia } from '../../lib/supabase'
 import { captureCanvas } from '../../lib/captureUtils'
 import { trackEvent, trackCTA, trackFirstSend } from '../../lib/analytics'
 // IconPlane is the same paper-airplane glyph used by the editor's To/From
@@ -186,12 +186,16 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
     if (creatingLink) return
     setCreatingLink(true)
     try {
-      const id = await saveNote(noteData)
+      // Upload voice/media blobs to Storage first — otherwise the saved note
+      // carries blob: URLs that only resolve on the sender's device, and the
+      // link breaks (silent photo + voice "NotSupportedError") elsewhere.
+      const persistable = await uploadNoteMedia(noteData)
+      const id = await saveNote(persistable)
       if (!id) {
         onToast?.('Couldn\'t create your link. Try again, or reach out to hello@dearlynotes.app for help.', 'error')
         return
       }
-      const url = generateShareUrl(id, noteData)
+      const url = generateShareUrl(id, persistable)
       trackCTA('create_link')
       trackEvent('note_link_created', { method: isMobileSheet ? 'mobile' : 'desktop' })
       trackFirstSend('link')
@@ -282,9 +286,12 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
   const ensureShareUrl = useCallback(async () => {
     if (linkUrl) return linkUrl
     try {
-      const id = await saveNote(noteData)
+      // Same blob → Storage upload as handleCreateLink, so emailed links
+      // carry permanent URLs and play/render on the recipient's device.
+      const persistable = await uploadNoteMedia(noteData)
+      const id = await saveNote(persistable)
       if (!id) return null
-      const url = generateShareUrl(id, noteData)
+      const url = generateShareUrl(id, persistable)
       setLinkUrl(url)
       return url
     } catch {

@@ -335,6 +335,16 @@ function installGestureUnlock() {
     // Fire-and-forget; Tone.start() returns a promise but the resume happens
     // synchronously inside the gesture, which is what the browser cares about.
     try { Tone.start() } catch { /* ignore */ }
+    // iOS routes Web Audio through the "ambient" session by default, which the
+    // hardware ring/mute switch silences — so typing/drawing scratch is dead on
+    // iPad even though <audio> voice notes + ambient music (media-playback
+    // session) stay audible. Opting into the 'playback' session makes our Web
+    // Audio behave like media playback: audible regardless of the mute switch,
+    // matching desktop. Safari 16.4+ only; harmless no-op elsewhere. Set inside
+    // the gesture so it sticks on the resumed context.
+    try {
+      if (navigator.audioSession) navigator.audioSession.type = 'playback'
+    } catch { /* unsupported — ignore */ }
     for (const ev of events) document.removeEventListener(ev, onGesture, true)
   }
   for (const ev of events) document.addEventListener(ev, onGesture, true)

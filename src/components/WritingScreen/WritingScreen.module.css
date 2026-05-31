@@ -865,6 +865,13 @@
 .mobilePanel {
   position: absolute;
   inset: 0;
+  /* Cap the content column and centre it. Phones are already narrower than
+     this so they're unaffected, but tablets (iPad now uses this mobile
+     layout) would otherwise stretch every panel — chips, the photo preview,
+     etc. — across the full width and leave controls looking sparse and
+     oversized. 480px lines the column up with the paper above it. */
+  max-width: 480px;
+  margin-inline: auto;
   overflow-y: auto;
   padding: 16px 16px 24px;
   -webkit-overflow-scrolling: touch;

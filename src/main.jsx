@@ -13,7 +13,7 @@ const Root = path === '/launch-film'   ? LaunchFilm
            : App
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <Root />
-  </StrictMode>,
+    <StrictMode>
+        <Root />
+    </StrictMode>
 )

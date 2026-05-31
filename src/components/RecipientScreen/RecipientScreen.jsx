@@ -187,6 +187,76 @@ function buildWordTimes(ttsText, alignment) {
 
 const NOOP = () => {}
 
+// Touch devices (iPad + phones) get the FAB layout: the controls become a
+// stacked column of circular icon buttons, the share prompt becomes a write
+// FAB + thought bubble, and the rating becomes a bottom-center toast. Desktop
+// keeps the horizontal bar / two-column A4 layout. Detected via coarse pointer
+// (covers modern iPads that report as desktop Safari) + maxTouchPoints + UA.
+const IS_TOUCH = typeof window !== 'undefined' && (
+  window.matchMedia?.('(pointer: coarse)')?.matches ||
+  (navigator.maxTouchPoints ?? 0) > 1 ||
+  /iPad|iPhone|iPod|Android/i.test(navigator.userAgent || '')
+)
+
+// ── FAB glyphs (icon-only controls on touch) ─────────────────────────────────
+function SpeakerIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M4 9.5v5h3.2L12 18.5v-13L7.2 9.5H4Z" fill="currentColor"/>
+      <path d="M15.5 9c1.1.9 1.1 5.1 0 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+      <path d="M18 6.5c2.4 2.1 2.4 8.9 0 11" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+    </svg>
+  )
+}
+function StopIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="6.5" y="6.5" width="11" height="11" rx="2.2" fill="currentColor"/>
+    </svg>
+  )
+}
+function MusicIcon({ off = false }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M9 17.5V6.2l9-1.8v9.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+      <ellipse cx="6.8" cy="17.6" rx="2.6" ry="2.1" fill="currentColor"/>
+      <ellipse cx="15.8" cy="15.6" rx="2.6" ry="2.1" fill="currentColor"/>
+      {off && <path d="M3.5 3.5l17 17" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>}
+    </svg>
+  )
+}
+function DownloadIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 3.5v11M8 11l4 4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M4.5 18.5h15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+    </svg>
+  )
+}
+function CheckIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M5 12.5l4.5 4.5L19 7" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+function SpinnerIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" strokeDasharray="5 4"/>
+    </svg>
+  )
+}
+function WriteIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M4 17.2 15.1 6.1l2.8 2.8L6.8 20H4v-2.8Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
+      <path d="M14 7.2 16.8 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+      <path d="M3.5 21h9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
 // ── Hand-drawn star SVG ───────────────────────────────────────────────────────
 function HandStar({ size = 24, filled = false }) {
   const c = filled ? 'rgba(255,210,80,0.92)' : 'currentColor'
@@ -797,8 +867,18 @@ export default function RecipientScreen({
   // the right column as the grid engages. Every other paper size keeps the
   // centered single-column layout.
   const isA4         = paperConfig?.size === 'a4'
-  const a4Letter     = isA4 && isLetterPhase
-  const a4Experience = isA4 && phase !== 'greeting'   // envelope, opening, letter
+  // Desktop-only A4 grid layout. On touch, A4 falls into the centered single
+  // column + FAB layout (see fabMode) so the long sheet scrolls with the page.
+  const a4Letter     = isA4 && isLetterPhase && !IS_TOUCH
+  const a4Experience = isA4 && phase !== 'greeting' && !IS_TOUCH   // envelope, opening, letter
+  // FAB layout: any letter, on touch, once unfolded. Controls + prompts become
+  // floating buttons so the scrollable letter owns the full viewport.
+  const fabMode      = IS_TOUCH && isLetterPhase
+  const feedbackOpen = showRatingToast && !ratingDone
+  // Render the A4 card at full width (overflowing + scrolling) on desktop for
+  // the whole experience, and on touch only once unfolded (the envelope stays
+  // height-capped so the Open CTA is reachable without scrolling).
+  const a4FullCard   = a4Experience || (isA4 && IS_TOUCH && isLetterPhase)
 
   const tryStartMusic = useCallback(() => {
     if (musicOn) return
@@ -994,9 +1074,8 @@ export default function RecipientScreen({
     <AnimatePresence>
       {showToast && (
         <motion.div
-          className={a4Letter
-            ? styles.shareBannerInline
-            : `${styles.shareBanner} ${showRatingToast && !ratingDone ? styles.shareBannerLifted : ''}`}
+          layout
+          className={a4Letter ? styles.shareBannerInline : styles.shareBanner}
           role="status"
           aria-live="polite"
           aria-atomic="true"
@@ -1034,7 +1113,7 @@ export default function RecipientScreen({
 
   return (
     <div
-      className={`${styles.root} ${a4Experience ? styles.rootA4Letter : ''}`}
+      className={`${styles.root} ${a4Experience ? styles.rootA4Letter : ''} ${fabMode ? styles.rootTouch : ''} ${fabMode && isA4 ? styles.rootTouchA4 : ''}`}
       style={isLetterPhase && !a4Letter ? { justifyContent: 'flex-start', paddingTop: 64 } : undefined}
       onPointerDown={tryStartMusic}
     >
@@ -1114,7 +1193,7 @@ export default function RecipientScreen({
         {phase !== 'greeting' && (
           <motion.div
             key="experience"
-            className={`${a4Experience ? styles.experienceA4 : styles.experience} ${isA4 && phase === 'envelope' ? styles.experienceA4Envelope : ''}`}
+            className={`${a4Experience ? styles.experienceA4 : styles.experience} ${a4Experience && phase === 'envelope' ? styles.experienceA4Envelope : ''}`}
             initial={a4Experience ? { opacity: 0, x: -90 } : { opacity: 0, y: 28 }}
             animate={{ opacity: 1, x: 0, y: 0 }}
             exit={{ opacity: 0 }}
@@ -1137,7 +1216,7 @@ export default function RecipientScreen({
               readingMode={readingMode && isLetterPhase}
               revealedWordIdx={revealedWordIdx}
               paperRef={paperRef}
-              freeHeight={a4Experience}
+              freeHeight={a4FullCard}
             />
 
             {/* Open envelope CTA — non-A4 only (A4 renders it in the right
@@ -1146,9 +1225,10 @@ export default function RecipientScreen({
               {phase === 'envelope' && !isA4 && readCtaNode}
             </AnimatePresence>
 
-            {/* Controls — below the letter for non-A4. A4 renders them in
-                the locked right column instead (see rightCol below). */}
-            {!a4Letter && controlsBar}
+            {/* Controls — below the letter for non-A4 desktop. A4 desktop
+                renders them in the locked right column (see rightCol below);
+                touch renders the FAB stack instead (see fab layer below). */}
+            {!a4Letter && !fabMode && controlsBar}
           </motion.div>
         )}
       </AnimatePresence>
@@ -1202,12 +1282,96 @@ export default function RecipientScreen({
         </div>
       )}
 
-      {/* ── Toasts — fixed at the bottom for non-A4. A4 renders them inline
-              in the locked right column above. ──────────────────────────────── */}
-      {!isA4 && (
-        <>
-          <div className={styles.toastStack}>{ratingToastNode}</div>
+      {/* ── Toasts — non-A4. Both live in one bottom-anchored dock so the
+              share banner slides UP when the rating toast appears (the dock's
+              bottom edge is pinned, so adding a second card grows it upward),
+              and slides back DOWN when the rating toast is dismissed. A4
+              renders these inline in the locked right column above. ───────── */}
+      {!isA4 && !fabMode && (
+        <div className={styles.toastDock}>
           {shareBannerNode}
+          {ratingToastNode}
+        </div>
+      )}
+
+      {/* ── Touch FAB layer — stacked circular controls bottom-right, write
+              prompt as a thought-bubble FAB, feedback as a bottom-center
+              toast. Replaces the bar/columns on iPad + phones. ───────────── */}
+      {fabMode && (
+        <>
+          {/* Stacked controls — read aloud / music / download, plus the write
+              prompt FAB that slides in beneath them when the share toast fires.
+              Lifts up while the feedback toast is open so they don't collide. */}
+          <motion.div
+            className={styles.fabStack}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: feedbackOpen ? -196 : 0 }}
+            transition={{ duration: 0.5, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <button
+              className={`${styles.fab} ${isSpeaking ? styles.fabActive : ''} ${isLoadingAudio ? styles.fabLoading : ''}`}
+              onClick={handleReadAloud}
+              disabled={isLoadingAudio}
+              aria-label={isSpeaking ? 'Stop reading' : 'Read note aloud'}
+            >
+              {isLoadingAudio ? <SpinnerIcon /> : isSpeaking ? <StopIcon /> : <SpeakerIcon />}
+            </button>
+            <button
+              className={`${styles.fab} ${musicOn ? styles.fabActive : ''}`}
+              onClick={toggleMusic}
+              aria-label={musicOn ? 'Pause music' : 'Play music'}
+            >
+              <MusicIcon off={!musicOn} />
+            </button>
+            <button
+              className={`${styles.fab} ${downloadDone ? styles.fabActive : ''}`}
+              onClick={handleDownloadPng}
+              disabled={loadingPng}
+              aria-label="Save as image"
+            >
+              {loadingPng ? <SpinnerIcon /> : downloadDone ? <CheckIcon /> : <DownloadIcon />}
+            </button>
+
+            <AnimatePresence>
+              {showToast && (
+                <motion.div
+                  className={styles.fabWriteWrap}
+                  initial={{ opacity: 0, y: 28, scale: 0.85 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 20, scale: 0.85 }}
+                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <motion.div
+                    className={styles.writeBubble}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.22, duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <p className={styles.writeBubbleText}>
+                      {senderName
+                        ? <>You have a lovely smile — pass it on with a note to <strong>{senderName}</strong>.</>
+                        : <>You have a lovely smile — pass it on with a note.</>
+                      }
+                    </p>
+                    <span className={styles.writeBubbleTail} aria-hidden />
+                  </motion.div>
+                  <motion.button
+                    className={`${styles.fab} ${styles.fabWrite}`}
+                    onClick={onWriteOwn}
+                    whileTap={{ scale: 0.92 }}
+                    aria-label="Write a note"
+                  >
+                    <WriteIcon />
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* Feedback — slides in from the bottom centre, dismissable. */}
+          <div className={styles.fabFeedbackDock}>
+            {ratingToastNode}
+          </div>
         </>
       )}
     </div>

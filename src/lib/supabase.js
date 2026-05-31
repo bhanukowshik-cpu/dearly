@@ -225,6 +225,59 @@ export function getVoiceNoteUrl(id) {
 }
 
 /**
+ * Upload every blob-backed voice note and media frame in a note to Supabase
+ * Storage, returning a copy of `noteData` with the blob: URLs swapped for
+ * permanent Storage URLs.
+ *
+ * WHY this exists: voice/media live in the editor as `blob:` URLs, which only
+ * resolve inside the browser session that created them. If we saveNote() with
+ * those URLs, the recipient on any OTHER device gets a dead `blob:` URL — a
+ * silent broken photo and a voice note that fails with
+ * "NotSupportedError — the element has no supported sources." The QR/download
+ * pipeline (captureUtils) already does this swap; the share-link + email paths
+ * must do it too before persisting, or shared links are broken cross-device.
+ *
+ * Idempotent: URLs that aren't `blob:` (already uploaded, or re-sharing a
+ * loaded letter) pass through untouched. Upload failures leave that item's
+ * original URL in place so the rest of the letter still saves.
+ */
+export async function uploadNoteMedia(noteData) {
+  if (!noteData) return noteData
+
+  const voiceNotes  = noteData.voiceNotes  || []
+  const mediaFrames = noteData.mediaFrames || []
+
+  const [uploadedVoice, uploadedFrames] = await Promise.all([
+    Promise.all(voiceNotes.map(async (v) => {
+      if (!v?.audioUrl || !/^blob:/.test(v.audioUrl)) return v
+      try {
+        const blob   = await fetch(v.audioUrl).then(r => r.blob())
+        const upload = await uploadVoiceNote(blob)
+        if (!upload) return v
+        return { ...v, audioUrl: upload.url, storagePath: upload.id }
+      } catch (err) {
+        console.warn('[dearly] uploadNoteMedia: voice upload failed for', v.id, err)
+        return v
+      }
+    })),
+    Promise.all(mediaFrames.map(async (f) => {
+      if (!f?.mediaUrl || !/^blob:/.test(f.mediaUrl)) return f
+      try {
+        const blob   = await fetch(f.mediaUrl).then(r => r.blob())
+        const upload = await uploadMediaFrame(blob)
+        if (!upload) return f
+        return { ...f, mediaUrl: upload.url, storagePath: upload.id }
+      } catch (err) {
+        console.warn('[dearly] uploadNoteMedia: media upload failed for', f.id, err)
+        return f
+      }
+    })),
+  ])
+
+  return { ...noteData, voiceNotes: uploadedVoice, mediaFrames: uploadedFrames }
+}
+
+/**
  * Upload a media-frame image to Supabase Storage so it survives the
  * share-link jump. Without this, the saved letter's mediaFrames
  * contain `blob:` URLs that only exist on the sender's browser —
