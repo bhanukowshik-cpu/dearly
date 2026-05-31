@@ -478,6 +478,12 @@ async function inlineBlobImages(paperEl) {
       })
       originals.push({ img, prevSrc: src })
       img.setAttribute('src', dataUrl)
+      // Force the swapped data URL to fully decode before capture. Without
+      // this, Safari may clone the <img> while it's still re-decoding the
+      // new src and paint an empty box where the photo should be.
+      if (typeof img.decode === 'function') {
+        await img.decode().catch(() => {})
+      }
     } catch (err) {
       console.warn('[dearly] inline blob image failed', err)
     }
@@ -565,6 +571,32 @@ async function buildFontEmbedCSS() {
   }
 }
 
+/* iOS detection — covers iPhone/iPod, classic iPad UA, and iPadOS 13+
+   (which reports as "Macintosh" but exposes touch points). */
+function isIOSDevice() {
+  const ua = navigator.userAgent || ''
+  return /iPad|iPhone|iPod/.test(ua) ||
+         (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1)
+}
+
+/**
+ * Clamp the html-to-image pixelRatio so the resulting canvas stays within
+ * iOS Safari's limits (~16.7M px² area, 4096px per side). Non-iOS callers
+ * keep their requested ratio. Returns at least 1 so output never degrades
+ * below CSS resolution.
+ */
+function clampPixelRatioForIOS(el, requested) {
+  if (!isIOSDevice()) return requested
+  const rect = el.getBoundingClientRect?.()
+  const w = Math.max(1, Math.round(rect?.width  || el.offsetWidth  || 1))
+  const h = Math.max(1, Math.round(rect?.height || el.offsetHeight || 1))
+  const MAX_AREA = 12_000_000  // < iOS ~16.7M cap, with headroom for memory
+  const MAX_SIDE = 4096        // iOS hard per-dimension limit
+  const byArea = Math.sqrt(MAX_AREA / (w * h))
+  const bySide = Math.min(MAX_SIDE / w, MAX_SIDE / h)
+  return Math.max(1, Math.min(requested, byArea, bySide))
+}
+
 /**
  * captureCanvas — captures the live paper DOM as an HTMLCanvasElement.
  *
@@ -633,8 +665,17 @@ export async function captureCanvas(refOrElement, { noteData, swapVoiceForBarcod
       restoreVoiceNotes = swapVoiceNotesForBarcodes(paperEl, barcodeByVoiceId)
     }
 
+    // iOS Safari silently returns a BLANK canvas (so toDataURL/toBlob yield
+    // an empty image — "the download disappears") once the output bitmap
+    // crosses its hard canvas limits: ~16.7M px² total area and 4096px per
+    // side. At pixelRatio 3 a full A4 paper on a large iPad blows past both,
+    // which is why downloads worked on desktop but vanished on iPad. Clamp
+    // the effective ratio on iOS so the output always lands inside the cap
+    // (with margin) and never exceeds 4096 on either edge.
+    const safeRatio = clampPixelRatioForIOS(paperEl, pixelRatio)
+
     const opts = {
-      pixelRatio,
+      pixelRatio: safeRatio,
       backgroundColor: bgColor,
       includeStyleProperties: CAPTURE_STYLE_PROPS,
       ...(fontEmbedCSS ? { fontEmbedCSS } : {}),

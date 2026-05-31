@@ -229,6 +229,18 @@
   border-color: rgba(255, 255, 255, 0.38);
 }
 
+/* iPad: frameless overflow control — just the three dots, no pill chrome,
+   so it sits unobtrusively beside the Preview button. */
+.helpBtnBare {
+  width: 30px;
+  background: none;
+  border-color: transparent;
+}
+.helpBtnBare:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: transparent;
+}
+
 .helpMenu {
   position: absolute;
   top: calc(100% + 8px);
@@ -922,6 +934,43 @@
 }
 
 .mobilePanelAreaHidden {
+  display: none;
+}
+
+/* ── Phone: floating message box above the keyboard ──────────────────────────
+   When the message tool is active and the on-screen keyboard is up
+   (`.dearly-kb-open` is toggled on <html> by the visualViewport tracker),
+   lift the input box out of the column and pin it just above the keyboard via
+   --kb-inset. It overlays the bottom of the letter canvas, which stays visible
+   above — so the writer watches their words land on the page as they type,
+   instead of the box being buried behind the keyboard. Phones only (iPad has
+   its own paper-as-input flow). */
+:global(.dearly-kb-open) .mobilePanelFloatable {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--kb-inset, 0px);
+  top: auto;
+  height: auto;
+  max-height: min(48vh, 360px);
+  z-index: 50;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(8, 14, 28, 0.98);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.45);
+}
+/* The inner panel is normally absolute-filled; when floating it must flow
+   inside the auto-height fixed parent instead. */
+:global(.dearly-kb-open) .mobilePanelFloatable .mobilePanel {
+  position: relative;
+  inset: auto;
+  max-height: min(48vh, 360px);
+}
+/* With the panel lifted out of the flex column, the bottom tab bar would
+   otherwise reflow up into the middle of the screen. Hide it while writing
+   with the keyboard open — the tools aren't needed mid-text-entry. */
+:global(.dearly-kb-open) .mobileStageWriting .mobileTabBar {
   display: none;
 }
 

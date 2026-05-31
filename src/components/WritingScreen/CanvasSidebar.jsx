@@ -76,7 +76,7 @@ function Toggle({ icon, label, active, onClick }) {
    On mobile + iPad, paper size is surfaced via the floating
    PaperSizePicker pill above the paper instead.
    ───────────────────────────────────────────────────────────────────────── */
-export default function CanvasSidebar({ paperConfig, onChangePaper, disabledSizes = [], onBlocked }) {
+export default function CanvasSidebar({ paperConfig, onChangePaper, disabledSizes = [], onBlocked, hideSize = false }) {
   const { size = 'postcard', type, color, showRuler, showZigzag } = paperConfig
 
   function set(patch) { onChangePaper({ ...paperConfig, ...patch }) }
@@ -94,7 +94,9 @@ export default function CanvasSidebar({ paperConfig, onChangePaper, disabledSize
 
       {/* ── Paper size ─────────────────────────────────────────────────
          Desktop control. On mobile/iPad this is surfaced via the
-         PaperSizePicker tabs nested on the paper's top edge. */}
+         PaperSizePicker tabs nested on the paper's top edge, so the
+         section is hidden here (hideSize) to avoid the duplicate. */}
+      {!hideSize && (
       <section className={styles.section}>
         <h2 className={styles.heading}>Paper size</h2>
         <div className={styles.sizeCol}>
@@ -117,6 +119,7 @@ export default function CanvasSidebar({ paperConfig, onChangePaper, disabledSize
           })}
         </div>
       </section>
+      )}
 
       {/* ── Paper style (type + color swatches) ────────────────────────── */}
       <section className={styles.section}>

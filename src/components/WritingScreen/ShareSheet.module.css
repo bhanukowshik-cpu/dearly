@@ -263,6 +263,32 @@
   cursor: not-allowed;
 }
 
+/* Auto-mint loading state — shown while the note is uploaded + saved and the
+   share URL is being generated after the section is expanded. */
+.linkGenerating {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 40px;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: 'Caveat', cursive;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.linkSpinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-top-color: rgba(255, 255, 255, 0.85);
+  animation: linkSpin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes linkSpin { to { transform: rotate(360deg); } }
+
 /* ── Shared error text ─────────────────────────────────────────────────── */
 
 .errorText {

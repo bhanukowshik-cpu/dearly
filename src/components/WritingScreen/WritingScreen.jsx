@@ -369,6 +369,16 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
     const vv = window.visualViewport
     function update() {
       document.documentElement.style.setProperty('--vv-height', `${vv.height}px`)
+      // Keyboard inset = portion of the layout viewport the on-screen keyboard
+      // covers. Drives the floating message box on phones (see --kb-inset usage
+      // in the CSS): when the keyboard is up, the input is pinned just above it
+      // and the letter canvas stays visible above, so the writer sees both what
+      // they type and how it lands on the page. Class toggle (not React state)
+      // keeps this off the render path so the contenteditable never loses focus
+      // or keystrokes mid-typing — same reasoning as --vv-height above.
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+      document.documentElement.style.setProperty('--kb-inset', `${inset}px`)
+      document.documentElement.classList.toggle('dearly-kb-open', inset > 120)
     }
     vv.addEventListener('resize', update)
     vv.addEventListener('scroll', update)
@@ -377,6 +387,8 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       vv.removeEventListener('resize', update)
       vv.removeEventListener('scroll', update)
       document.documentElement.style.removeProperty('--vv-height')
+      document.documentElement.style.removeProperty('--kb-inset')
+      document.documentElement.classList.remove('dearly-kb-open')
     }
   }, [])
 
@@ -1669,6 +1681,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
         onChangePaper={setPaperConfig}
         disabledSizes={disabledSizes}
         onBlocked={handleBlockedSize}
+        hideSize
       />
       <div className={styles.sidebarDivider} />
       {stickerPanel}
@@ -1717,7 +1730,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
       <header className={styles.topBar}>
         <div className={styles.topBarLeft}>
-          {isMobile ? (
+          {isMobile && !isIpadDevice ? (
             <div className={styles.previewBtnWrap}>
               <motion.button
                 className={styles.previewNavBtn}
@@ -1745,10 +1758,12 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
               </AnimatePresence>
             </div>
           ) : (
+            // iPad + desktop show the wordmark. The separator + tagline are
+            // desktop-only (hidden on iPad, which keeps just the logo).
             <>
               <span className={styles.topBarBrand}>dearly</span>
-              <span className={styles.topBarSep}>|</span>
-              <span className={styles.topBarTagline}>A product by the thoughtful designer.</span>
+              {!isMobile && <span className={styles.topBarSep}>|</span>}
+              {!isMobile && <span className={styles.topBarTagline}>A product by the thoughtful designer.</span>}
             </>
           )}
         </div>
@@ -1846,7 +1861,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
           {(isMobile || isIpad) && (
           <div className={styles.helpWrap} ref={helpWrapRef}>
             <motion.button
-              className={styles.helpBtn}
+              className={`${styles.helpBtn} ${isIpadDevice ? styles.helpBtnBare : ''}`}
               onClick={() => setShowHelpMenu(v => !v)}
               aria-label="Support and legal"
               aria-haspopup="menu"
@@ -1906,6 +1921,37 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
             </AnimatePresence>
           </div>
           )}
+          {/* iPad: Preview sits in the right cluster — between the (frameless)
+              overflow dots and the Share button — so the three controls read
+              as one group instead of Preview being marooned on the far left. */}
+          {isIpadDevice && (
+            <div className={styles.previewBtnWrap}>
+              <motion.button
+                className={styles.previewNavBtn}
+                onClick={handlePreview}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ duration: 0.1 }}
+              >
+                <IconEye size={13} />
+                <span>{recipientName ? `${recipientName.length > 14 ? recipientName.slice(0, 14) + '…' : recipientName}'s view` : "Preview"}</span>
+              </motion.button>
+              <AnimatePresence>
+                {nudgeOpen && (
+                  <PreviewNudge
+                    key="nudge-ipad"
+                    side="right"
+                    senderName={senderName}
+                    recipientName={recipientName}
+                    onSenderChange={setSenderName}
+                    onRecipientChange={setRecipient}
+                    onPreviewAnyway={handlePreviewAnyway}
+                    onClose={() => setNudgeOpen(false)}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+          )}
           <div className={styles.shareWrap} ref={shareWrapRef}>
             <motion.button
               className={`${styles.shareNavBtn} ${isEmpty ? styles.shareNavBtnDisabled : ''}`}
@@ -1962,7 +2008,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       {isMobile && (
         <>
 
-          <div className={`${styles.mobileStage} ${isIpad ? styles.mobileStageIpad : ''}`}>
+          <div className={`${styles.mobileStage} ${isIpad ? styles.mobileStageIpad : ''} ${!isIpadDevice && activeTool === 'text' ? styles.mobileStageWriting : ''}`}>
 
             {/* Zoom controls — iPad-only, top-right of the writing surface */}
             {isIpad && activeTool === 'text' && (
@@ -2010,7 +2056,7 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
             {/* Animated tool panel — mirrors desktop EditorToolbar tools.
                 On iPad in Write mode the panel area is suppressed since the
                 paper itself is the input surface (Scribble + tap-to-type). */}
-            <div className={`${styles.mobilePanelArea} ${isIpad && activeTool === 'text' ? styles.mobilePanelAreaHidden : ''}`}>
+            <div className={`${styles.mobilePanelArea} ${isIpad && activeTool === 'text' ? styles.mobilePanelAreaHidden : ''} ${!isIpadDevice && activeTool === 'text' ? styles.mobilePanelFloatable : ''}`}>
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={activeTool ?? 'none'}

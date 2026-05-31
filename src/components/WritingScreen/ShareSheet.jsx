@@ -299,6 +299,32 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
     }
   }, [linkUrl, noteData])
 
+  // Expanding the "Share link" section mints the link right away (with a
+  // spinner) instead of making the user tap a second "Create link" button.
+  // Silent mint via ensureShareUrl — no native share sheet popping on open;
+  // the link row + Copy appears when ready. If it fails, the section falls
+  // back to the manual "Create a shareable link" button (which can retry).
+  useEffect(() => {
+    if (!linkOpen) return
+    if (linkUrl || creatingLink) return
+    let cancelled = false
+    ;(async () => {
+      setCreatingLink(true)
+      const url = await ensureShareUrl()
+      if (cancelled) return
+      if (url) {
+        trackCTA('create_link')
+        trackEvent('note_link_created', { method: isMobileSheet ? 'mobile' : 'desktop' })
+        trackFirstSend('link')
+      } else {
+        onToast?.('Couldn\'t create your link. Try again, or reach out to hello@dearlynotes.app for help.', 'error')
+      }
+      setCreatingLink(false)
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkOpen])
+
   const EMAIL_RE       = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   const MAX_RECIPIENTS = 5
 
@@ -523,16 +549,7 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
                 transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                 style={{ overflow: 'hidden' }}
               >
-                {!linkUrl ? (
-                  <button
-                    type="button"
-                    className={styles.linkCreateBtn}
-                    onClick={handleCreateLink}
-                    disabled={creatingLink}
-                  >
-                    {creatingLink ? 'Creating link…' : 'Create a shareable link'}
-                  </button>
-                ) : (
+                {linkUrl ? (
                   <div className={styles.linkRow}>
                     <input
                       className={styles.linkInput}
@@ -551,6 +568,19 @@ export default function ShareSheet({ noteData, paperRef, onClose, onToast, isMob
                       <span>{copied ? 'Copied' : 'Copy'}</span>
                     </button>
                   </div>
+                ) : creatingLink ? (
+                  <div className={styles.linkGenerating}>
+                    <span className={styles.linkSpinner} aria-hidden />
+                    <span>Generating your link…</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.linkCreateBtn}
+                    onClick={handleCreateLink}
+                  >
+                    Create a shareable link
+                  </button>
                 )}
               </motion.div>
             )}

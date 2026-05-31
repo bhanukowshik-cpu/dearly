@@ -8,6 +8,11 @@ import { captureCanvas } from '../../lib/captureUtils'
 import { submitFeedback } from '../../lib/supabase'
 import { trackEvent, trackTiming, trackCTA, clarityTag } from '../../lib/analytics'
 import styles from './RecipientScreen.module.css'
+import speakerEnabledUrl  from '../../assets/icons/fab/speaker-enabled.svg'
+import speakerDisabledUrl from '../../assets/icons/fab/speaker-disabled.svg'
+import musicUrl           from '../../assets/icons/fab/music.svg'
+import downloadUrl        from '../../assets/icons/fab/download.svg'
+import writeUrl           from '../../assets/icons/fab/write.svg'
 
 // ── Ambient audio ──────────────────────────────────────────────────────────────
 // Served same-origin from /public/music/ — was Supabase Storage, which
@@ -199,39 +204,43 @@ const IS_TOUCH = typeof window !== 'undefined' && (
 )
 
 // ── FAB glyphs (icon-only controls on touch) ─────────────────────────────────
-function SpeakerIcon() {
+// The speaker / music / download / write glyphs use custom artwork (512×512
+// solid-fill SVGs) recolored to the FAB's text color via CSS masking, so a
+// single asset works on both the dark idle FAB (white ink) and the cream
+// active FAB (dark ink). Stop / Check / Spinner stay inline since there's no
+// bespoke artwork for them.
+function MaskIcon({ src, size = 22 }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M4 9.5v5h3.2L12 18.5v-13L7.2 9.5H4Z" fill="currentColor"/>
-      <path d="M15.5 9c1.1.9 1.1 5.1 0 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-      <path d="M18 6.5c2.4 2.1 2.4 8.9 0 11" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-    </svg>
+    <span
+      className={styles.fabMaskIcon}
+      style={{
+        width: size,
+        height: size,
+        WebkitMaskImage: `url(${src})`,
+        maskImage: `url(${src})`,
+      }}
+      aria-hidden
+    />
   )
 }
+// Icon reflects current state: muted speaker when idle, active speaker while
+// the letter is being read aloud. (Render site picks which one to show.)
+function SpeakerIcon() {
+  return <MaskIcon src={speakerDisabledUrl} />
+}
 function StopIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="6.5" y="6.5" width="11" height="11" rx="2.2" fill="currentColor"/>
-    </svg>
-  )
+  return <MaskIcon src={speakerEnabledUrl} />
 }
 function MusicIcon({ off = false }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M9 17.5V6.2l9-1.8v9.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
-      <ellipse cx="6.8" cy="17.6" rx="2.6" ry="2.1" fill="currentColor"/>
-      <ellipse cx="15.8" cy="15.6" rx="2.6" ry="2.1" fill="currentColor"/>
-      {off && <path d="M3.5 3.5l17 17" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>}
-    </svg>
+    <span className={styles.fabMaskWrap}>
+      <MaskIcon src={musicUrl} />
+      {off && <span className={styles.fabMaskCross} aria-hidden />}
+    </span>
   )
 }
 function DownloadIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M12 3.5v11M8 11l4 4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M4.5 18.5h15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-    </svg>
-  )
+  return <MaskIcon src={downloadUrl} />
 }
 function CheckIcon() {
   return (
@@ -248,13 +257,7 @@ function SpinnerIcon() {
   )
 }
 function WriteIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M4 17.2 15.1 6.1l2.8 2.8L6.8 20H4v-2.8Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
-      <path d="M14 7.2 16.8 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-      <path d="M3.5 21h9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-    </svg>
-  )
+  return <MaskIcon src={writeUrl} />
 }
 
 // ── Hand-drawn star SVG ───────────────────────────────────────────────────────
