@@ -214,6 +214,8 @@ export default function App() {
               paperConfig={previewData.paperConfig}
               stickers={previewData.stickers}
               textElements={previewData.textElements}
+              voiceNotes={previewData.voiceNotes}
+              mediaFrames={previewData.mediaFrames}
               showRecipient={previewData.showRecipient}
               textSize={previewData.textSize}
               onWriteOwn={() => {
