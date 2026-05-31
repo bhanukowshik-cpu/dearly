@@ -125,11 +125,18 @@ export function buildEmailHtml({
   //   1. AI previewHook (Short & Intriguing) when present
   //   2. Letter-themed gentle template fallback
   const trimmedPreviewHook = String(previewHook || '').trim().replace(/^["']+|["']+$/g, '')
+  // Fallback teaser deliberately does NOT restate "X wrote a note" — the
+  // subject line already says who it's from, and the body H2 says it again.
+  // Three echoes of the same sentence is what made the Gmail inbox row read
+  // as repetitive. Instead the preheader teases the *act of opening*, so the
+  // inbox ladder reads: who it's from (subject) → come unfold it (preheader)
+  // → the greeting (body). It's also long enough (~70 chars) to fill the
+  // snippet slot on its own so the body text doesn't leak in beside it.
   const preheader = trimmedPreviewHook
     ? trimmedPreviewHook
     : recipFirst
-      ? `A small note from ${subj}, sealed just for ${esc(recipFirst)}.`
-      : `A small note from ${subj}, sealed just for you.`
+      ? `Sealed and waiting for you, ${esc(recipFirst)} — unfold it whenever you have a quiet moment.`
+      : `Sealed and waiting inside — unfold it whenever you have a quiet moment.`
 
   const bgUrl       = `${assetOrigin}/bg.jpg`
   const envelopeUrl = `${assetOrigin}/envelope.png`
@@ -140,8 +147,19 @@ export function buildEmailHtml({
   const envFrom = `from ${esc(senderFirst || 'someone')}`
   const envTo   = `to ${esc(recipFirst   || 'you')}`
 
-  // ── Font stack: Caveat only ───────────────────────────────────────────
-  const FF = `'Caveat', 'Brush Script MT', cursive`
+  // ── Font stack ────────────────────────────────────────────────────────
+  // Caveat is the target, loaded via @font-face below (works in Apple Mail
+  // and any client that respects embedded web fonts). Gmail/Outlook/Yahoo
+  // strip web fonts entirely and fall back — so the chain after Caveat is
+  // every *handwritten* font that actually ships preinstalled on each OS:
+  //   - 'Segoe Script'    → Windows (Outlook desktop)
+  //   - 'Bradley Hand'    → macOS / iOS (belt-and-suspenders w/ Apple Mail)
+  //   - 'Snell Roundhand' → macOS formal script fallback
+  //   - 'Brush Script MT' → legacy Windows/Office
+  //   - cursive           → generic last resort
+  // The point: even when Caveat can't load, the email still reads as
+  // handwriting on every platform instead of dropping to a system serif.
+  const FF = `'Caveat', 'Segoe Script', 'Bradley Hand', 'Snell Roundhand', 'Brush Script MT', cursive`
 
   // ── Ink palette ───────────────────────────────────────────────────────
   // Dialed back from the previous high-contrast Caveat — the H1 and H2
@@ -170,6 +188,19 @@ export function buildEmailHtml({
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <title>${esc(senderFirst || 'Someone')} wrote you a note</title>
 <style>
+  /* Embed Caveat directly (not just via <link>) so clients that honor
+     web fonts render it even when they ignore <link rel=stylesheet>.
+     Points at Google's hosted woff2 — same files the <link> would pull.
+     Gmail/Outlook strip @font-face too, but this widens Apple Mail and
+     other webkit-mail coverage. The four weights match the <link>. */
+  @font-face {
+    font-family: 'Caveat';
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('https://fonts.gstatic.com/s/caveat/v18/WnznHAc5bAfYB2QRah7pcpNvOx-pjfJ9SIKjYBxPigs.woff2') format('woff2');
+  }
+
   /* Mobile-first base sizes — tuned so the whole email fits inside a
      single iPhone viewport (~720px usable). H1 + H2 are smaller and
      lighter than before; the teaser card is the visual anchor, not
@@ -287,13 +318,18 @@ export function buildEmailHtml({
        recipient opens the message. The combination of display:none,
        visibility/opacity 0, and the zero font-size/max-height ensures
        it never renders inside the body itself but still gets harvested
-       as preview by every major client. The trailing &nbsp;&zwnj; chain
-       pushes generic auto-fallback text (like the H1 leaking through)
-       off the end of the preview slot. -->
+       as preview by every major client. The trailing zero-width-joiner
+       run pushes generic auto-fallback text (like the H1 leaking through)
+       off the end of the preview slot.
+
+       IMPORTANT: the filler characters MUST NOT be separated by spaces.
+       An earlier version wrote "&#847; &#847; ..." with literal spaces
+       between them; the &#847; (combining grapheme joiner) is invisible
+       but the spaces were not — Gmail rendered them as a large blank gap
+       in the inbox snippet. The run below is unbroken (no spaces, no
+       newlines inside it) so it stays genuinely invisible. -->
   <div style="display:none;visibility:hidden;opacity:0;color:transparent;height:0;max-height:0;width:0;max-width:0;overflow:hidden;font-size:1px;line-height:1px;mso-hide:all;">
-    ${esc(preheader)}
-    &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847;
-    &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847;
+    ${esc(preheader)}&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;
   </div>
 
   <!-- Outer wrapper carries the atmospheric backdrop.

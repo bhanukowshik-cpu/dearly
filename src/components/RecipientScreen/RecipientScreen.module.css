@@ -153,6 +153,12 @@
   container-name: foldcard;
 }
 
+/* Folded (envelope) state — no drop shadow behind the card. The shadow only
+   reads once the letter is open and lifted off the page. */
+.foldCard.foldCardFlat {
+  box-shadow: none;
+}
+
 .foldPaper {
   width: 100%;
   display: block;
@@ -685,10 +691,18 @@
   user-select: none;
 }
 
+/* Prompt + close share one row: prompt hugs the left, ✕ pinned right,
+   both vertically centered with auto space between (matches authoring header). */
+.toastHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+}
+
 .toastClose {
-  position: absolute;
-  top: 9px;
-  right: 11px;
+  flex-shrink: 0;
   background: none;
   border: none;
   color: rgba(255, 255, 255, 0.22);
@@ -696,6 +710,7 @@
   line-height: 1;
   cursor: pointer;
   padding: 4px 6px;
+  margin: -4px -4px -4px 0;
   border-radius: 6px;
   transition: color 0.14s ease;
 }
@@ -757,23 +772,15 @@
   color: rgba(255, 255, 255, 0.28);
 }
 
-.feedbackSubmit {
-  align-self: flex-end;
-  background: none;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 50px;
-  color: rgba(255, 255, 255, 0.70);
-  font-family: 'Caveat', cursive;
-  font-size: 16px;
-  font-weight: 600;
-  padding: 5px 14px;
-  cursor: pointer;
-  transition: border-color 0.14s ease, color 0.14s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.feedbackSubmit:hover {
-  border-color: rgba(255, 255, 255, 0.50);
-  color: rgba(255, 255, 255, 0.95);
+/* Score-dependent follow-up: textarea + Send. Height-animates open beneath the
+   (still-visible) star row so the rating stays re-pickable. align-items
+   flex-start keeps the Send CTA on the left, matching the share banner. */
+.feedbackFollowup {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .toastCtaCompact {
@@ -781,7 +788,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 160px;
+  width: 100%;
   height: 38px;
   background: none;
   border: none;
@@ -853,6 +860,215 @@
   .listenHint {
     font-size: 15px;
     padding: 9px 18px;
+  }
+}
+
+/* ── A4 two-column reading layout ────────────────────────────────────────── */
+/* Applied only to A4 letters once unfolded (paperConfig.size==='a4' &&
+   phase==='letter'). Letter sits in a scrollable left column; controls and
+   toasts are locked in the right column. Collapses to a stacked single
+   column below 900px. All other paper sizes are unaffected. */
+
+.rootA4Letter {
+  display: grid;
+  /* Letter column (left) + content column (right). The group is centered as a
+     whole (justify-content: center) so the letter sits just left of the page
+     centre rather than hard against the edge. */
+  grid-template-columns: minmax(0, 660px) minmax(0, 380px);
+  justify-content: center;
+  gap: 56px;
+  align-items: stretch;
+  height: 100vh;
+  padding: 0 40px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Explicit placement: letter on the left, greeting/controls on the right.
+   greetingRightCol and rightCol never coexist (envelope vs letter phase), so
+   they share column 2. */
+.rootA4Letter .experienceA4 { grid-column: 1; grid-row: 1; }
+.rootA4Letter .greetingRightCol,
+.rootA4Letter .rightCol      { grid-column: 2; grid-row: 1; }
+
+/* Greeting + Open CTA in the right column, vertically centred. */
+.greetingRightCol {
+  align-self: center;
+  justify-content: center;
+  margin-bottom: 0;
+}
+
+/* Folded envelope phase — render the card at its natural full size and let it
+   overflow off the bottom of the viewport (top-aligned), rather than scaling it
+   down to fit. overflow:visible so the -2deg tilt + idle float aren't clipped on
+   the sides; the bottom overflow is clipped by .rootA4Letter at the viewport.
+   Double class so it wins over the base .experienceA4 regardless of order. */
+.experienceA4.experienceA4Envelope {
+  justify-content: flex-start;
+  overflow: visible;
+}
+
+/* Left column — the letter. Scrolls independently of the locked right
+   column when the A4 page is taller than the viewport. */
+.experienceA4 {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  padding: 40px 0;
+  scrollbar-width: thin;
+}
+
+/* The fold scene + outer are shrink-to-fit flex/auto items by default (the
+   centered single-column layout relies on that). In the A4 grid layout that
+   collapses the foldCard's percentage width to ~0, so pin them to the full
+   column width — the card then resolves against a definite containing block. */
+.experienceA4 .foldScene,
+.experienceA4 .foldOuter {
+  width: 100%;
+}
+
+/* Drop the viewport-height cap so the A4 renders at full column width and the
+   left column scrolls instead of shrinking the letter. Higher specificity
+   (.foldCard.foldCardFree) so it wins over the base width + the 480px rule. */
+.foldCard.foldCardFree {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+/* Soften the letter's shadow in the A4 layout. The default warm-brown drop
+   shadow (and the letterGlow animation it settles into) reads as a hard dark
+   box around the sheet against the bright sky. Replace it with a soft, diffuse
+   cool lift and disable the glow so it doesn't override this. */
+.rootA4Letter .foldCard:not(.foldCardFlat) {
+  animation: none;
+  box-shadow:
+    0 10px 30px rgba(15, 23, 42, 0.10),
+    0 30px 64px rgba(15, 23, 42, 0.08);
+}
+
+/* Right-column glass cards — dark tinted glass (same surface as the feedback
+   toast / editor status pill) so the white text reads clearly over the bright
+   sky instead of washing out against a translucent-white card. */
+.rootA4Letter .shareBannerInline,
+.rootA4Letter .toast {
+  background: rgba(22, 24, 30, 0.82);
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.96);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Right column — locked (does not scroll). Controls on top, toasts below. */
+.rightCol {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 18px;
+  padding: 48px 0;
+  overflow: hidden;
+}
+.rightCol > * {
+  width: 100%;
+  max-width: 380px;
+}
+
+/* Stacked controls (vertical) for the right column */
+.controlsStacked {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+.controlsStacked .downloadBtn {
+  gap: 8px;
+  padding: 0 14px 0 8px;
+}
+.downloadLabel {
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Inline toast stack in the right column */
+.rightToasts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+/* In the stacked inline banner, let the CTA wrapper span the full column so
+   the "Write a note" button fills the toast width (matches the rating Send). */
+.shareBannerInline .toastRight {
+  width: 100%;
+}
+
+/* Share banner rendered inline (static) in the right column — stacks its
+   text above the "Write a note" button since the column is narrow. */
+.shareBannerInline {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1.5px solid rgba(255, 255, 255, 0.11);
+  border-radius: 18px 20px 17px 19px / 19px 17px 20px 18px;
+  box-shadow:
+    0 2px 8px  rgba(0, 0, 0, 0.14),
+    0 12px 32px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+}
+
+/* Collapse to a single stacked column below 900px: letter on top (allowed to
+   overflow and scroll with the page), then controls + toasts below it. */
+@media (max-width: 899px) {
+  .rootA4Letter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+    padding: 24px 16px 60px;
+  }
+  .experienceA4 {
+    height: auto;
+    overflow: visible;
+    padding: 8px 0;
+  }
+  .foldCard.foldCardFree {
+    width: 100%;
+  }
+  .rightCol {
+    height: auto;
+    overflow: visible;
+    width: 100%;
+    max-width: 520px;
+    align-items: stretch;
+    padding: 20px 0 0;
+  }
+  .rightCol > * {
+    max-width: 100%;
+  }
+  .controlsStacked {
+    align-items: center;
   }
 }
 

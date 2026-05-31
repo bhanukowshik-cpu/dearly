@@ -206,11 +206,6 @@ const IS_DEV = import.meta.env.DEV
 export default function WritingScreen({ onBack = () => {}, onShare = null, onPreview = null }) {
   const [recipient,          setRecipient]          = useState('')
   const [message,            setMessage]            = useState('')
-  // Ghost-caret mirror: where the editor's caret sits, projected onto the
-  // paper. offset = visible-codepoint count before the caret; active only
-  // while the message editor is focused.
-  const [caretOffset,        setCaretOffset]        = useState(null)
-  const [caretActive,        setCaretActive]        = useState(false)
   const [senderName,         setSenderName]         = useState('')
   // Recipient name is metadata only — never rendered onto the paper canvas.
   const [showRecipient,      setShowRecipient]      = useState(false)
@@ -321,11 +316,6 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
      pen-up event by a fraction of a second. */
   const [strokeActive,       setStrokeActive]       = useState(false)
   const strokeReleaseTimerRef = useRef(null)
-
-  const handleCaretChange = useCallback(({ offset, focused }) => {
-    setCaretOffset(offset)
-    setCaretActive(!!focused)
-  }, [])
 
   const handleStrokeActiveChange = useCallback((active) => {
     if (active) {
@@ -1460,8 +1450,6 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       onRotateVoiceNote={rotateVoiceNote}
       onBgClick={handleCanvasClick}
       textSize={textSize}
-      caretOffset={caretOffset}
-      caretActive={caretActive}
       strokes={strokes}
       drawingTool={drawingTool}
       /* iPad: outside of the Draw tab the pen still draws, but only pen
@@ -1502,7 +1490,6 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
       textSize={textSize}
       onTextSizeChange={setTextSize}
       editorResyncKey={editorResyncKey}
-      onCaretChange={handleCaretChange}
     />
   )
 

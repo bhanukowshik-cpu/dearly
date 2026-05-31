@@ -15,8 +15,11 @@ export function decodeNote(encoded) {
   }
 }
 
+const DEARLY_PUBLIC_URL =
+  (import.meta.env.VITE_PUBLIC_URL || 'https://dearlynotes.app').replace(/\/$/, '')
+
 export function generateShareUrl(id, noteData) {
-  const base = new URL(window.location.origin)
+  const base = new URL(DEARLY_PUBLIC_URL)
   base.pathname = '/api/share'
   base.searchParams.set('id', id)
   base.searchParams.set('r', noteData.recipientName || '')

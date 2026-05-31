@@ -578,7 +578,7 @@ function RecipientBox({ value, onChange, onHide, shakeKey }) {
 /* ─────────────────────────────────────────────────────────────────────────
    MessageBox — contenteditable message editor
    ───────────────────────────────────────────────────────────────────────── */
-function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onSizeChange, resyncKey = 0, onCaretChange }) {
+function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onSizeChange, resyncKey = 0 }) {
   const editorRef           = useRef(null)
   const triggerRef          = useRef(null)
   const isEditingRef        = useRef(false)
@@ -690,27 +690,6 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
     handleInput()
   }
 
-  // Report the caret's visible-codepoint offset to the paper's ghost caret.
-  // We count codepoints from the editor start to the caret, stripping newlines
-  // — this matches the `vi` ordinal PaperCanvas tags on each rendered glyph
-  // (which skips line breaks and markup delimiters), so the offsets line up
-  // exactly without having to reconcile the markup serialization.
-  function reportCaret() {
-    if (!onCaretChange) return
-    const el  = editorRef.current
-    const sel = window.getSelection()
-    if (!el || !sel || sel.rangeCount === 0 || !el.contains(sel.anchorNode)) {
-      onCaretChange({ offset: null, focused: false })
-      return
-    }
-    const range = sel.getRangeAt(0)
-    const pre   = range.cloneRange()
-    pre.selectNodeContents(el)
-    pre.setEnd(range.startContainer, range.startOffset)
-    const offset = Array.from(pre.toString().replace(/\n/g, '')).length
-    onCaretChange({ offset, focused: true })
-  }
-
   function handleInput() {
     const el = editorRef.current
     if (!el) return
@@ -726,7 +705,6 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
     onChange(markup)
     setSelActive(false)
     setSelRect(null)
-    reportCaret()
     if (!firstWordSeenRef.current && words >= 1) {
       firstWordSeenRef.current = true
       if (!tooltipDismissedRef.current) setShowTooltip(true)
@@ -738,12 +716,11 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
     setShowTooltip(false)
   }
 
-  function handleFocus() { isEditingRef.current = true; reportCaret() }
+  function handleFocus() { isEditingRef.current = true }
   function handleBlur()  {
     isEditingRef.current = false
     setSelActive(false)
     setSelRect(null)
-    onCaretChange?.({ offset: null, focused: false })
   }
 
   function handleKeyDown(e) {
@@ -764,7 +741,6 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
         el.innerHTML = markupToHtml(prev)
         onChange(prev)
         placeCursorAtEnd(el)
-        reportCaret()
       }
       return
     }
@@ -777,13 +753,11 @@ function MessageBox({ recipient, value, onChange, shakeKey, textSize = 'lg', onS
         el.innerHTML = markupToHtml(next)
         onChange(next)
         placeCursorAtEnd(el)
-        reportCaret()
       }
     }
   }
 
   function checkSel() {
-    reportCaret()
     const rect = readSelRect(editorRef.current)
     if (!rect) { setSelActive(false); setSelRect(null); return }
     setSelRect(rect)
@@ -981,7 +955,6 @@ export default function InputPanel({
   textSize,
   onTextSizeChange,
   editorResyncKey = 0,
-  onCaretChange,
 }) {
   return (
     <div className={styles.panel}>
@@ -993,7 +966,6 @@ export default function InputPanel({
         textSize={textSize}
         onSizeChange={onTextSizeChange}
         resyncKey={editorResyncKey}
-        onCaretChange={onCaretChange}
       />
     </div>
   )

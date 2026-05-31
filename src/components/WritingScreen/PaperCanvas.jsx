@@ -118,9 +118,9 @@ function buildSegments(text, types, chars) {
    CharPath — single character, drawn via hand-made SVG glyph animation.
    Space chars are plain inline spans so word-wrapping works naturally.
    ───────────────────────────────────────────────────────────────────────── */
-function CharPath({ ch, inkColor, fontWeight, fontSize, size, viewportWidth, customMetrics, ci = null }) {
+function CharPath({ ch, inkColor, fontWeight, fontSize, size, viewportWidth, customMetrics }) {
   if (ch === ' ') {
-    return <span {...(ci != null ? { 'data-ci': ci } : {})}>{' '}</span>
+    return <span>{' '}</span>
   }
   return (
     <GlyphChar
@@ -131,7 +131,6 @@ function CharPath({ ch, inkColor, fontWeight, fontSize, size, viewportWidth, cus
       size={size ?? null}
       viewportWidth={viewportWidth ?? null}
       customMetrics={customMetrics ?? null}
-      ci={ci}
     />
   )
 }
@@ -203,8 +202,8 @@ function renderWordWrapped(items, renderChar, readingConfig = null, wordStyle = 
       flushWord()
       result.push(
         wordSpacingPx
-          ? <span key={`sp-${id}`} data-ci={vi} style={{ display: 'inline-block', width: `${wordSpacingPx}px`, flexShrink: 0 }} />
-          : <span key={`sp-${id}`} data-ci={vi}>{' '}</span>
+          ? <span key={`sp-${id}`} style={{ display: 'inline-block', width: `${wordSpacingPx}px`, flexShrink: 0 }} />
+          : <span key={`sp-${id}`}>{' '}</span>
       )
     } else {
       if (!wordKey) wordKey = id
@@ -430,8 +429,8 @@ function BodyText({ text, inkColor, textSize = 'lg', readingConfig, wordIndexSta
         const segMetrics = getScaledMetrics(segSizeKey, viewportWidth)
         const isBold     = seg.type === 'bold'
         const ws         = readingConfig ? { inkColor, fontWeight: 700, fontSize: `${segMetrics.fontSize}px` } : null
-        const { els, nextIdx } = renderWordWrapped(seg.items, (id, ch, vi) => (
-          <CharPath key={id} ci={vi} ch={ch} inkColor={inkColor} fontWeight={700} size={segSizeKey} viewportWidth={viewportWidth} />
+        const { els, nextIdx } = renderWordWrapped(seg.items, (id, ch) => (
+          <CharPath key={id} ch={ch} inkColor={inkColor} fontWeight={700} size={segSizeKey} viewportWidth={viewportWidth} />
         ), readingConfig, ws, segWordIdx, segMetrics.wordSpacingPx)
         const allRevealed = !readingConfig || readingConfig.revealedWordIdx >= nextIdx
         segWordIdx = nextIdx
@@ -706,82 +705,6 @@ function computeColorInk(hexColor) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   PaperCaret — the on-paper "ghost" caret. Finds the rendered glyph at the
-   editor's caret ordinal (data-ci) inside data-paper-body, measures its real
-   box, and draws a thin hand-tilted ink line on the writing line — so it
-   reflects true text placement, wrapping included. Edit-mode only (the host
-   isn't transformed there, so coordinates are 1:1).
-   ───────────────────────────────────────────────────────────────────────── */
-function PaperCaret({ offset, active, bodyRef, hostRef, inkColor, deps }) {
-  const [pos, setPos] = useState(null)
-
-  useLayoutEffect(() => {
-    if (!active || offset == null) { setPos(null); return }
-    const host = hostRef.current
-    if (!host) { setPos(null); return }
-
-    let raf = 0
-    const measure = () => {
-      const body     = bodyRef.current
-      const hostRect = host.getBoundingClientRect()
-
-      // The caret sits BEFORE the glyph at `offset`. Spaces render as
-      // zero-height spans and the end-of-text offset has no node at all — in
-      // both cases we step back to the nearest preceding real glyph and pin to
-      // its right edge, so the caret never vanishes on a space or at the end.
-      let idx     = offset
-      let atRight = false
-      let node    = body ? body.querySelector(`[data-ci="${idx}"]`) : null
-      while (body && idx > 0 && (!node || !node.getBoundingClientRect().height)) {
-        idx -= 1
-        atRight = true
-        node = body.querySelector(`[data-ci="${idx}"]`)
-      }
-
-      if (!node || !node.getBoundingClientRect().height) {
-        // Empty body, or caret before the first char: rest at the body's start.
-        const ref = body || host
-        const r   = ref.getBoundingClientRect()
-        setPos({ left: r.left - hostRect.left, top: r.top - hostRect.top, height: r.height || 0 })
-        return
-      }
-      const r = node.getBoundingClientRect()
-      setPos({
-        left:   (atRight ? r.right : r.left) - hostRect.left,
-        top:    r.top - hostRect.top,
-        height: r.height,
-      })
-    }
-    raf = requestAnimationFrame(measure)
-
-    // Glyph widths settle a frame after mount (bounds measured lazily); a
-    // ResizeObserver re-measures on any reflow so the caret tracks wrapping.
-    const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(measure) })
-    if (bodyRef.current) ro.observe(bodyRef.current)
-    ro.observe(host)
-    window.addEventListener('resize', measure)
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); window.removeEventListener('resize', measure) }
-  }, [offset, active, bodyRef, hostRef, deps])
-
-  if (!pos) return null
-  // Glyph box is the full 120-unit frame; the writing band (cap-height →
-  // baseline) sits roughly 12%–74% down it. Inset the caret to that band.
-  const h = pos.height || 0
-  return (
-    <span
-      aria-hidden
-      className={styles.paperCaret}
-      style={{
-        left:            pos.left,
-        top:             pos.top + h * 0.12,
-        height:          h ? h * 0.62 : undefined,
-        backgroundColor: inkColor,
-      }}
-    />
-  )
-}
-
-/* ─────────────────────────────────────────────────────────────────────────
    PaperCanvas
    ───────────────────────────────────────────────────────────────────────── */
 export default function PaperCanvas({
@@ -841,12 +764,6 @@ export default function PaperCanvas({
   readingMode = false,
   revealedWordIdx = 0,
   fitContent = false,
-  /* Ghost caret — mirrors the InputPanel editor's caret onto the paper so the
-     writer can see exactly where their next character lands. `caretOffset` is
-     the count of visible codepoints before the caret (newlines excluded);
-     `caretActive` is true only while the editor is focused. Edit-mode only. */
-  caretOffset = null,
-  caretActive = false,
   // Drawing layer — vector strokes drawn directly on the paper.
   // When `drawingTool` is non-null, the overlay captures pointer events; when
   // null, the rendered strokes stay visible but are inert.
@@ -1083,35 +1000,74 @@ export default function PaperCanvas({
     if (!paper) return
 
     let measuring = false
+    let lastW = 0
+    let lastH = 0
 
     function applyScale() {
       if (measuring) return
       const paperH = paper.clientHeight
       const paperW = paper.clientWidth
       if (paperH < 10 || paperW < 10) return  // paper not yet at final size
+      // Skip redundant recomputes — ResizeObserver fires every frame of the
+      // unfold animation, but the search below is layout-heavy so we only run
+      // it when the paper actually changed size.
+      if (paperW === lastW && paperH === lastH) return
 
-      // Temporarily break inset constraint so scrollHeight reflects real content height
+      const PAD  = 10
+      const body = bodyRef.current
+
+      // Break the inset:0 / flex constraints so (a) scrollHeight reflects the
+      // real content height and (b) re-widening the element actually reflows
+      // the wrapped text. Must reset `flex` entirely (not just flexShrink)
+      // because flex-basis:0 measures the body at 0px in an auto-height flex
+      // container.
       measuring = true
       letter.style.position  = 'relative'
       letter.style.bottom    = 'auto'
-      letter.style.height    = 'auto'
-      letter.style.overflow  = 'visible'
-      letter.style.width     = `${paperW}px`
-      letter.style.transform = ''
-
-      // Also let the body child expand freely so its content height is included.
-      // Must reset `flex` entirely (not just flexShrink) because flex-basis:0
-      // causes the body to measure at 0px in an auto-height flex container.
-      const body = bodyRef.current
+      letter.style.height     = 'auto'
+      letter.style.overflow   = 'visible'
+      letter.style.transform  = ''
       if (body) {
         body.style.overflow = 'visible'
         body.style.flex     = 'none'
         body.style.height   = 'auto'
       }
 
-      const contentH = letter.scrollHeight
+      const measureAt = (w) => { letter.style.width = `${w}px`; return letter.scrollHeight }
 
-      // Restore (CSS class reinstates position:absolute; inset:0)
+      const naturalH = measureAt(paperW)
+      const overflows = naturalH > paperH
+
+      let finalW   = paperW
+      let contentH = naturalH
+
+      if (overflows) {
+        // Glyph size is fixed to the viewport tier, NOT the paper, so at the
+        // recipient paper's (narrow) width the letter wraps into more lines
+        // than the writer saw and overflows. Scaling that narrow layout would
+        // squeeze the text into a thin column. Instead we find the logical
+        // width at which the content's height/width ratio matches the paper's
+        // aspect ratio — that is the width the writer effectively composed at —
+        // then uniform-scale it down to the paper. Because the recipient paper
+        // shares the writer's aspect ratio, this reproduces the writer's
+        // layout exactly and fills the page. Width → height is monotonic
+        // (wider ⇒ fewer lines ⇒ shorter), so we expand, then binary-search.
+        const targetRatio = paperH / paperW
+        let lo = paperW
+        let hi = paperW
+        let guard = 0
+        while (measureAt(hi) / hi > targetRatio && guard++ < 16) hi *= 1.5
+        for (let i = 0; i < 14; i++) {
+          const mid = (lo + hi) / 2
+          if (measureAt(mid) / mid > targetRatio) lo = mid
+          else hi = mid
+        }
+        finalW   = hi
+        contentH = measureAt(finalW)
+      }
+
+      // Restore the constraint-broken styles (CSS class reinstates
+      // position:absolute; inset:0) before committing the final transform.
       letter.style.position = ''
       letter.style.bottom   = ''
       letter.style.height   = ''
@@ -1122,19 +1078,16 @@ export default function PaperCanvas({
         body.style.height   = ''
       }
       measuring = false
+      lastW = paperW
+      lastH = paperH
 
-      if (contentH > paperH) {
-        // Scale content to fit with equal visual padding on all sides (16px).
-        // Widen the element so visual width = paperW - 2*PAD after scaling.
-        // Translate to center the scaled content within the paper.
-        const PAD     = 10
-        const scale   = (paperH - 2 * PAD) / contentH
-        const letterW = Math.round((paperW - 2 * PAD) / scale)
-        const tx      = PAD
-        const ty      = Math.round((paperH - contentH * scale) / 2)
+      if (overflows) {
+        const scale = (paperW - 2 * PAD) / finalW
+        const tx    = PAD
+        const ty    = Math.round((paperH - contentH * scale) / 2)
 
         letter.style.overflow        = 'visible'
-        letter.style.width           = `${letterW}px`
+        letter.style.width           = `${finalW}px`
         letter.style.height          = `${contentH}px`
         letter.style.transform       = `translate(${tx}px, ${ty}px) scale(${scale})`
         letter.style.transformOrigin = '0 0'
@@ -1252,20 +1205,6 @@ export default function PaperCanvas({
                 </div>
               ) : null}
 
-              {/* Ghost caret — mirrors the editor's caret onto the paper so the
-                  writer sees exactly where their next char lands. Edit-mode only:
-                  in reading/preview/iPad the letterContent is transformed (scaled),
-                  which would break the 1:1 coordinate mapping this relies on. */}
-              {caretActive && !fitContent && !readingMode && !isIpad && (
-                <PaperCaret
-                  offset={caretOffset}
-                  active={caretActive}
-                  bodyRef={bodyRef}
-                  hostRef={letterRef}
-                  inkColor={inkColor}
-                  deps={`${message}|${textSize}|${viewportWidth}`}
-                />
-              )}
             </div>
 
             {/* Media frames — DOM-based <img> so GIFs stay animated */}

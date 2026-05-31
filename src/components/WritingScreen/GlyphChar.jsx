@@ -18,7 +18,7 @@ import { getScaledMetrics, typographyMetadata } from '../../lib/typographyMetada
 // sizes outside the sm/md/lg token scale — used by AnimatedGlyphText so
 // hero/display text gets per-glyph advance widths instead of the legacy
 // fixed-0.68em-per-char fallback (which spaces characters way too wide).
-export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = 'inherit', size = null, viewportWidth = null, customMetrics = null, strokeSpeedMultiplier = 1, extraDelaySec = 0, kerningLeftPx = 0, strokeWidthMultiplier = 1, ci = null }) {
+export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = 'inherit', size = null, viewportWidth = null, customMetrics = null, strokeSpeedMultiplier = 1, extraDelaySec = 0, kerningLeftPx = 0, strokeWidthMultiplier = 1 }) {
   const containerRef = useRef(null)
   const glyphSvg = hasGlyph(ch) ? getGlyphSvg(ch) : null
   // Metric resolution priority:
@@ -155,7 +155,6 @@ export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = '
   if (!glyphSvg) {
     return (
       <span
-        {...(ci != null ? { 'data-ci': ci } : {})}
         style={{
           display:       'inline-block',
           fontFamily:    "'Caveat', cursive",
@@ -177,7 +176,6 @@ export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = '
     return (
       <span
         data-glyph
-        {...(ci != null ? { 'data-ci': ci } : {})}
         style={{
           display:       'inline-block',
           width:         `${advanceWidth}px`,
@@ -201,7 +199,6 @@ export default function GlyphChar({ ch, inkColor, fontWeight = 700, fontSize = '
   // Legacy em-based path (greeting text with clamp fontSize)
   return (
     <span
-      {...(ci != null ? { 'data-ci': ci } : {})}
       style={{
         display:       'inline-block',
         verticalAlign: 'text-bottom',

@@ -20,17 +20,20 @@
   overflow: hidden;
   text-align: left;
   padding: 16px 22px 16px 20px;
-  background: rgba(255, 255, 255, 0.055);
-  border: 1.5px solid rgba(255, 255, 255, 0.11);
+  /* Dark tinted glass — same deep near-black surface as the editor's status
+     pill, so it stays legible over the bright paper instead of disappearing
+     the way a translucent white card did. Keeps a faint frosted blur. */
+  background: rgba(22, 24, 30, 0.82);
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
   border-radius: 18px 20px 17px 19px / 19px 17px 20px 18px;
-  /* Blue inner shadow (matches PaperControls' rgba(120,160,255,…) accent)
-     plus the soft drop + white top highlight from the recipient toast. */
+  color: rgba(255, 255, 255, 0.96);
+  /* Blue inner glow accent (matches PaperControls' rgba(120,160,255,…)) over
+     the dark fill, plus a soft drop shadow so it reads as floating. */
   box-shadow:
-    0 2px 8px   rgba(0, 0, 0, 0.14),
-    0 12px 32px rgba(0, 0, 0, 0.18),
-    inset 0 0 0 1px   rgba(120, 160, 255, 0.12),
-    inset 0 -14px 26px -14px rgba(120, 160, 255, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    0 14px 30px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px   rgba(120, 160, 255, 0.14),
+    inset 0 -14px 26px -14px rgba(120, 160, 255, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(16px) saturate(1.2);
   -webkit-backdrop-filter: blur(16px) saturate(1.2);
 }
@@ -42,41 +45,47 @@
   min-width: 0;
 }
 
-/* Rating state — center the question + the (now larger) star row. */
+/* Rating state — center the (now larger) star row. */
 .colCentered {
   align-items: center;
-  text-align: center;
 }
-.colCentered .prompt {
-  padding-right: 0;
+
+/* Header row: prompt hugs the left, close icon pinned right, both vertically
+   centered with auto space between them (Figma space-between auto-layout). */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
 }
 
 .prompt {
+  flex: 1 1 auto;
   font-family: 'Caveat', cursive;
-  font-size: 19px;
+  font-size: 22px;
   font-weight: 500;
-  line-height: 1.4;
-  color: rgba(255, 255, 255, 0.74);
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.90);
   margin: 0;
-  padding-right: 18px; /* clear the close button */
+  text-align: left;
 }
 
 .close {
-  position: absolute;
-  top: 9px;
-  right: 11px;
+  flex-shrink: 0;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.22);
-  font-size: 12px;
+  color: rgba(255, 255, 255, 0.30);
+  font-size: 13px;
   line-height: 1;
   cursor: pointer;
   padding: 4px 6px;
+  margin: -4px -4px -4px 0;
   border-radius: 6px;
   transition: color 0.14s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.close:hover { color: rgba(255, 255, 255, 0.50); }
+.close:hover { color: rgba(255, 255, 255, 0.55); }
 
 .stars {
   display: flex;
@@ -104,7 +113,7 @@
   cursor: pointer;
   padding: 4px 3px;
   line-height: 0;
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.38);
   transition: color 0.12s ease, transform 0.14s ease;
   -webkit-tap-highlight-color: transparent;
   display: flex;

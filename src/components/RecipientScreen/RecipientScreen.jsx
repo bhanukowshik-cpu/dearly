@@ -213,6 +213,9 @@ function FoldedLetter({
   voiceNotes  = [],
   mediaFrames = [],
   readingMode, revealedWordIdx, paperRef,
+  /* A4 reading layout: drop the viewport-height cap so the card renders at
+     full column width and the left column scrolls instead of shrinking it. */
+  freeHeight = false,
 }) {
   const isOpening = phase === 'opening'
   const isLetter  = phase === 'letter'
@@ -272,7 +275,7 @@ function FoldedLetter({
             duration: 1.4, delay: 1.2, repeat: Infinity, repeatDelay: 5, ease: 'easeInOut',
           } : { duration: 0.3 }}
         >
-          <div className={`${styles.foldCard} ${glowing ? styles.foldCardGlow : ''}`} style={{ '--card-ar': cardAspect }}>
+          <div className={`${styles.foldCard} ${glowing ? styles.foldCardGlow : ''} ${freeHeight ? styles.foldCardFree : ''} ${!isLetter ? styles.foldCardFlat : ''}`} style={{ '--card-ar': cardAspect }}>
             <div className={styles.foldPaper} ref={paperRef}>
               <PaperCanvas
                 recipient={recipient} senderName={senderName} message={message}
@@ -542,11 +545,28 @@ export default function RecipientScreen({
     }
   }, [])
 
-  const handleRate = (star) => {
-    setRating(star)
-    submitFeedback(star)
-    trackEvent('feedback_submitted', { stars: star })
+  // Defer persistence so re-picking a star never writes duplicate rows — the
+  // rating is captured once, on Send or on dismiss/unmount (matches the
+  // authoring FeedbackToast). Refs keep the unmount cleanup on the latest values.
+  const ratingRef            = useRef(0)
+  const feedbackTextRef      = useRef('')
+  const feedbackSubmittedRef = useRef(false)
+  ratingRef.current       = rating
+  feedbackTextRef.current = feedbackText
+
+  const persistFeedback = () => {
+    if (feedbackSubmittedRef.current) return
+    const score = ratingRef.current
+    if (score <= 0) return
+    feedbackSubmittedRef.current = true
+    const text = feedbackTextRef.current.trim()
+    submitFeedback(score, text || undefined)
+    trackEvent('feedback_submitted', { stars: score, ...(text ? { has_text: true } : {}) })
   }
+
+  useEffect(() => () => persistFeedback(), [])
+
+  const handleRate = (star) => setRating(star)
 
   // Pre-fetch TTS on mount so audio is ready when user clicks "listen"
   useEffect(() => {
@@ -759,16 +779,252 @@ export default function RecipientScreen({
   }, [isSpeaking, isLoadingAudio, message, recipient])
 
   const isLetterPhase = phase === 'letter'
+  // A4 uses a 2-column layout for the whole experience (envelope → opening →
+  // letter): the letter/envelope sits in the left column, the right column
+  // holds the greeting + Open CTA before opening and the controls + toasts
+  // after. The greeting types out centered (greeting phase), then slides to
+  // the right column as the grid engages. Every other paper size keeps the
+  // centered single-column layout.
+  const isA4         = paperConfig?.size === 'a4'
+  const a4Letter     = isA4 && isLetterPhase
+  const a4Experience = isA4 && phase !== 'greeting'   // envelope, opening, letter
 
   const tryStartMusic = useCallback(() => {
     if (musicOn) return
     ambientRef.current?.play(0.08).then(() => setMusicOn(true)).catch(() => {})
   }, [musicOn])
 
+  // ── Reusable control + toast nodes ────────────────────────────────────────
+  // Defined once, placed differently per layout: non-A4 uses the horizontal
+  // controls bar below the letter + fixed-position toasts; A4 stacks the
+  // controls and renders the toasts inline in the locked right column.
+  const listenControl = (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+      <button
+        className={`${styles.listenHint} ${isLoadingAudio ? styles.listenHintLoading : ''} ${isSpeaking ? styles.listenHintActive : ''}`}
+        onClick={handleReadAloud}
+        disabled={isLoadingAudio}
+      >
+        {isLoadingAudio ? '✦ a moment…' : isSpeaking ? '■ stop' : '✦ listen to your note'}
+      </button>
+      {ttsError && (
+        <span style={{ fontSize: 11, color: 'rgba(255,180,100,0.85)', fontFamily: "'Caveat', cursive", paddingLeft: 4 }}>
+          {ttsError}
+        </span>
+      )}
+    </div>
+  )
+
+  const musicControl = (
+    <button
+      className={`${styles.musicCta} ${musicOn ? styles.musicCtaOn : ''}`}
+      onClick={toggleMusic}
+    >
+      <svg className={styles.musicCtaBorder} viewBox="0 0 192 46" fill="none" aria-hidden>
+        <path d="M 10,5  C 68,3  124,3  182,6"  stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+        <path d="M 182,6 C 184,15 184,31 182,41" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+        <path d="M 182,41 C 124,44 68,44 10,41" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+        <path d="M 10,41 C 8,31 8,15 10,5"      stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+      </svg>
+      <span className={styles.musicCtaLabel}>
+        {musicOn ? '♫ pause music' : '♫ play music'}
+      </span>
+    </button>
+  )
+
+  const downloadControl = (
+    <button
+      className={styles.downloadBtn}
+      onClick={handleDownloadPng}
+      disabled={loadingPng}
+      aria-label="Save as image"
+      title={downloadDone === 'ios' ? 'Long press the image to save' : downloadDone === 'done' ? 'Check your downloads!' : 'Save as image'}
+    >
+      {loadingPng
+        ? <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+            <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.6" strokeDasharray="4 3"/>
+          </svg>
+        : downloadDone
+          ? <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+              <path d="M4 10l4.5 4.5L16 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          : <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+              <path d="M10 3v10M6.5 9.5l3.5 3.5 3.5-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M3.5 15.5h13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
+      }
+      {a4Letter && <span className={styles.downloadLabel}>save as image</span>}
+    </button>
+  )
+
+  const controlsBar = isLetterPhase ? (
+    <motion.div
+      className={a4Letter ? styles.controlsStacked : styles.controls}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.7, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
+    >
+      {a4Letter ? (
+        <>{listenControl}{musicControl}{downloadControl}</>
+      ) : (
+        <>
+          {listenControl}
+          <div className={styles.controlsRight}>{musicControl}{downloadControl}</div>
+        </>
+      )}
+    </motion.div>
+  ) : null
+
+  // "Open your note" CTA — placed below the letter for non-A4, or in the A4
+  // right column (under the greeting) for A4.
+  const readCtaNode = (
+    <motion.button
+      key="read-cta"
+      className={styles.readCta}
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10, transition: { duration: 0.2 } }}
+      transition={{ duration: 0.5, delay: a4Experience ? 0.75 : 0.35, ease: [0.16, 1, 0.3, 1] }}
+      onClick={openNote}
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+    >
+      <svg className={styles.readCtaBorder} viewBox="0 0 320 58" fill="none" aria-hidden>
+        <path d="M 12,6  C 106,4  214,4  308,7"  stroke="rgba(255,255,255,0.82)" strokeWidth="1.8" strokeLinecap="round"/>
+        <path d="M 308,7 C 310,20 310,40 308,54" stroke="rgba(255,255,255,0.82)" strokeWidth="1.8" strokeLinecap="round"/>
+        <path d="M 308,54 C 214,57 106,57 12,54" stroke="rgba(255,255,255,0.82)" strokeWidth="1.8" strokeLinecap="round"/>
+        <path d="M 12,54 C 10,40 10,20 12,6"     stroke="rgba(255,255,255,0.82)" strokeWidth="1.8" strokeLinecap="round"/>
+      </svg>
+      <span className={styles.readCtaLabel}>
+        {senderName ? `Open ${senderName}'s note` : 'Open your note'}
+      </span>
+    </motion.button>
+  )
+
+  const ratingToastNode = (
+    <AnimatePresence>
+      {showRatingToast && !ratingDone && (
+        <motion.div
+          layout
+          className={styles.toast}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 24 }}
+          transition={{ duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <motion.div layout="position" className={styles.toastHeader}>
+              <p className={styles.toastText}>How well do you like this experience?</p>
+              <button className={styles.toastClose} onClick={() => { persistFeedback(); setRatingDone(true) }} aria-label="Dismiss">✕</button>
+            </motion.div>
+            <motion.div layout="position" className={styles.stars}>
+              {[1, 2, 3, 4, 5].map(star => (
+                <button
+                  key={star}
+                  className={`${styles.star} ${(hoveredStar || rating) >= star ? styles.starFilled : ''}`}
+                  onMouseEnter={() => setHoveredStar(star)}
+                  onMouseLeave={() => setHoveredStar(0)}
+                  onClick={() => handleRate(star)}
+                  aria-label={`${star} star${star > 1 ? 's' : ''}`}
+                >
+                  <HandStar size={24} filled={(hoveredStar || rating) >= star} />
+                </button>
+              ))}
+            </motion.div>
+            <AnimatePresence initial={false}>
+              {rating > 0 && (
+                <motion.div
+                  key="followup"
+                  className={styles.feedbackFollowup}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <textarea
+                    className={styles.feedbackInput}
+                    placeholder={rating >= 4 ? 'What part did you like?' : 'What was missing? What could we improve?'}
+                    autoFocus
+                    value={feedbackText}
+                    onChange={e => setFeedbackText(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        persistFeedback()
+                        setRatingDone(true)
+                      }
+                    }}
+                  />
+                  <motion.button
+                    className={styles.toastCtaCompact}
+                    onClick={() => { persistFeedback(); setRatingDone(true) }}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ duration: 0.1 }}
+                  >
+                    <svg className={styles.toastCtaBg} viewBox="0 0 160 38" preserveAspectRatio="none" fill="none" aria-hidden>
+                      <path d="M 10,5 C 48,2 112,3 150,5 C 152,14 153,24 150,33 C 112,36 48,35 10,33 C 7,24 7,14 10,5 Z" fill="white"/>
+                    </svg>
+                    <span>Send</span>
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+
+  const shareBannerNode = (
+    <AnimatePresence>
+      {showToast && (
+        <motion.div
+          className={a4Letter
+            ? styles.shareBannerInline
+            : `${styles.shareBanner} ${showRatingToast && !ratingDone ? styles.shareBannerLifted : ''}`}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 24 }}
+          transition={{ duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div className={styles.toastLeft}>
+            <p className={styles.toastText}>
+              {senderName
+                ? <>You have a lovely smile — pass it on by sending a note to <strong>{senderName}</strong> or anyone you care about.</>
+                : <>You have a lovely smile — pass it on by sending a note to someone you care about.</>
+              }
+            </p>
+          </div>
+          <div className={styles.toastRight}>
+            <motion.button
+              className={styles.toastCtaCompact}
+              onClick={onWriteOwn}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              transition={{ duration: 0.1 }}
+            >
+              <svg className={styles.toastCtaBg} viewBox="0 0 160 38" preserveAspectRatio="none" fill="none" aria-hidden>
+                <path d="M 10,5 C 48,2 112,3 150,5 C 152,14 153,24 150,33 C 112,36 48,35 10,33 C 7,24 7,14 10,5 Z" fill="white"/>
+              </svg>
+              <span>Write a note</span>
+            </motion.button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+
   return (
     <div
-      className={styles.root}
-      style={isLetterPhase ? { justifyContent: 'flex-start', paddingTop: 64 } : undefined}
+      className={`${styles.root} ${a4Experience ? styles.rootA4Letter : ''}`}
+      style={isLetterPhase && !a4Letter ? { justifyContent: 'flex-start', paddingTop: 64 } : undefined}
       onPointerDown={tryStartMusic}
     >
       <VideoBackground />
@@ -781,7 +1037,7 @@ export default function RecipientScreen({
         {(phase === 'greeting' || phase === 'envelope') && (
           <motion.div
             layout="position"
-            className={styles.greetingWrap}
+            className={`${styles.greetingWrap} ${isA4 && phase === 'envelope' ? styles.greetingRightCol : ''}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, y: -14, transition: { duration: 0.25 } }}
@@ -832,6 +1088,12 @@ export default function RecipientScreen({
             >
               {senderName ? `${senderName} wrote a message for you` : 'Someone wrote a message for you'}
             </motion.p>
+
+            {/* A4: the Open CTA lives with the greeting in the right column.
+                Other sizes render it below the letter (see experience block). */}
+            <AnimatePresence>
+              {isA4 && phase === 'envelope' && readCtaNode}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
@@ -841,11 +1103,11 @@ export default function RecipientScreen({
         {phase !== 'greeting' && (
           <motion.div
             key="experience"
-            className={styles.experience}
-            initial={{ opacity: 0, y: 28 }}
-            animate={{ opacity: 1, y: 0 }}
+            className={`${a4Experience ? styles.experienceA4 : styles.experience} ${isA4 && phase === 'envelope' ? styles.experienceA4Envelope : ''}`}
+            initial={a4Experience ? { opacity: 0, x: -90 } : { opacity: 0, y: 28 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.7, delay: a4Experience ? 0.45 : 0, ease: [0.16, 1, 0.3, 1] }}
           >
             <FoldedLetter
               phase={phase}
@@ -864,105 +1126,32 @@ export default function RecipientScreen({
               readingMode={readingMode && isLetterPhase}
               revealedWordIdx={revealedWordIdx}
               paperRef={paperRef}
+              freeHeight={a4Experience}
             />
 
-            {/* Open envelope CTA */}
+            {/* Open envelope CTA — non-A4 only (A4 renders it in the right
+                column with the greeting). */}
             <AnimatePresence>
-              {phase === 'envelope' && (
-                <motion.button
-                  key="read-cta"
-                  className={styles.readCta}
-                  initial={{ opacity: 0, y: 14 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10, transition: { duration: 0.2 } }}
-                  transition={{ duration: 0.5, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                  onClick={openNote}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <svg className={styles.readCtaBorder} viewBox="0 0 320 58" fill="none" aria-hidden>
-                    <path d="M 12,6  C 106,4  214,4  308,7"  stroke="rgba(255,255,255,0.82)" strokeWidth="1.8" strokeLinecap="round"/>
-                    <path d="M 308,7 C 310,20 310,40 308,54" stroke="rgba(255,255,255,0.82)" strokeWidth="1.8" strokeLinecap="round"/>
-                    <path d="M 308,54 C 214,57 106,57 12,54" stroke="rgba(255,255,255,0.82)" strokeWidth="1.8" strokeLinecap="round"/>
-                    <path d="M 12,54 C 10,40 10,20 12,6"     stroke="rgba(255,255,255,0.82)" strokeWidth="1.8" strokeLinecap="round"/>
-                  </svg>
-                  <span className={styles.readCtaLabel}>
-                    {senderName ? `Open ${senderName}'s note` : 'Open your note'}
-                  </span>
-                </motion.button>
-              )}
+              {phase === 'envelope' && !isA4 && readCtaNode}
             </AnimatePresence>
 
-            {/* Controls */}
-            {isLetterPhase && (
-              <motion.div
-                className={styles.controls}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              >
-                {/* Left — de-emphasised listen hint */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-                  <button
-                    className={`${styles.listenHint} ${isLoadingAudio ? styles.listenHintLoading : ''} ${isSpeaking ? styles.listenHintActive : ''}`}
-                    onClick={handleReadAloud}
-                    disabled={isLoadingAudio}
-                  >
-                    {isLoadingAudio ? '✦ a moment…' : isSpeaking ? '■ stop' : '✦ listen to your note'}
-                  </button>
-                  {ttsError && (
-                    <span style={{ fontSize: 11, color: 'rgba(255,180,100,0.85)', fontFamily: "'Caveat', cursive", paddingLeft: 4 }}>
-                      {ttsError}
-                    </span>
-                  )}
-                </div>
-
-                {/* Right — music toggle + download */}
-                <div className={styles.controlsRight}>
-                  {/* Hand-drawn outline CTA — mirrors the "Open your note" button */}
-                  <button
-                    className={`${styles.musicCta} ${musicOn ? styles.musicCtaOn : ''}`}
-                    onClick={toggleMusic}
-                  >
-                    <svg className={styles.musicCtaBorder} viewBox="0 0 192 46" fill="none" aria-hidden>
-                      <path d="M 10,5  C 68,3  124,3  182,6"  stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-                      <path d="M 182,6 C 184,15 184,31 182,41" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-                      <path d="M 182,41 C 124,44 68,44 10,41" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-                      <path d="M 10,41 C 8,31 8,15 10,5"      stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-                    </svg>
-                    <span className={styles.musicCtaLabel}>
-                      {musicOn ? '♫ pause music' : '♫ play music'}
-                    </span>
-                  </button>
-
-                  {/* Download — icon + state label */}
-                  <button
-                    className={styles.downloadBtn}
-                    onClick={handleDownloadPng}
-                    disabled={loadingPng}
-                    aria-label="Save as image"
-                    title={downloadDone === 'ios' ? 'Long press the image to save' : downloadDone === 'done' ? 'Check your downloads!' : 'Save as image'}
-                  >
-                    {loadingPng
-                      ? <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-                          <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.6" strokeDasharray="4 3"/>
-                        </svg>
-                      : downloadDone
-                        ? <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-                            <path d="M4 10l4.5 4.5L16 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        : <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-                            <path d="M10 3v10M6.5 9.5l3.5 3.5 3.5-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M3.5 15.5h13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-                          </svg>
-                    }
-                  </button>
-                </div>
-              </motion.div>
-            )}
+            {/* Controls — below the letter for non-A4. A4 renders them in
+                the locked right column instead (see rightCol below). */}
+            {!a4Letter && controlsBar}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── A4 locked right column — controls on top, toasts below ───────────── */}
+      {a4Letter && (
+        <div className={styles.rightCol}>
+          {controlsBar}
+          <div className={styles.rightToasts}>
+            {shareBannerNode}
+            {ratingToastNode}
+          </div>
+        </div>
+      )}
 
       {/* ── Image save overlay (mobile download) ─────────────────────────────── */}
       {imageOverlayUrl && (
@@ -1002,119 +1191,14 @@ export default function RecipientScreen({
         </div>
       )}
 
-      {/* ── Rating toast — bottom right ──────────────────────────────────────── */}
-      <div className={styles.toastStack}>
-        <AnimatePresence>
-          {showRatingToast && !ratingDone && (
-            <motion.div
-              layout
-              className={styles.toast}
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 24 }}
-              transition={{ duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
-            >
-              <button className={styles.toastClose} onClick={() => setRatingDone(true)} aria-label="Dismiss">✕</button>
-              <AnimatePresence mode="wait" initial={false}>
-                {rating === 0 ? (
-                  <motion.div key="q" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    transition={{ duration: 0.18 }}
-                  >
-                    <p className={styles.toastText}>How well do you like this experience?</p>
-                    <div className={styles.stars}>
-                      {[1, 2, 3, 4, 5].map(star => (
-                        <button
-                          key={star}
-                          className={`${styles.star} ${(hoveredStar || rating) >= star ? styles.starFilled : ''}`}
-                          onMouseEnter={() => setHoveredStar(star)}
-                          onMouseLeave={() => setHoveredStar(0)}
-                          onClick={() => handleRate(star)}
-                          aria-label={`${star} star${star > 1 ? 's' : ''}`}
-                        >
-                          <HandStar size={24} filled={(hoveredStar || rating) >= star} />
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div key="feedback" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    transition={{ duration: 0.22 }}
-                  >
-                    <textarea
-                      className={styles.feedbackInput}
-                      placeholder={rating >= 4 ? 'What part did you like?' : 'What was missing? What could we improve?'}
-                      autoFocus
-                      value={feedbackText}
-                      onChange={e => setFeedbackText(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          if (feedbackText.trim()) submitFeedback(rating, feedbackText.trim())
-                          setRatingDone(true)
-                        }
-                      }}
-                    />
-                    <button
-                      className={styles.feedbackSubmit}
-                      onClick={() => {
-                        if (feedbackText.trim()) submitFeedback(rating, feedbackText.trim())
-                        setRatingDone(true)
-                      }}
-                    >
-                      Send ✦
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-      </div>
-
-      {/* ── Share banner — full width, centered at bottom ─────────────────────── */}
-      <AnimatePresence>
-        {showToast && (
-          <motion.div
-            className={`${styles.shareBanner} ${showRatingToast && !ratingDone ? styles.shareBannerLifted : ''}`}
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 24 }}
-            transition={{ duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div className={styles.toastLeft}>
-              <p className={styles.toastText}>
-                {senderName
-                  ? <>You have a lovely smile — pass it on by sending a note to <strong>{senderName}</strong> or anyone you care about.</>
-                  : <>You have a lovely smile — pass it on by sending a note to someone you care about.</>
-                }
-              </p>
-            </div>
-            <div className={styles.toastRight}>
-              <motion.button
-                className={styles.toastCtaCompact}
-                onClick={onWriteOwn}
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.96 }}
-                transition={{ duration: 0.1 }}
-              >
-                <svg className={styles.toastCtaBg} viewBox="0 0 160 38" preserveAspectRatio="none" fill="none" aria-hidden>
-                  <path d="M 10,5 C 48,2 112,3 150,5 C 152,14 153,24 150,33 C 112,36 48,35 10,33 C 7,24 7,14 10,5 Z" fill="white"/>
-                </svg>
-                <span>Write a note</span>
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ── Toasts — fixed at the bottom for non-A4. A4 renders them inline
+              in the locked right column above. ──────────────────────────────── */}
+      {!isA4 && (
+        <>
+          <div className={styles.toastStack}>{ratingToastNode}</div>
+          {shareBannerNode}
+        </>
+      )}
     </div>
   )
 }

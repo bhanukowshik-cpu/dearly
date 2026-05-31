@@ -102,22 +102,23 @@ export default function FeedbackToast({ onDone = () => {}, source = 'authoring' 
         exit={{ opacity: 0, y: 24 }}
         transition={{ duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
       >
-        <button
-          className={styles.close}
-          onClick={dismiss}
-          aria-label="Dismiss"
-        >
-          ✕
-        </button>
-
         <div className={`${styles.col} ${styles.colCentered}`}>
-          <motion.p layout="position" className={styles.prompt}>
-            {rating === 0
-              ? 'How’s your experience so far?'
-              : positive
-                ? 'Love that! What did you like the most?'
-                : 'Thanks — what could we do better?'}
-          </motion.p>
+          <motion.div layout="position" className={styles.header}>
+            <p className={styles.prompt}>
+              {rating === 0
+                ? 'How’s your experience so far?'
+                : positive
+                  ? 'Love that! What did you like the most?'
+                  : 'Thanks — what could we do better?'}
+            </p>
+            <button
+              className={styles.close}
+              onClick={dismiss}
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </motion.div>
 
           <motion.div layout="position" className={styles.stars}>
             {[1, 2, 3, 4, 5].map(star => (
