@@ -194,6 +194,15 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
 
     // Restore in-app audio.
     silenceAppAudio(false)
+
+    // Hand the WebKit AudioSession back to the browser so normal playback
+    // (pen/ink sounds, voice preview) isn't pinned to the record category.
+    try {
+      if (navigator.audioSession && 'type' in navigator.audioSession) {
+        navigator.audioSession.type = 'auto'
+      }
+    } catch { /* ignore */ }
+
     setIsSpeaking(false)
   }, [])
 
@@ -225,6 +234,24 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
       'hasMediaDevices', !!navigator.mediaDevices,
       'hasGUM', !!navigator.mediaDevices?.getUserMedia,
       'deviceId', deviceId || 'default')
+
+    // ── WebKit AudioSession fix ───────────────────────────────────────
+    // On iOS/iPadOS/macOS Safari the whole page shares one AudioSession.
+    // Tone.js + our pen/ink sound managers create an AudioContext that
+    // puts the session into a playback-only category, after which WebKit
+    // rejects audio capture with:
+    //   InvalidStateError: AudioSession category is not compatible with
+    //   audio capture.
+    // Switching the session to 'play-and-record' lets playback and capture
+    // coexist. This is a SYNCHRONOUS property set, so it does NOT consume
+    // the user-activation that the getUserMedia call below depends on.
+    try {
+      if (navigator.audioSession && 'type' in navigator.audioSession) {
+        navigator.audioSession.type = 'play-and-record'
+        dlog('audioSession.type ->', navigator.audioSession.type)
+      }
+    } catch (ae) { dlog('audioSession set failed', ae?.name, ae?.message) }
+
     let stream
     try {
       // Use the feature-detected mic helper. Returns the stream + the
@@ -265,6 +292,8 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
           ? "No microphone found. Plug one in or check your input device, then try again."
         : name === 'NotReadableError' || name === 'AbortError'
           ? "Your mic is busy in another app or browser tab. Close it (and any other open tabs), then try again."
+        : name === 'InvalidStateError'
+          ? "Your browser's audio is busy. Reload the page, then tap record before playing any other sound."
           : "Your browser couldn't start recording. Try refreshing the page."
       setError(msg)
       setErrorDetail(
