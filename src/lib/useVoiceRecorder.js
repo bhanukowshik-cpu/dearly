@@ -235,13 +235,27 @@ export function useVoiceRecorder({ maxDurationMs = 5 * 60 * 1000, deviceId = nul
       // Safe to await here — the gesture is already spent and we're on the
       // error path. Permission state tells us whether this is a hard browser
       // block vs. an iframe allow-attribute / first-prompt situation.
+      let permState = ''
       try {
         const ps = await navigator.permissions?.query?.({ name: 'microphone' })
-        if (ps) dlog('mic permission state', ps.state)
+        if (ps) { permState = ps.state; dlog('mic permission state', ps.state) }
       } catch (pe) { dlog('permissions.query unavailable', pe?.name) }
+
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (/Macintosh/.test(navigator.userAgent) && (navigator.maxTouchPoints || 0) > 1)
+
+      // An embedded iframe without allow="microphone" yields NotAllowedError
+      // no matter what the user does — the fix is to open the page directly,
+      // so call that out specifically.
       const msg =
-        name === 'NotAllowedError' || name === 'SecurityError'
-          ? "We couldn't access your microphone. Check your browser's mic permission for this site and try again."
+        inIframe
+          ? "Recording is blocked because this page is embedded. Open dearlynotes.app directly in your browser, then try again."
+        : name === 'NotAllowedError' || name === 'SecurityError'
+          ? (permState === 'denied'
+              ? (isIOS
+                  ? "Microphone access is blocked for this site. In Safari, tap the “aA” icon in the address bar → Website Settings → set Microphone to Allow, then reload and try again."
+                  : "Microphone access is blocked for this site. Click the lock/mic icon in your browser's address bar, set Microphone to Allow, then reload and try again.")
+              : "We couldn't access your microphone. When the browser asks for permission, choose Allow — then try again.")
         : name === 'NotFoundError'
           ? "No microphone found. Plug one in or check your input device, then try again."
         : name === 'NotReadableError' || name === 'AbortError'
