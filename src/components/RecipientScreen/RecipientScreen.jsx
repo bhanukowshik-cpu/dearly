@@ -13,14 +13,19 @@ import speakerDisabledUrl from '../../assets/icons/fab/speaker-disabled.svg'
 import musicUrl           from '../../assets/icons/fab/music.svg'
 import downloadUrl        from '../../assets/icons/fab/download.svg'
 import writeUrl           from '../../assets/icons/fab/write.svg'
+import softMusicUrl   from '../../assets/music/soft-music-1.mp3'
+import pathsWeWalkUrl from '../../assets/music/the-paths-we-walk.mp3'
+import earthInBloomUrl from '../../assets/music/earth-in-bloom.mp3'
 
 // ── Ambient audio ──────────────────────────────────────────────────────────────
-// Served same-origin from /public/music/ — was Supabase Storage, which
-// loaded unreliably (CDN/ORB blocking) so the ambient track never started.
+// Imported through the Vite asset pipeline (src/assets/music/) so the tracks
+// become hashed build outputs under dist/assets/. Public-folder serving was
+// unreliable — files kept getting stripped by .gitignore/.vercelignore or the
+// SPA catch-all rewrite returned index.html instead of the mp3.
 const MUSIC_TRACKS = [
-  '/music/Soft%20Music%201.mp3',
-  '/music/the-paths-we-walk-aylex-main-version-29711-02-43.mp3',
-  '/music/earth-in-bloom-richard-bodgers-main-version-00-59-7489.mp3',
+  softMusicUrl,
+  pathsWeWalkUrl,
+  earthInBloomUrl,
 ]
 
 function makeAmbient() {
@@ -198,6 +203,7 @@ const NOOP = () => {}
 // keeps the horizontal bar / two-column A4 layout. Detected via coarse pointer
 // (covers modern iPads that report as desktop Safari) + maxTouchPoints + UA.
 const IS_TOUCH = typeof window !== 'undefined' && (
+  /forcetouch/.test(window.location.search) ||
   window.matchMedia?.('(pointer: coarse)')?.matches ||
   (navigator.maxTouchPoints ?? 0) > 1 ||
   /iPad|iPhone|iPod|Android/i.test(navigator.userAgent || '')
