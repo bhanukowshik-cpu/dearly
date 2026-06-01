@@ -891,6 +891,11 @@ export default function RecipientScreen({
   // Postcard / strip stay compact and centered, so they keep the inline
   // control bar (listen / pause music / download) instead of the FAB stack.
   const fabMode      = IS_TOUCH && isLetterPhase && isA4
+  // Touch (iPad/mobile) A4: during the envelope phase, render the Open CTA
+  // directly under the greeting ("Hi {name}!" + "{sender} wrote a message for
+  // you") instead of below the folded letter, so the call-to-action sits with
+  // the intro copy. Desktop A4 already does this via its right column.
+  const touchA4      = IS_TOUCH && isA4
   const feedbackOpen = showRatingToast && !ratingDone
   // Render the A4 card at full width (overflowing + scrolling) on desktop for
   // the whole experience, and on touch only once unfolded (the envelope stays
@@ -1197,10 +1202,10 @@ export default function RecipientScreen({
             </motion.p>
 
             {/* Desktop A4: the Open CTA lives with the greeting in the right
-                column. Other sizes — and touch A4, which uses the generic
-                vertical layout — render it below the letter (experience block). */}
+                column. Touch A4 (iPad/mobile) also renders it here, under the
+                greeting copy. Other sizes render it below the letter. */}
             <AnimatePresence>
-              {a4Experience && phase === 'envelope' && readCtaNode}
+              {(a4Experience || touchA4) && phase === 'envelope' && readCtaNode}
             </AnimatePresence>
           </motion.div>
         )}
@@ -1237,11 +1242,11 @@ export default function RecipientScreen({
               freeHeight={a4FullCard}
             />
 
-            {/* Open envelope CTA — rendered below the letter for every layout
-                except desktop A4 (which renders it in the right column with the
-                greeting). Touch A4 falls here too, avoiding the card/CTA overlap. */}
+            {/* Open envelope CTA — rendered below the letter for compact sizes
+                (postcard / strip). Desktop A4 and touch A4 render it under the
+                greeting instead (see greeting block above). */}
             <AnimatePresence>
-              {phase === 'envelope' && !a4Experience && readCtaNode}
+              {phase === 'envelope' && !a4Experience && !touchA4 && readCtaNode}
             </AnimatePresence>
 
             {/* Controls — below the letter for non-A4 desktop. A4 desktop
