@@ -165,6 +165,7 @@ export default function App() {
               onBack={() => setScreen('landing')}
               onShare={handleShare}
               onPreview={handlePreview}
+              previewOpen={!!previewData}
             />
           </motion.div>
         )}

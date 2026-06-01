@@ -855,20 +855,45 @@
   justify-content: center;
   align-items: flex-start;
   padding: 10px 16px 6px;
-  /* Clamp paper height so it never eats the full screen */
+  /* Clamp the slot height so the paper never eats the full screen — the
+     sticker tray + tab bar below need the rest. A sheet taller than the
+     slot (a full-width A4) scrolls WITHIN this box rather than being clipped
+     or pushing the tray off-screen. overflow-x stays hidden so the sheet
+     can't bleed sideways. Dragging a sticker/text/media item doesn't trigger
+     this scroll — those elements each set touch-action:none, so only a drag
+     on empty paper pans the sheet. */
   max-height: 46vh;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .mobilePaperInner {
-  /* Bound the sheet by BOTH the column width (≤480px) AND the slot height.
-     The slot is max-height:46vh with 16px vertical padding (10+6); a tall
-     sheet (A4, --paper-ar-hw ≈ 1.414) would otherwise overflow that clamp
-     and get clipped — the bottom zig-zag edge disappeared on iPad. Dividing
-     the available height by the paper's height/width ratio yields the widest
-     the sheet can be while still fitting top-to-bottom. Falls back to the
-     postcard ratio (0.667) when the var is absent. */
-  width: min(100%, 480px, (46vh - 16px) / var(--paper-ar-hw, 0.667));
+  /* Constant width across every size — only the height changes with the
+     paper's aspect ratio (Strip stays short, A4 grows tall). The sheet fills
+     the column (≤480px); when it's taller than the 46vh slot (A4) the parent
+     scrolls. Previously this also divided by the height ratio to fit A4
+     inside the slot, which made A4 render much narrower than Postcard — the
+     widths no longer matched across sizes. */
+  width: min(100%, 480px);
+}
+
+/* Tablet / iPad. iPad runs this same mobile flow (isIpad is forced false in
+   WritingScreen.jsx), so without this it would render the phone-tuned 480px
+   sheet — only ~59% of an iPad's width, with big empty side margins. Phones
+   are < 600px and keep the base rule above; desktop never mounts .mobilePaper
+   (separate layout branch). Give the larger screen a bigger sheet that uses
+   the width and a taller slot so it fits with less scrolling — same
+   constant-width-per-size behaviour, just scaled up. A4 still scrolls within
+   the slot since a full portrait page is taller than any sane preview slot. */
+@media (min-width: 600px) {
+  .mobilePaper {
+    max-height: 58vh;
+  }
+  .mobilePaperInner {
+    width: min(88%, 600px);
+  }
 }
 
 .mobilePanelArea {

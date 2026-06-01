@@ -209,7 +209,6 @@ const NOOP = () => {}
 // keeps the horizontal bar / two-column A4 layout. Detected via coarse pointer
 // (covers modern iPads that report as desktop Safari) + maxTouchPoints + UA.
 const IS_TOUCH = typeof window !== 'undefined' && (
-  /forcetouch/.test(window.location.search) ||
   window.matchMedia?.('(pointer: coarse)')?.matches ||
   (navigator.maxTouchPoints ?? 0) > 1 ||
   /iPad|iPhone|iPod|Android/i.test(navigator.userAgent || '')
@@ -1311,11 +1310,22 @@ export default function RecipientScreen({
               bottom edge is pinned, so adding a second card grows it upward),
               and slides back DOWN when the rating toast is dismissed. A4
               renders these inline in the locked right column above. ───────── */}
-      {!isA4 && !fabMode && (
+      {/* iPad / mobile (touch): both cards stack in one bottom-anchored dock —
+          the share banner slides up as the rating toast grows in beneath it. */}
+      {!isA4 && IS_TOUCH && (
         <div className={styles.toastDock}>
           {shareBannerNode}
           {ratingToastNode}
         </div>
+      )}
+
+      {/* Desktop: the cards split — the "write a note" banner stays centered at
+          the bottom, the rating/feedback toast sits in the bottom-right corner. */}
+      {!isA4 && !IS_TOUCH && (
+        <>
+          <div className={styles.shareDockCenter}>{shareBannerNode}</div>
+          <div className={styles.ratingDockRight}>{ratingToastNode}</div>
+        </>
       )}
 
       {/* ── Touch FAB layer — stacked circular controls bottom-right, write

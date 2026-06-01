@@ -22,6 +22,26 @@
   background: #100e0b;
 }
 
+/* Greeting / envelope reveal layout. These centered phases have no bottom
+   dock (the share/rating toasts and FAB stack only mount in the letter
+   phase), so the 130px bottom padding the base .root carries to clear that
+   dock is dead space here — it was pushing the vertically-centered block,
+   and with it the "Open your note" CTA, below the fold on short mobile
+   viewports (a tall A4 letter card + greeting + CTA exceeded the visible
+   area). Trim the padding, switch to the dynamic viewport so iOS Safari's
+   collapsing address bar can't hide the CTA behind browser chrome, and let
+   the column scroll as a safety net: if a very tall card still overflows,
+   `safe center` keeps the top reachable and the CTA scrolls into view
+   instead of being clipped by the base .root's overflow:hidden. */
+.rootCentered {
+  min-height: 100dvh;
+  padding-bottom: 28px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  justify-content: safe center;
+}
+
 /* ── Background ──────────────────────────────────────────────────────────── */
 
 .bgBlur {
@@ -593,6 +613,39 @@
   pointer-events: auto;
 }
 
+/* ── Desktop split (non-A4, non-touch) ───────────────────────────────────────
+   The stacked dock above is touch-only. On desktop the two cards separate:
+   the "write a note" banner stays centered at the bottom, the rating/feedback
+   toast sits in the bottom-right corner. Widths are kept narrow enough that the
+   centered banner and the corner toast don't collide down to ~1024px. ──────── */
+.shareDockCenter {
+  position: fixed;
+  bottom: 28px;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  z-index: 1001;
+  width: min(460px, 42vw);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  pointer-events: none;
+}
+.shareDockCenter > * { pointer-events: auto; }
+
+.ratingDockRight {
+  position: fixed;
+  bottom: 28px;
+  right: 24px;
+  z-index: 1002;
+  width: min(360px, 26vw);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  pointer-events: none;
+}
+.ratingDockRight > * { pointer-events: auto; }
+
 /* ── Share banner — fills the dock width ────────────────────────────────── */
 .shareBanner {
   width: 100%;
@@ -1090,9 +1143,22 @@
     padding: 24px 16px 100px;
   }
 
-  /* Letter card fills the screen width */
+  /* Greeting/envelope phases trim the bottom padding here too (see
+     .rootCentered) — this media query's .root rule would otherwise win on
+     specificity-tie-by-order and reinstate the 100px dead space, re-clipping
+     the "Open your note" CTA on phones. */
+  .rootCentered {
+    padding-bottom: 24px;
+  }
+
+  /* Letter card fills the screen width — but still capped by the available
+     height so a tall A4 letter can't overflow and bury the CTA below the
+     fold. Without the height term, width:96vw made the card 96vw × 1.414
+     (~580px) on phones with nothing limiting it, pushing the greeting under
+     the browser chrome and the CTA off-screen. ~290px is reserved for the
+     greeting above and the CTA/controls below (mirrors the base rule). */
   .foldCard {
-    width: 96vw;
+    width: min(96vw, calc((100svh - 290px) / var(--card-ar, 0.667)));
   }
 
   /* Controls: tighter on mobile */

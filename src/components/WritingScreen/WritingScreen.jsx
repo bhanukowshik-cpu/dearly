@@ -211,7 +211,7 @@ const IS_DEV = import.meta.env.DEV
 /* ─────────────────────────────────────────────────────────────────────────
    WritingScreen
    ───────────────────────────────────────────────────────────────────────── */
-export default function WritingScreen({ onBack = () => {}, onShare = null, onPreview = null }) {
+export default function WritingScreen({ onBack = () => {}, onShare = null, onPreview = null, previewOpen = false }) {
   const [recipient,          setRecipient]          = useState('')
   const [message,            setMessage]            = useState('')
   const [senderName,         setSenderName]         = useState('')
@@ -2252,9 +2252,11 @@ export default function WritingScreen({ onBack = () => {}, onShare = null, onPre
         )}
       </AnimatePresence>
 
-      {/* Authoring feedback prompt — bottom-center, after ~45s of active use */}
+      {/* Authoring feedback prompt — after ~45s of active use. Suppressed while
+          the recipient Preview overlay is open so it doesn't stack on top of the
+          recipient's own rating toast (two feedback prompts at once). */}
       <AnimatePresence>
-        {showFeedback && (
+        {showFeedback && !previewOpen && (
           <FeedbackToast key="authoring-feedback" onDone={dismissFeedback} source="authoring" />
         )}
       </AnimatePresence>
