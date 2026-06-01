@@ -1299,11 +1299,17 @@
 }
 .writeBubbleText strong { color: rgba(255, 255, 255, 0.96); font-weight: 700; }
 .writeBubbleCta {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
   font-family: 'Caveat', cursive;
-  font-size: 18px;
+  font-size: 22px; /* bumped ~20% from 18px */
   font-weight: 700;
   line-height: 1;
-  color: rgba(255, 255, 255, 0.96);
+  color: #252525;
+  background: #fff;
+  padding: 6px 13px;
+  border-radius: 11px;
   letter-spacing: 0.01em;
 }
 /* Clean speech pointer: a square sharing the bubble's fill, rotated 45°
