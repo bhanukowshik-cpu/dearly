@@ -48,32 +48,28 @@ const reducedMotion =
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-// Pre-rendered letter assets. PNGs are the baseline; if an animated .gif
-// with the same stem exists in the folder (dropped in via the dev
-// Export-PNG button's auto-GIF path when the source note has a GIF) we
-// prefer it so the carousel actually animates on the landing page,
-// matching what the writer designed.
-const letterPngs = import.meta.glob('../../assets/loadingLetters/*.png', { eager: true, import: 'default' })
-const letterGifs = import.meta.glob('../../assets/loadingLetters/*.gif', { eager: true, import: 'default' })
+// Pre-rendered letter assets. PNGs are the baseline; an animated slide can
+// also ship a same-stem .mp4 (a muted, looping H.264 clip — far lighter than
+// the equivalent GIF, e.g. ~250 KB vs ~8 MB) which the carousel plays as a
+// <video> while the PNG doubles as its poster / reduced-motion fallback.
+const letterPngs   = import.meta.glob('../../assets/loadingLetters/*.png', { eager: true, import: 'default' })
+const letterVideos = import.meta.glob('../../assets/loadingLetters/*.mp4', { eager: true, import: 'default' })
 
 function pickLetter(name) {
-  return (
-    letterGifs[`../../assets/loadingLetters/${name}.gif`] ||
-    letterPngs[`../../assets/loadingLetters/${name}.png`]
-  )
+  return letterPngs[`../../assets/loadingLetters/${name}.png`]
+}
+function pickVideo(name) {
+  return letterVideos[`../../assets/loadingLetters/${name}.mp4`]
 }
 
-const priyaLetter  = pickLetter('priya')
-const marcusLetter = pickLetter('marcus')
-const maiLetter    = pickLetter('mai')
+const conferenceLetter = pickLetter('conference')
+const driftedLetter    = pickLetter('drifted')
+const clientLetter     = pickLetter('client')
 
 const SLIDES = [
-  { id: 'manager',    audience: 'To your manager',    img: marcusLetter, aspect: '1520 / 1014' },
-  { id: 'parents',    audience: 'To your parents',    img: priyaLetter,  aspect: '1520 / 1014' },
-  { id: 'partner',    audience: 'To your partner',    img: maiLetter,    aspect: '1520 / 380'  },
-  { id: 'client',     audience: 'To a client',        img: priyaLetter,  aspect: '1520 / 1014' },
-  { id: 'connection', audience: 'To a connection',    img: marcusLetter, aspect: '1520 / 1014' },
-  { id: 'friend',     audience: 'To your friend',     img: maiLetter,    aspect: '1520 / 380'  },
+  { id: 'conference', audience: 'Connection met at a conference', img: conferenceLetter, aspect: '2280 / 1521' },
+  { id: 'drifted',    audience: "A friend you've drifted from",   img: driftedLetter,    video: pickVideo('drifted'), aspect: '2280 / 1521' },
+  { id: 'client',     audience: "A client you've grown with",     img: clientLetter,     aspect: '2280 / 1521' },
 ]
 
 const SLIDE_INTERVAL_MS = 10000
@@ -141,20 +137,40 @@ export default function LoadingScreen({ onCta = () => {} }) {
 
           <div className={styles.letterSlot}>
             <AnimatePresence mode="wait" initial={false}>
-              <motion.img
-                key={current.id}
-                src={current.img}
-                alt={`A handwritten letter for ${current.audience}`}
-                className={styles.letterImage}
-                style={{ aspectRatio: current.aspect }}
-                draggable={false}
-                loading="eager"
-                decoding="async"
-                initial={{ opacity: 0, y: reducedMotion ? 0 : 18, rotate: -2.4 }}
-                animate={{ opacity: 1, y: 0, rotate: -1.8 }}
-                exit={{    opacity: 0, y: reducedMotion ? 0 : -10, rotate: -1.2 }}
-                transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-              />
+              {current.video && !reducedMotion ? (
+                <motion.video
+                  key={current.id}
+                  src={current.video}
+                  poster={current.img}
+                  className={styles.letterImage}
+                  style={{ aspectRatio: current.aspect }}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  preload="auto"
+                  aria-label={`A handwritten letter for ${current.audience}`}
+                  initial={{ opacity: 0, y: reducedMotion ? 0 : 18, rotate: -2.4 }}
+                  animate={{ opacity: 1, y: 0, rotate: -1.8 }}
+                  exit={{    opacity: 0, y: reducedMotion ? 0 : -10, rotate: -1.2 }}
+                  transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                />
+              ) : (
+                <motion.img
+                  key={current.id}
+                  src={current.img}
+                  alt={`A handwritten letter for ${current.audience}`}
+                  className={styles.letterImage}
+                  style={{ aspectRatio: current.aspect }}
+                  draggable={false}
+                  loading="eager"
+                  decoding="async"
+                  initial={{ opacity: 0, y: reducedMotion ? 0 : 18, rotate: -2.4 }}
+                  animate={{ opacity: 1, y: 0, rotate: -1.8 }}
+                  exit={{    opacity: 0, y: reducedMotion ? 0 : -10, rotate: -1.2 }}
+                  transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                />
+              )}
             </AnimatePresence>
           </div>
 
@@ -164,7 +180,7 @@ export default function LoadingScreen({ onCta = () => {} }) {
               the chips stays tight regardless of viewport height. */}
           <div className={styles.bottomStack}>
             <p className={styles.introSentence}>
-              With <span className={styles.brandInline}>Dearly</span> you can write :
+              With <span className={styles.brandInline}>Dearly</span> you can write to :
             </p>
 
             <div className={styles.chipRow}>
@@ -208,7 +224,7 @@ export default function LoadingScreen({ onCta = () => {} }) {
         <aside className={styles.rightPanel}>
           <div className={styles.contentBlock}>
           <p className={styles.serifCaption}>
-            <em>Some words</em> deserve more than just&nbsp;a&nbsp;text.
+            <em>Some words</em> deserve more than&nbsp;a&nbsp;text.
           </p>
 
           {/* CTA + meta wrapped together so the meta line stays visually

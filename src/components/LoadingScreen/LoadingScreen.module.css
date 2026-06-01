@@ -360,6 +360,10 @@
   letter-spacing: -0.01em;
   color: #1a2540;
   margin: 0;
+  /* Centered so the headline shares one center axis with the CTA and the
+     "Free to use" meta line (both already centered within the column).
+     This removes the staircase of three different left edges. */
+  text-align: center;
   /* No max-width here anymore — the parent .contentBlock controls how
      wide this can grow, keeping it in lockstep with the CTA below. */
 }
@@ -380,15 +384,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* CTA fills its container (.contentBlock, capped at 340px) so its
-     right edge aligns with the headline's right edge — they share one
-     column. Was a fixed 320px which left the headline's wrap edge
-     misaligned with the CTA's edge across viewports. */
-  width: 100%;
+  /* Hugs its label (rather than filling the column) so the button reads as
+     a proportioned pill centered under the headline, not a full-width bar.
+     Horizontal padding controls how much air sits around the label. */
+  width: fit-content;
   height: 64px;
   background: none;
   border: none;
-  padding: 0 22px;
+  padding: 0 36px;
   cursor: pointer;
   outline: none;
   -webkit-tap-highlight-color: transparent;
@@ -466,11 +469,16 @@
 }
 
 .meta {
-  font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  color: rgba(21, 36, 58, 0.70);
-  letter-spacing: 0.02em;
+  /* Instrument Serif italic so the reassurance line belongs to the same
+     type family as the headline (an editorial caption) rather than reading
+     as default Inter UI body text under an elegant serif — that mismatch
+     was what cheapened the hero. */
+  font-family: 'Instrument Serif', 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 17px;
+  font-weight: 400;
+  color: rgba(21, 36, 58, 0.62);
+  letter-spacing: 0.005em;
   margin: 0;
   text-align: center;
 }

@@ -672,6 +672,41 @@ function clampPixelRatioForIOS(el, requested) {
  * blob and trigger their own downloads (web share, anchor download,
  * iOS overlay long-press, etc).
  */
+// Convert a CSS `clip-path: polygon(...)` value into a Path2D in output-
+// canvas pixel space. Used to re-apply the deckle/zigzag paper edge on the
+// final canvas: html-to-image's <foreignObject> rasterisation does not
+// reliably honour a clip-path on the captured ROOT element, and the opaque
+// background it (and our bg-fill) paints would square the crooked notches
+// back off even when it does. Re-clipping here reproduces the crooked
+// silhouette with transparent notches regardless of what the serialiser did.
+// `pxScale` maps any px-unit coordinates from CSS px into the (pixelRatio-
+// scaled) output canvas; the deckle polygon is all %, so it's rarely needed.
+function polygonToPath2D(clipPathValue, w, h, pxScale = 1) {
+  if (!clipPathValue) return null
+  const m = /polygon\(([^)]*)\)/i.exec(clipPathValue)
+  if (!m) return null
+  const body = m[1].trim().replace(/^(nonzero|evenodd)\s*,\s*/i, '')
+  const pts = body.split(',').map(s => s.trim()).filter(Boolean)
+  if (pts.length < 3) return null
+  const toPx = (tok, span) => {
+    const t = tok.trim()
+    if (t.endsWith('%'))  return (parseFloat(t) / 100) * span
+    if (t.endsWith('px')) return parseFloat(t) * pxScale
+    return parseFloat(t) || 0
+  }
+  const path = new Path2D()
+  for (let i = 0; i < pts.length; i++) {
+    const [xs, ys] = pts[i].split(/\s+/)
+    if (xs == null || ys == null) return null
+    const x = toPx(xs, w)
+    const y = toPx(ys, h)
+    if (i === 0) path.moveTo(x, y)
+    else path.lineTo(x, y)
+  }
+  path.closePath()
+  return path
+}
+
 export async function captureCanvas(refOrElement, { noteData, swapVoiceForBarcode = false, pixelRatio = 3 } = {}) {
   // Unbox ref-or-element so callers can pass whatever they have.
   const containerEl = (refOrElement && 'current' in refOrElement)
@@ -761,6 +796,17 @@ export async function captureCanvas(refOrElement, { noteData, swapVoiceForBarcod
   // color filled first — guarantees no transparent pixels even on
   // edge cases where the captured paper had alpha somewhere.
   const bgColor = window.getComputedStyle(paperEl).backgroundColor || '#ffffff'
+
+  // Crooked (zigzag/deckle) paper carries a clip-path polygon for its torn
+  // edges. Re-apply that SAME polygon as a canvas clip so the notches stay
+  // transparent and the crooked silhouette survives — see polygonToPath2D.
+  // For rectangular paper there's no clip-path and we keep the original
+  // full-bleed bg fill (guards against stray alpha at the edges).
+  const clipPathStr =
+    (_cs.clipPath && _cs.clipPath !== 'none' && _cs.clipPath) ||
+    (_cs.webkitClipPath && _cs.webkitClipPath !== 'none' && _cs.webkitClipPath) ||
+    ''
+
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => {
@@ -768,10 +814,23 @@ export async function captureCanvas(refOrElement, { noteData, swapVoiceForBarcod
       out.width  = img.naturalWidth
       out.height = img.naturalHeight
       const ctx  = out.getContext('2d')
-      ctx.fillStyle = bgColor
-      ctx.fillRect(0, 0, out.width, out.height)
-      ctx.drawImage(img, 0, 0)
-      dlog('captureCanvas DONE', out.width + 'x' + out.height)
+      const pxScale = _r?.width ? out.width / _r.width : 1
+      const clip = polygonToPath2D(clipPathStr, out.width, out.height, pxScale)
+      if (clip) {
+        // Clip FIRST so everything outside the deckle polygon stays
+        // transparent; only the paper interior gets the bg fill + image.
+        ctx.save()
+        ctx.clip(clip)
+        ctx.fillStyle = bgColor
+        ctx.fillRect(0, 0, out.width, out.height)
+        ctx.drawImage(img, 0, 0)
+        ctx.restore()
+      } else {
+        ctx.fillStyle = bgColor
+        ctx.fillRect(0, 0, out.width, out.height)
+        ctx.drawImage(img, 0, 0)
+      }
+      dlog('captureCanvas DONE', out.width + 'x' + out.height, clip ? 'clipped' : 'rect')
       resolve(out)
     }
     img.onerror = (e) => { dlog('final raster img.onerror', e); reject(e) }
