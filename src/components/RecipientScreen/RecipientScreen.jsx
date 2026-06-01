@@ -1348,20 +1348,25 @@ export default function RecipientScreen({
                   exit={{ opacity: 0, y: 20, scale: 0.85 }}
                   transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                 >
-                  <motion.div
+                  <motion.button
+                    type="button"
                     className={styles.writeBubble}
+                    onClick={onWriteOwn}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.22, duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
+                    whileTap={{ scale: 0.97 }}
+                    aria-label="Write a note"
                   >
-                    <p className={styles.writeBubbleText}>
+                    <span className={styles.writeBubbleText}>
                       {senderName
                         ? <>You have a lovely smile — pass it on with a note to <strong>{senderName}</strong>.</>
                         : <>You have a lovely smile — pass it on with a note.</>
                       }
-                    </p>
+                    </span>
+                    <span className={styles.writeBubbleCta}>Write a note →</span>
                     <span className={styles.writeBubbleTail} aria-hidden />
-                  </motion.div>
+                  </motion.button>
                   <motion.button
                     className={`${styles.fab} ${styles.fabWrite}`}
                     onClick={onWriteOwn}

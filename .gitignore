@@ -9,14 +9,20 @@ node_modules/
 # Build output
 dist/
 
-# Large media files — served from Supabase Storage CDN
-public/music/
+# Large media files. The ambient playlist is now served same-origin from
+# /public/music/ (Supabase Storage was unreliable — ORB/CDN blocking), so the
+# three tracks the app actually references must be committed; everything else
+# in the folder stays ignored.
+public/music/*
+!public/music/Soft Music 1.mp3
+!public/music/the-paths-we-walk-aylex-main-version-29711-02-43.mp3
+!public/music/earth-in-bloom-richard-bodgers-main-version-00-59-7489.mp3
 public/videos/
 public/*.mp4
 
-# Legacy media directories
-Images/
-Music/
+# Legacy media directories (repo root only — must not match public/music etc.)
+/Images/
+/Music/
 
 # Source design assets — runtime SVGs are inlined into the bundle, no need
 # to ship the originals (~22 MB) in the production repo.

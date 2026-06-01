@@ -722,6 +722,7 @@
 
 .stars {
   display: flex;
+  justify-content: center;
   gap: 4px;
 }
 
@@ -1262,10 +1263,15 @@
   border-color: rgba(255, 255, 255, 0.6);
 }
 
-/* Thought bubble to the left of the write FAB, with a pointer toward it. */
+/* Speech bubble to the left of the write FAB — itself the tappable
+   "write a note" CTA, with a pointer aimed at the FAB. */
 .writeBubble {
   position: relative;
-  max-width: 224px;
+  max-width: 232px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
   background: rgba(22, 24, 30, 0.82);
   border: 1.5px solid rgba(255, 255, 255, 0.14);
   border-radius: 16px 18px 15px 17px / 17px 15px 18px 16px;
@@ -1273,8 +1279,15 @@
     0 6px 20px rgba(0, 0, 0, 0.26),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
   padding: 11px 15px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   backdrop-filter: blur(14px) saturate(1.2);
   -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.writeBubble:hover {
+  background: rgba(28, 30, 38, 0.9);
+  border-color: rgba(255, 255, 255, 0.24);
 }
 .writeBubbleText {
   font-family: 'Caveat', cursive;
@@ -1285,16 +1298,27 @@
   margin: 0;
 }
 .writeBubbleText strong { color: rgba(255, 255, 255, 0.96); font-weight: 700; }
+.writeBubbleCta {
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.96);
+  letter-spacing: 0.01em;
+}
+/* Clean speech pointer: a square sharing the bubble's fill, rotated 45°
+   and pinned to the right edge so only the outward-facing corner shows,
+   reading as a triangle attached to the bubble rather than a loose diamond. */
 .writeBubbleTail {
   position: absolute;
   right: -6px;
-  bottom: 16px;
-  width: 12px;
-  height: 12px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
   background: rgba(22, 24, 30, 0.82);
+  border-top: 1.5px solid rgba(255, 255, 255, 0.14);
   border-right: 1.5px solid rgba(255, 255, 255, 0.14);
-  border-bottom: 1.5px solid rgba(255, 255, 255, 0.14);
-  transform: rotate(-45deg);
+  transform: translateY(-50%) rotate(45deg);
 }
 
 /* Feedback — bottom-centre toast, dismissable. Darker glass than the base
