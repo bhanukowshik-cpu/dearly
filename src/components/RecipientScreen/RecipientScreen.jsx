@@ -28,6 +28,12 @@ const MUSIC_TRACKS = [
   earthInBloomUrl,
 ]
 
+// Ambient volume levels. Kept low so the music stays in the background, but
+// the previous 0.08/0.16 were so quiet they were effectively inaudible on most
+// laptop/phone speakers — bumped to clearly perceptible levels.
+const AMBIENT_VOL       = 0.18  // intro / default ambient bed
+const AMBIENT_VOL_SWELL = 0.30  // swell once the letter is open
+
 function makeAmbient() {
   try {
     // Shuffle into a random non-repeating playlist
@@ -78,7 +84,7 @@ function makeAmbient() {
       buildAudio(idx)
       if (active) {
         const promise = audio.play()
-        if (promise) promise.then(() => fadeTo(targetVol ?? 0.08, 800)).catch(() => {})
+        if (promise) promise.then(() => fadeTo(targetVol ?? AMBIENT_VOL, 800)).catch(() => {})
       }
     }
 
@@ -93,7 +99,7 @@ function makeAmbient() {
         active = true
         if (!audio || audio.error || audio.ended || !audio.src) buildAudio(trackIdx)
         const promise = audio.play()
-        if (promise) promise.then(() => fadeTo(volume ?? 0.08, 600)).catch(() => {})
+        if (promise) promise.then(() => fadeTo(volume ?? AMBIENT_VOL, 600)).catch(() => {})
         return promise ?? Promise.resolve()
       },
       pause() { active = false; cancelFade(); audio?.pause() },
@@ -576,13 +582,13 @@ export default function RecipientScreen({
     ambientRef.current = ambient
 
     function startMusic() {
-      ambient.play(0.08)
+      ambient.play(AMBIENT_VOL)
         .then(() => setMusicOn(true))
         .catch(() => {})
     }
 
     // Try immediate autoplay
-    ambient.play(0.08)
+    ambient.play(AMBIENT_VOL)
       .then(() => setMusicOn(true))
       .catch(() => {
         // Browser blocked it — unlock on first user gesture
@@ -608,7 +614,7 @@ export default function RecipientScreen({
   useEffect(() => {
     if (phase !== 'letter') return
     trackEvent('letter_reached')
-    ambientRef.current?.setVolume(0.16)
+    ambientRef.current?.setVolume(AMBIENT_VOL_SWELL)
     const t1 = setTimeout(() => setShowRatingToast(true), 12000)
     const t2 = setTimeout(() => setShowToast(true), 9000)
     return () => { clearTimeout(t1); clearTimeout(t2) }
@@ -685,7 +691,7 @@ export default function RecipientScreen({
     clarityTag('opened', 'yes')
     if (openedAtRef.current == null) openedAtRef.current = performance.now()
     if (!musicOn) {
-      ambientRef.current?.play(0.08).then(() => setMusicOn(true)).catch(() => {})
+      ambientRef.current?.play(AMBIENT_VOL).then(() => setMusicOn(true)).catch(() => {})
     }
   }, [musicOn])
   const handleUnfoldDone = useCallback(() => setPhase('letter'),  [])
@@ -697,7 +703,7 @@ export default function RecipientScreen({
     // Only flip to "playing" once playback actually starts — otherwise a
     // blocked/failed play (seen on Edge) would leave the button reading
     // "pause music" with no sound. On failure it stays "play music" to retry.
-    else { a.play(0.08).then(() => setMusicOn(true)).catch(() => setMusicOn(false)) }
+    else { a.play(AMBIENT_VOL).then(() => setMusicOn(true)).catch(() => setMusicOn(false)) }
   }, [musicOn])
 
   const downloadTimerRef = useRef(null)
@@ -893,7 +899,7 @@ export default function RecipientScreen({
 
   const tryStartMusic = useCallback(() => {
     if (musicOn) return
-    ambientRef.current?.play(0.08).then(() => setMusicOn(true)).catch(() => {})
+    ambientRef.current?.play(AMBIENT_VOL).then(() => setMusicOn(true)).catch(() => {})
   }, [musicOn])
 
   // ── Reusable control + toast nodes ────────────────────────────────────────
@@ -1124,7 +1130,7 @@ export default function RecipientScreen({
 
   return (
     <div
-      className={`${styles.root} ${a4Experience ? styles.rootA4Letter : ''} ${fabMode ? styles.rootTouch : ''} ${fabMode && isA4 ? styles.rootTouchA4 : ''}`}
+      className={`${styles.root} ${a4Experience ? styles.rootA4Letter : ''} ${fabMode ? styles.rootTouch : ''} ${fabMode && isA4 ? styles.rootTouchA4 : ''} ${!isLetterPhase && !a4Experience ? styles.rootCentered : ''}`}
       style={isLetterPhase && !a4Letter ? { justifyContent: 'flex-start', paddingTop: 64 } : undefined}
       onPointerDown={tryStartMusic}
     >
