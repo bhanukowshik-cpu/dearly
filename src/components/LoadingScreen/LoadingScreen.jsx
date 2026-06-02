@@ -199,6 +199,13 @@ export default function LoadingScreen({ onCta = () => {} }) {
                 )
               })}
             </div>
+
+            {/* Closing line — NOT a chip/CTA, just a soft trailing thought
+                that opens the list up beyond the three examples above. The
+                ellipsis keeps it deliberately open-ended. */}
+            <p className={styles.outroSentence}>
+              …or anyone you want to send an intentional message to
+            </p>
           </div>
 
           {/* Single progress bar pinned to the panel's bottom edge — 3px

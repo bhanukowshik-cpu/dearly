@@ -183,12 +183,29 @@
   letter-spacing: 0.01em;
 }
 
+/* Closing line below the chips — softer + a touch smaller than the intro so
+   it reads as a trailing thought ("…or anyone…") rather than a second
+   heading. Not interactive; the ellipses keep the list feeling open-ended. */
+.outroSentence {
+  font-family: 'Caveat', cursive;
+  font-weight: 500;
+  /* Same size as the chips/CTAs so it reads as part of the list, just
+     without a button around it. */
+  font-size: clamp(15px, 1.7vw, 20px);
+  color: rgba(255, 255, 255, 0.92);
+  letter-spacing: 0.005em;
+  line-height: 1.2;
+  margin: 0;
+  text-align: center;
+  max-width: 34ch;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.32);
+}
+
 .chipRow {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  /* Gap bumped 10 → 11 (+10%) for slightly more air between chips. */
-  gap: 11px;
+  gap: 10px;
 }
 
 /* Each chip — rounded-rectangle button with a progress rail at its bottom
@@ -204,15 +221,19 @@
   /* Rounded-rectangle chips with consistent 10×15 padding (vertical ×
      horizontal). Switched from a fully-rounded pill (999px) to a 12px
      corner radius so the chips read as deliberate rounded rectangles. */
+  box-sizing: border-box;
   border-radius: 12px;
-  padding: 10px 15px;
+  padding: 10px 16px;
   color: rgba(255, 255, 255, 0.95);
   font-family: 'Caveat', cursive;
-  /* Responsive chip type: 25 px at desktop (≥1135 viewport), scales
-     down linearly via 2.2vw, floored at 15 px on mobile so the chips
-     don't get unreadably small on phones. The clamp removes the need
-     for a separate font-size override in the mobile media query. */
-  font-size: clamp(15px, 2.2vw, 25px);
+  /* These audience labels are full phrases ("A friend you've drifted from").
+     Each chip takes half the row (flex-basis 50%, capped at 300px) so the
+     three always lay out two-on-top / one-below regardless of viewport, and
+     every chip stays wider than its text — nothing clips or hides. Mobile
+     overrides this to full-width (one per row) below. */
+  flex: 0 0 calc(50% - 8px);
+  max-width: 300px;
+  font-size: clamp(15px, 1.7vw, 20px);
   font-weight: 600;
   letter-spacing: 0.005em;
   line-height: 1.05;
@@ -560,38 +581,47 @@
     padding: 12px;
   }
 
-  /* leftPanel: was 580 fixed → 440. The 220-px reduction matches the
-     space needed below to show the right column inside an 812-px
-     viewport (440 panel + ~16 gap + ~280 right column ≈ 736 px). */
+  /* leftPanel: taller on phones now that the bottom stack carries the
+     longer phrase-labels (3 stacked) + the closing line. 560 leaves room
+     for the letter up top AND the full stack below without them colliding.
+     (Costs a little scroll to reach the right-column headline — fine on a
+     phone.) */
   .leftPanel {
-    min-height: 440px;
+    min-height: 480px;
     border-radius: 22px;
   }
 
-  /* Tighter letter slot — top 50, bottom 140 leaves ~250 vertical px
-     for the letter image, plenty for both 3:2 postcards (scaled to
-     ~190 tall at 280 wide) and Mai's 4:1 strip (~70 tall). */
+  /* Bottom inset sized for the 1-on-top / 2-below chip grid + intro +
+     closing line, so the letter ends just above the stack without a big
+     empty gap (and without the intro landing on the letter). */
   .letterSlot {
-    inset: 50px 18px 140px;
+    inset: 40px 18px 196px;
   }
 
   .letterImage {
     width: min(280px, 86%);
   }
 
-  .chipRow {
-    left: 14px;
-    right: 14px;
-    bottom: 14px;
-    gap: 6px;
+  /* Tighten the stack so the intro + chips + closing line pack compactly. */
+  .bottomStack {
+    gap: 12px;
   }
 
-  /* Mobile chip — font-size is now driven by the clamp on the default
-     .chip rule (floors at 15px so we don't need to override here).
-     Padding and radius are still mobile-specific. */
+  .chipRow {
+    gap: 8px;
+  }
+
+  /* Mobile chips — content-width pills (NOT full-width bars), each hugging
+     its label. Smaller here so the two shorter labels ("A friend you've
+     drifted from" + "A client you've grown with") are narrow enough to sit
+     side-by-side on one row, with the longer "Connection met at a
+     conference" on its own row above — a 1-on-top / 2-below grid. */
   .chip {
-    padding: 6px 11px;
+    flex: 0 1 auto;
+    max-width: 100%;
+    padding: 7px 11px;
     border-radius: 10px;
+    font-size: 13px;
   }
 
   .introSentence {
