@@ -120,13 +120,20 @@
    row) so the letter sits comfortably without colliding with either. */
 .letterSlot {
   position: absolute;
-  /* Top inset smaller now that the Dearly wordmark no longer sits above
-     it; bottom inset increased to clear the bottomStack (intro sentence
-     + chip row) without overlapping. */
-  inset: clamp(40px, 5vh, 80px) clamp(40px, 6vw, 100px) clamp(200px, 28vh, 300px);
+  /* Top inset smaller now that the Dearly wordmark no longer sits above it.
+     Bottom inset reserves room for the bottom stack — which now carries the
+     intro line, a TWO-row chip grid, AND the closing line. The floor is 264
+     (not a small vh value) so short-height laptops (e.g. 1512×792) still get
+     enough clearance and the intro never lands on the letter. */
+  inset: clamp(40px, 5vh, 80px) clamp(40px, 6vw, 100px) clamp(286px, 31vh, 308px);
   z-index: 2;
   display: flex;
-  align-items: center;
+  /* Anchor the letter to the BOTTOM of the slot (not centered) so it always
+     sits a consistent ~40px above the chip stack regardless of screen
+     height. Centered looked fine when the slot was short, but with the
+     taller bottom stack a centered letter floats with a big gap below it on
+     tall/full-screen displays. */
+  align-items: flex-end;
   justify-content: center;
 }
 
@@ -544,10 +551,11 @@
     min-height: clamp(420px, 58vh, 560px);
   }
 
-  /* Tighter bottom inset on tablet too since the chip stack is shorter
-     than the desktop letterSlot's clearance assumed. */
+  /* Bottom inset raised so the letter clears the taller bottom stack
+     (intro + two-row chip grid + closing line) on tablets/large phones,
+     matching the desktop fix. */
   .letterSlot {
-    inset: clamp(32px, 4vh, 56px) clamp(20px, 3vw, 48px) clamp(150px, 22vh, 200px);
+    inset: clamp(32px, 4vh, 56px) clamp(20px, 3vw, 48px) clamp(248px, 26vh, 282px);
   }
 
   .rightPanel {
