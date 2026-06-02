@@ -150,6 +150,17 @@ export default function LoadingScreen({ onCta = () => {} }) {
                   playsInline
                   preload="auto"
                   aria-label={`A handwritten letter for ${current.audience}`}
+                  ref={el => {
+                    if (!el) return
+                    // Safari evaluates its autoplay policy before React reliably
+                    // reflects the `muted` prop onto the element, so it sees an
+                    // un-muted video and blocks autoplay (showing a play button).
+                    // Force muted at the DOM level and kick off playback.
+                    el.muted = true
+                    el.defaultMuted = true
+                    const p = el.play()
+                    if (p && typeof p.catch === 'function') p.catch(() => {})
+                  }}
                   initial={{ opacity: 0, y: reducedMotion ? 0 : 18, rotate: -2.4 }}
                   animate={{ opacity: 1, y: 0, rotate: -1.8 }}
                   exit={{    opacity: 0, y: reducedMotion ? 0 : -10, rotate: -1.2 }}
