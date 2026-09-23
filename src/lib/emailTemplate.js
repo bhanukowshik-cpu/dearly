@@ -144,7 +144,15 @@ export function buildEmailHtml({
   // handwriting + hand-drawn arrow render in every client. The whole image is
   // wrapped in the share <a>; the label is the alt text so an images-off
   // client still shows a working text link.
-  const ctaUrl = `${assetOrigin}/api/cta?s=${encodeURIComponent(senderFirst || '')}`
+  //
+  // Cache-bust per note: Gmail's image proxy (and any CDN) cache the CTA by URL
+  // and hold it for a long time. With a single static /api/cta URL, every email
+  // reused whatever PNG Gmail first cached — so a redesigned button never showed
+  // up. Appending a per-note key (the note id) makes each email's CTA a fresh
+  // URL, and `v` bumps whenever the button art itself changes.
+  const CTA_ART_VERSION = 2 // bump when the button design in api/cta.js changes
+  const ctaKey = (shareUrl.match(/[?&]id=([^&]+)/) || [])[1] || ''
+  const ctaUrl = `${assetOrigin}/api/cta?s=${encodeURIComponent(senderFirst || '')}&v=${CTA_ART_VERSION}${ctaKey ? `-${encodeURIComponent(ctaKey.slice(0, 16))}` : ''}`
 
   // Corner annotations overlaid on the envelope — "from Bhanu" top-left,
   // "to Marcus" bottom-right. Hand-written-looking captions that match
