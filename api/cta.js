@@ -151,6 +151,14 @@ export default async function handler(req) {
       width:  720,
       height: 170,
       fonts,
+      // Override @vercel/og's default `immutable, max-age=31536000`. That
+      // 1-year immutable header told Gmail's image proxy to cache the button
+      // forever, so a redesign never reached already-cached recipients. A short
+      // max-age lets caches revalidate; the email URL is also per-note busted
+      // (see emailTemplate.js) so new sends always fetch the current art.
+      headers: {
+        'cache-control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400',
+      },
     },
   )
 }
