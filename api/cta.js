@@ -9,10 +9,14 @@
  * both. The email wraps this image in the share <a>, with the label as alt
  * text, so an images-off client still shows a working text link.
  *
- * Why the background is baked SOLID (#120c06, the card colour): email clients
- * never recolor images but DO force-invert live HTML in dark mode. Baking the
- * card colour behind the white pill means it sits flush on .em-card with no
- * seam, and the white pill stays white even under a forced dark theme.
+ * Why the background is TRANSPARENT: email clients never recolor images, but
+ * clients like Gmail DO force-invert the live HTML around them in dark mode —
+ * flipping the dark .em-card to a light cream. A previously baked-solid card
+ * colour (#120c06) then stayed dark while the card around it went light,
+ * showing up as an ugly black box behind the pill. A transparent canvas lets
+ * the white pill sit flush on whatever colour the card actually renders as
+ * (dark normally, cream when inverted), so there's never a seam or box. The
+ * white pill itself is an image, so it stays white under any theme.
  *
  * Query params:
  *   s — sender first name (defaults to "" → generic "Open the letter")
@@ -42,9 +46,16 @@ function name(raw, fallback) {
   return v || fallback
 }
 
-const CARD_BG = '#120c06' // matches .em-card in src/lib/emailTemplate.js
-const PILL    = '#ffffff'
-const CTA_INK = '#1A2A3A' // dark navy ink — matches the landing-screen CTA
+// Paper-cut button, mirroring the landing hero CTA (LoadingScreen.jsx): a
+// hand-cut wobbly shape filled with an accent colour, white Caveat label, white
+// arrow — no pill, no box.
+const ACCENT    = '#E89545' // sunset orange, from the LoadingScreen accent palette
+const LABEL_INK = '#ffffff'
+
+// The wobbly "cut paper" outline, lifted verbatim from the landing CTA's
+// <svg viewBox="0 0 340 62"> background path. Stretched to the button box
+// (backgroundSize 100% 100%) so the edges wobble exactly like the home page.
+const CTA_SHAPE_PATH = 'M 14,8 C 95,4 245,5 326,8 C 330,22 331,40 326,54 C 245,58 95,57 14,54 C 10,40 10,22 14,8 Z'
 
 // Hand-drawn arrow lifted verbatim from IconArrow (LoadingScreen.jsx ~line 18),
 // the same stroke used on the in-app "Send" button. Filled path, ~29×15 box.
@@ -72,9 +83,15 @@ export default async function handler(req) {
   const arrowW   = Math.round(arrowH * (29 / 15))
 
   // Hand-drawn arrow as an inline-SVG data URI — Satori rasterises it into
-  // the PNG, so it survives the clients that strip live <svg>.
-  const arrowSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${arrowW}" height="${arrowH}" viewBox="0 0 29 15"><path d="${CTA_ARROW_PATH}" fill="${CTA_INK}"/></svg>`
+  // the PNG, so it survives the clients that strip live <svg>. White, to sit
+  // on the accent shape like the landing CTA.
+  const arrowSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${arrowW}" height="${arrowH}" viewBox="0 0 29 15"><path d="${CTA_ARROW_PATH}" fill="${LABEL_INK}"/></svg>`
   const arrowSrc = `data:image/svg+xml;base64,${btoa(arrowSvg)}`
+
+  // The wobbly cut-paper shape as a stretchable SVG background. preserveAspectRatio
+  // "none" lets it flex to the label width just like the live button does.
+  const shapeSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="340" height="62" viewBox="0 0 340 62" preserveAspectRatio="none"><path d="${CTA_SHAPE_PATH}" fill="${ACCENT}"/></svg>`
+  const shapeSrc = `data:image/svg+xml;base64,${btoa(shapeSvg)}`
 
   return new ImageResponse(
     h('div', {
@@ -84,19 +101,25 @@ export default async function handler(req) {
         display:        'flex',
         alignItems:     'center',
         justifyContent: 'center',
-        background:      CARD_BG,
+        // Transparent so the pill sits flush on the card's ACTUAL colour —
+        // dark normally, cream when Gmail force-inverts in dark mode — instead
+        // of showing a baked-in dark box behind the pill after inversion.
+        background:      'transparent',
       },
     },
-      // White pill
+      // Paper-cut button: the wobbly accent shape stretched behind the label.
       h('div', {
         style: {
-          display:       'flex',
-          alignItems:    'center',
-          gap:           `${Math.round(fontSize * 0.34)}px`,
-          background:     PILL,
-          borderRadius:   999,
-          padding:        `${Math.round(fontSize * 0.5)}px ${Math.round(fontSize * 1.05)}px`,
-          boxShadow:      '0 6px 16px rgba(0,0,0,0.28)',
+          display:          'flex',
+          alignItems:       'center',
+          gap:              `${Math.round(fontSize * 0.34)}px`,
+          // Padding must clear the shape's internal margins (the fill is inset
+          // ~4% horizontally / ~13% vertically inside its viewBox) so the label
+          // never sits on the wobbly edge.
+          padding:          `${Math.round(fontSize * 0.62)}px ${Math.round(fontSize * 1.3)}px`,
+          backgroundImage:  `url(${shapeSrc})`,
+          backgroundSize:   '100% 100%',
+          backgroundRepeat: 'no-repeat',
         },
       },
         h('div', {
@@ -104,13 +127,13 @@ export default async function handler(req) {
             fontFamily:  family,
             fontSize,
             fontWeight:  700,
-            color:       CTA_INK,
+            color:       LABEL_INK,
             lineHeight:  1,
             display:     'flex',
             // Caveat tops out at weight 700, so thicken the strokes with a
             // multi-directional same-ink text-shadow — a faux-bold Satori
             // rasterises into the PNG for a heavier, more confident hand.
-            textShadow: `0.9px 0 0 ${CTA_INK}, -0.9px 0 0 ${CTA_INK}, 0 0.9px 0 ${CTA_INK}, 0 -0.9px 0 ${CTA_INK}`,
+            textShadow: `0.9px 0 0 ${LABEL_INK}, -0.9px 0 0 ${LABEL_INK}, 0 0.9px 0 ${LABEL_INK}, 0 -0.9px 0 ${LABEL_INK}`,
           },
         }, label),
         h('img', {
@@ -122,8 +145,9 @@ export default async function handler(req) {
       ),
     ),
     {
-      // 720×170 canvas. Pill is content-sized + centred; the dark margin is
-      // card-coloured so it's invisible on .em-card. Displayed ~360px wide.
+      // 720×170 canvas. The paper-cut button is content-sized + centred on a
+      // TRANSPARENT margin, so it sits flush on the card whatever colour it
+      // renders as. Displayed ~360px wide.
       width:  720,
       height: 170,
       fonts,
